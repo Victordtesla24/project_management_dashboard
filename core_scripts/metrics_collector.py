@@ -2,8 +2,7 @@
 
 import logging
 
-from prometheus_client import (CollectorRegistry, Counter, Gauge,
-                               start_http_server)
+from prometheus_client import CollectorRegistry, Counter, Gauge, start_http_server
 
 
 class MetricsCollector:

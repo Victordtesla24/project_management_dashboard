@@ -8,7 +8,7 @@ PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 source "${PROJECT_ROOT}/scripts/utils/progress_bar.sh"
 
 # Initialize progress tracking
-TOTAL_STEPS=18
+TOTAL_STEPS=19
 CURRENT_STEP=0
 init_progress $TOTAL_STEPS
 
@@ -24,14 +24,14 @@ run_script() {
     if [ -f "$script" ]; then
         chmod +x "$script"
         # Show spinner while running script
-        printf "\r\033[K%b⠋%b %s %s" "${BLUE}" "${RESET}" "$message" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
+        printf "\r\033[K%b⠋%b %s [%d/19] %s" "${BLUE}" "${RESET}" "$message" "$current_step" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
         # Run script and capture its output
         local output
         local error_output
         output=$(bash -c "set +e; bash \"$script\" || true" 2>&1)
         local status=$?
         if [ $status -ne 0 ]; then
-            printf "\r\033[K%b✗%b %s %s\n" "${RED}" "${RESET}" "$message" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
+            printf "\r\033[K%b✗%b %s [%d/19] %s\n" "${RED}" "${RESET}" "$message" "$current_step" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
             error_output=$(echo "$output" | grep -E "Error|error|Failed|failed|Exception|exception" || true)
             if [ -n "$error_output" ]; then
                 echo "Error running $script:"
@@ -39,10 +39,10 @@ run_script() {
             fi
             return 1
         fi
-        printf "\r\033[K%b✓%b %s %s\n" "${GREEN}" "${RESET}" "$message" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
+        printf "\r\033[K%b✓%b %s [%d/19] %s" "${GREEN}" "${RESET}" "$message" "$current_step" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
     else
         echo "Warning: Script $script not found, skipping..."
-        printf "\r\033[K%b✓%b %s %s\n" "${GREEN}" "${RESET}" "$message" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
+        printf "\r\033[K%b✓%b %s [%d/19] %s" "${GREEN}" "${RESET}" "$message" "$current_step" "$(draw_progress_bar $((current_step * 100 / TOTAL_STEPS)) $BAR_WIDTH)"
     fi
     ((CURRENT_STEP++))
 }
@@ -101,5 +101,12 @@ run_script "${PROJECT_ROOT}/scripts/setup_env.sh" "Setting up cache" 17
 # 18. Start services
 run_script "${PROJECT_ROOT}/scripts/run_dashboard.sh" "Starting services" 18
 
-echo "✨ Setup completed successfully!"
+# 19. Sync with GitHub
+run_script "${PROJECT_ROOT}/scripts/github_sync.sh" "Syncing with GitHub" 19
+
+printf "\n✨ Setup completed successfully!\n"
+printf "\n🌐 Dashboard is now running at: http://localhost:8000\n"
+printf "📊 Real-time metrics are being collected and displayed\n"
+printf "🔄 WebSocket server is running at: ws://localhost:8765\n"
+printf "\nPress Ctrl+C to stop the services\n"
 exit 0

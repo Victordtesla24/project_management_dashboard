@@ -1,6 +1,5 @@
 """Unit tests for the metrics collector module."""
 
-
 from core_scripts.metrics_collector import MetricsCollector
 from tests.fixtures.base import mock_metrics
 

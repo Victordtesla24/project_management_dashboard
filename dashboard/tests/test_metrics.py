@@ -3,8 +3,11 @@
 import unittest
 from datetime import datetime
 
-from dashboard.metrics import (collect_system_metrics, get_metrics_summary,
-                               process_metrics)
+from dashboard.metrics import (
+    collect_system_metrics,
+    get_metrics_summary,
+    process_metrics,
+)
 
 
 class TestMetrics(unittest.TestCase):
