@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "project_management_dashboard"
+version = "1.0.0"
+authors = [
+    { name = "Dashboard Team" }
+]
+description = "Project Management Dashboard"
+requires-python = ">=3.9"
+dependencies = [
+    "streamlit",
+    "influxdb-client",
+    "prometheus-client",
+    "websockets",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "plotly",
+    "psutil",
+    "pandas",
+    "urllib3<2.0.0"
+]
+
+[tool.setuptools]
+packages = ["core_scripts", "dashboard"]

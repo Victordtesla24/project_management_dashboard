@@ -1,0 +1,81 @@
+# Custom Instructions
+
+# Command Execution
+execution:
+  verify_before_run: true
+  rollback_on_failure: true
+  logging_level: "detailed"
+  error_reporting: "verbose"
+
+# Integration Settings
+integration:
+  cursor_sync: true
+  shared_context: true
+  resource_sharing: enabled
+  token_pooling: true
+  request_batching:
+    enabled: true
+    max_size: 5
+    timeout_ms: 100
+
+# Response Format
+output:
+  format: "structured"
+  verbosity: "minimal"
+  error_details: "comprehensive"
+  progress_indicators: true
+  completeness: "full"
+
+# Resource Management
+resources:
+  token_budget: "optimized"
+  context_retention: "comprehensive"
+  cache_strategy: "aggressive"
+  memory_optimization: true
+  cost_control:
+    enabled: true
+    budget_tracking: true
+    optimization_level: "balanced"
+
+# Performance Optimization
+performance:
+  response_time_target: "5s"
+  batch_operations: true
+  parallel_processing: enabled
+  cache_invalidation: "smart"
+  token_management:
+    compression: true
+    deduplication: true
+    context_pruning: true
+    complete_response: true
+
+# ✓ DO: Minimal, clear implementation
+def process_data(data: List[Dict]) -> Dict:
+    return {item['id']: item['value'] for item in data}
+
+# × DON'T: Unnecessary complexity
+def process_data(data: List[Dict]) -> Dict:
+    result = {}
+    for item in data:
+        if 'id' in item and 'value' in item:
+            result[item['id']] = item['value']
+    return result
+
+# ✓ DO: Comprehensive error handling
+async def fetch_data(url: str) -> Dict:
+    try:
+        async with ClientSession() as session:
+            async with session.get(url) as response:
+                return await response.json()
+    except ClientError as e:
+        logger.error(f"Network error: {e}")
+        raise ServiceException(f"Failed to fetch data: {e}")
+
+# ✓ DO: Efficient resource usage
+@lru_cache(maxsize=100)
+def compute_expensive_operation(data: str) -> str:
+    return expensive_computation(data)
+
+# × DON'T: Inefficient resource usage
+def compute_expensive_operation(data: str) -> str:
+    return expensive_computation(data)  # No caching

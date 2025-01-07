@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-01-08T07:30:37.092468",
+  "files": {
+    "python": 19036,
+    "shell": 23,
+    "tests": 15,
+    "docs": 130
+  },
+  "lines": {
+    "python": 3361015,
+    "shell": 1780,
+    "tests": 245
+  },
+  "git": {
+    "total_commits": 0,
+    "last_commit": null,
+    "active_branch": "unknown"
+  },
+  "components": {
+    "core": {
+      "total": 8,
+      "completed": 327,
+      "percentage": 4087.5
+    },
+    "dashboard": {
+      "total": 6,
+      "completed": 22,
+      "percentage": 366.66666666666663
+    },
+    "tests": {
+      "total": 5,
+      "completed": 15,
+      "percentage": 300.0
+    }
+  }
+}

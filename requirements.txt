@@ -1,0 +1,32 @@
+# Core Dependencies
+streamlit>=1.24.0
+influxdb-client>=1.36.0
+prometheus-client>=0.17.0
+websockets>=11.0.3
+
+# Testing and Quality
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+black>=23.3.0
+flake8>=6.0.0
+mypy>=1.3.0
+isort>=5.12.0
+pylint>=2.17.4
+
+# Documentation
+sphinx>=7.0.1
+sphinx-rtd-theme>=1.2.2
+sphinx-autodoc-typehints>=1.23.0
+
+# Type Stubs
+types-requests>=2.31.0
+types-PyYAML>=6.0.12
+types-python-dateutil>=2.8.19
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0
+requests>=2.31.0
+aiohttp>=3.8.4
+python-dateutil>=2.8.2

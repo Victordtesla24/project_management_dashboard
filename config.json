@@ -1,0 +1,21 @@
+{
+  "metrics": {
+    "collection_interval": 30,
+    "retention_days": 30,
+    "thresholds": {
+      "cpu_percent": 80,
+      "memory_percent": 85,
+      "disk_usage": 90
+    }
+  },
+  "security": {
+    "min_severity": "HIGH",
+    "scan_interval": 3600,
+    "alert_on_high": true
+  },
+  "dashboard": {
+    "refresh_interval": 5,
+    "theme": "light",
+    "layout": "default"
+  }
+}
