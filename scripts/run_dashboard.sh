@@ -20,7 +20,7 @@ echo "🚀 Starting dashboard..."
 
 # Check dependencies
 run_with_spinner "Checking dependencies" "
-    python3 -m pip install -q flask prometheus_client psutil || true
+    python3 -m pip install -q streamlit prometheus_client psutil || true
 "
 
 # Create dashboard service
@@ -32,10 +32,8 @@ After=network.target
 
 [Service]
 Type=simple
-Environment=FLASK_APP=dashboard.main
-Environment=FLASK_ENV=development
-Environment=FLASK_RUN_PORT=8000
-ExecStart=/usr/bin/python3 -m flask run --host=0.0.0.0 --port=8000
+Environment=STREAMLIT_SERVER_PORT=8000
+ExecStart=/usr/local/bin/streamlit run dashboard/main.py --server.port 8000 --server.address 0.0.0.0
 WorkingDirectory=${PROJECT_ROOT}
 Restart=always
 
@@ -53,13 +51,13 @@ run_with_spinner "Starting metrics collector" "
 # Start dashboard application
 run_with_spinner "Starting dashboard application" "
     cd \"${PROJECT_ROOT}\" &&
-    FLASK_APP=dashboard.main FLASK_ENV=development FLASK_RUN_PORT=8000 python3 -m flask run --host=0.0.0.0 --port=8000 &>/dev/null &
+    streamlit run dashboard/main.py --server.port 8000 --server.address 0.0.0.0 &>/dev/null &
     echo \$! > \"${PROJECT_ROOT}/.dashboard.pid\"
 "
 
 # Verify services
 run_with_spinner "Verifying services" "
-    sleep 2 &&
+    sleep 5 &&
     curl -s http://localhost:8000 >/dev/null &&
     pgrep -f 'python3 -m dashboard.metrics' >/dev/null
 "
