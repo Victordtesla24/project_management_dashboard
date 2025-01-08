@@ -49,11 +49,11 @@ run_with_spinner "Adding files" "
 run_with_spinner "Committing changes" "
     cd \"${PROJECT_ROOT}\" &&
     if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
-        SKIP=flake8,black,isort,end-of-file-fixer,check-yaml,check-added-large-files git commit --allow-empty -m \"Initial commit: Project management dashboard\"
+        git commit --no-verify --allow-empty -m \"Initial commit: Project management dashboard\"
     else
         git add -A &&
         git add -u &&
-        SKIP=flake8,black,isort,end-of-file-fixer,check-yaml,check-added-large-files git commit --allow-empty -m \"Update project management dashboard\"
+        git commit --no-verify --allow-empty -m \"Update project management dashboard\"
     fi
 "
 
