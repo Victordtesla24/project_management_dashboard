@@ -25,7 +25,7 @@ dependencies = [
     "plotly",
     "psutil",
     "pandas",
-    "urllib3<2.0.0"
+    "urllib3<3.0.0"
 ]
 
 [tool.setuptools]
