@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.663" timestamp="2025-01-08T10:16:56.906226+11:00" hostname="Vics-MacBook-Air.local"><testcase classname="" name="tests.unit.test_dashboard" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/Shared/cursor/project_management_dashboard/tests/unit/test_dashboard.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/unit/test_dashboard.py:5: in &lt;module&gt;
+    from dashboard.main import display_metrics, update_metrics
+dashboard/main.py:4: in &lt;module&gt;
+    from metrics import collect_system_metrics
+E   ImportError: cannot import name 'collect_system_metrics' from 'metrics' (unknown location)</error></testcase></testsuite></testsuites>

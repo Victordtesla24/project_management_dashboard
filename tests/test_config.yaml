@@ -1,1 +1,43 @@
-[K[1mCreating test configuration[0m [[0;34m███████[0m░░░░░░░░░░░░░░░░░░░░░░░] [1m25%[0m[K[1mCreating test configuration[0m ⠋ [[0;34m███████[0m[K[1mCreating test configuration [0;32m✓[0m[0m [[0;34m███████████████[0m░░░░░░░░░░░░░░░] [1m50%[0m
+metrics:
+  collection_interval: 60
+  enabled_metrics:
+    - cpu
+    - memory
+    - disk
+  thresholds:
+    cpu: 80
+    memory: 90
+    disk: 90
+  retention_days: 30
+
+websocket:
+  host: "localhost"
+  port: 8765
+  ssl: false
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "dashboard_test"
+  user: "test_user"
+  password: "test_password"
+
+logging:
+  level: "INFO"
+  file: "logs/test.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+ui:
+  theme: "light"
+  refresh_interval: 5
+  max_datapoints: 100
+  layout:
+    columns: 2
+    rows: 3
+    widgets:
+      - type: "chart"
+        position: [0, 0]
+        size: [1, 1]
+      - type: "metrics"
+        position: [1, 0]
+        size: [1, 1]

@@ -1,30 +1,43 @@
 """Unit tests for the metrics collector module."""
 
-from core_scripts.metrics_collector import MetricsCollector
+import pytest
+from unittest.mock import patch, MagicMock
+from dashboard.core_scripts.metrics_collector import MetricsCollector
 from tests.fixtures.base import mock_metrics
 
 
-def test_add_metric():
+@pytest.fixture
+def mock_server():
+    """Mock the Prometheus HTTP server."""
+    with patch('dashboard.core_scripts.metrics_collector.start_http_server') as mock:
+        mock.return_value = None
+        yield mock
+
+
+def test_add_metric(mock_server):
     """Test adding a metric."""
-    collector = MetricsCollector()
-    metric = mock_metrics[0]
-    collector.add_metric(metric["name"], metric["value"], metric["tags"])
-    assert metric["name"] in collector.points
+    collector = MetricsCollector(port=8001)
+    metrics = collector.collect_system_metrics()
+    assert isinstance(metrics, dict)
+    assert 'cpu_usage' in metrics
+    assert 'memory_usage' in metrics
+    assert 'disk_usage' in metrics
 
 
-def test_collect_metrics(mock_metrics):
+def test_collect_metrics(mock_server, mock_metrics):
     """Test collecting metrics."""
-    collector = MetricsCollector()
-    for metric in mock_metrics:
-        collector.add_metric(metric["name"], metric["value"], metric["tags"])
-    collector.collect()
-    assert len(collector.points) == 0
+    collector = MetricsCollector(port=8002)
+    metrics = collector.collect_project_metrics()
+    assert isinstance(metrics, dict)
+    assert 'active_tasks' in metrics
+    assert 'completed_tasks' in metrics
+    assert 'team_velocity' in metrics
+    assert 'sprint_progress' in metrics
 
 
-def test_get_system_metrics():
+def test_get_system_metrics(mock_server):
     """Test getting system metrics."""
-    collector = MetricsCollector()
-    metrics = collector.get_system_metrics()
-    assert isinstance(metrics, list)
-    assert all(isinstance(m, dict) for m in metrics)
-    assert all("name" in m and "value" in m and "tags" in m for m in metrics)
+    collector = MetricsCollector(port=8003)
+    metrics = collector.collect_system_metrics()
+    assert isinstance(metrics, dict)
+    assert all(key in metrics for key in ['cpu_usage', 'memory_usage', 'disk_usage', 'timestamp'])

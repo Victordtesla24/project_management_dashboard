@@ -1,0 +1,77 @@
+{
+  "metrics": {
+    "collection_interval": 60,
+    "enabled_metrics": ["cpu", "memory", "disk"],
+    "thresholds": {
+      "cpu": 80,
+      "memory": 90,
+      "disk": 90
+    },
+    "retention": {
+      "days": 30,
+      "max_datapoints": 1000
+    },
+    "alert_rules": [
+      {
+        "metric": "cpu",
+        "threshold": 80,
+        "duration": "5m",
+        "severity": "warning"
+      },
+      {
+        "metric": "memory",
+        "threshold": 90,
+        "duration": "5m",
+        "severity": "critical"
+      }
+    ],
+    "aggregation": {
+      "interval": "1m",
+      "functions": ["avg", "max"]
+    }
+  },
+  "websocket": {
+    "host": "localhost",
+    "port": 8765,
+    "ssl": false
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "dashboard_test",
+    "user": "test_user",
+    "password": "test_password"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/test.log",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+  "ui": {
+    "theme": "light",
+    "refresh_interval": 5,
+    "max_datapoints": 100,
+    "layout": {
+      "columns": 2,
+      "rows": 3,
+      "widgets": [
+        {
+          "type": "chart",
+          "position": [0, 0],
+          "size": [1, 1]
+        },
+        {
+          "type": "metrics",
+          "position": [1, 0],
+          "size": [1, 1]
+        }
+      ]
+    }
+  },
+  "environment": {
+    "name": "test",
+    "debug": true,
+    "host": "127.0.0.1",
+    "port": 5000
+  }
+}

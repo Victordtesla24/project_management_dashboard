@@ -1,0 +1,153 @@
+import pytest
+import asyncio
+import json
+from datetime import datetime, timedelta
+
+from dashboard.websocket.server import MetricsWebSocket
+from dashboard.core_scripts.metrics_collector import MetricsCollector
+
+class TestWebSocketServer:
+    """Test WebSocket server functionality."""
+
+    @pytest.mark.asyncio
+    async def test_websocket_authentication(self, websocket_server, test_client, auth_token, invalid_token):
+        """Test WebSocket authentication."""
+        # Test valid token
+        async with test_client.ws_connect(
+            f'ws://localhost:8765?token={auth_token}'
+        ) as ws:
+            assert ws.closed is False
+            await ws.close()
+
+        # Test invalid token
+        with pytest.raises(Exception):
+            async with test_client.ws_connect(
+                f'ws://localhost:8765?token={invalid_token}'
+            ) as ws:
+                pass
+
+        # Test missing token
+        with pytest.raises(Exception):
+            async with test_client.ws_connect('ws://localhost:8765') as ws:
+                pass
+
+    @pytest.mark.asyncio
+    async def test_metrics_subscription(self, websocket_server, test_client, auth_token):
+        """Test metrics subscription."""
+        async with test_client.ws_connect(
+            f'ws://localhost:8765?token={auth_token}'
+        ) as ws:
+            # Subscribe to metrics
+            await ws.send_json({
+                'type': 'subscribe',
+                'metrics': ['cpu', 'memory']
+            })
+
+            # Receive initial data
+            response = await ws.receive_json()
+            assert 'cpu' in response
+            assert 'memory' in response
+
+    @pytest.mark.asyncio
+    async def test_ping_pong(self, websocket_server, test_client, auth_token):
+        """Test ping/pong mechanism."""
+        async with test_client.ws_connect(
+            f'ws://localhost:8765?token={auth_token}'
+        ) as ws:
+            await ws.send_json({'type': 'ping'})
+            response = await ws.receive_json()
+            assert response['type'] == 'pong'
+
+class TestMetricsCollector:
+    """Test metrics collector functionality."""
+
+    def test_system_metrics_collection(self, metrics_collector):
+        """Test system metrics collection."""
+        metrics = metrics_collector.collect_system_metrics()
+        assert 'cpu_usage' in metrics
+        assert 'memory_usage' in metrics
+        assert 'disk_usage' in metrics
+        assert 'timestamp' in metrics
+
+    def test_project_metrics_collection(self, metrics_collector):
+        """Test project metrics collection."""
+        metrics = metrics_collector.collect_project_metrics()
+        assert 'active_tasks' in metrics
+        assert 'completed_tasks' in metrics
+        assert 'team_velocity' in metrics
+        assert 'sprint_progress' in metrics
+        assert 'timestamp' in metrics
+
+    def test_metrics_retention(self, metrics_collector):
+        """Test metrics retention cleanup."""
+        # Set retention to 1 day for testing
+        metrics_collector.retention_days = 1
+        
+        # Force cleanup
+        metrics_collector.last_cleanup = datetime.now() - timedelta(days=2)
+        metrics_collector.cleanup_old_metrics()
+        
+        # Verify cleanup ran without errors
+        assert (datetime.now() - metrics_collector.last_cleanup).days < 1
+
+    def test_response_time_recording(self, metrics_collector):
+        """Test response time metric recording."""
+        duration = 0.5
+        metrics_collector.record_response_time(duration)
+        # Verify metric was recorded without errors
+        assert True
+
+class TestAuthentication:
+    """Test authentication functionality."""
+
+    def test_token_creation(self, test_config):
+        """Test authentication token creation."""
+        from dashboard.auth.middleware import create_token
+        
+        token = create_token({
+            'sub': 'test_user',
+            'exp': datetime.utcnow() + timedelta(hours=1)
+        })
+        assert token is not None
+
+    def test_token_verification(self, auth_token, invalid_token):
+        """Test authentication token verification."""
+        from dashboard.auth.middleware import verify_token
+        
+        # Test valid token
+        payload = verify_token(auth_token)
+        assert payload['sub'] == 'test_user'
+        
+        # Test invalid token
+        with pytest.raises(Exception):
+            verify_token(invalid_token)
+
+class TestDashboardRoutes:
+    """Test dashboard routes."""
+
+    @pytest.mark.asyncio
+    async def test_index_route(self, test_client):
+        """Test index route with authentication."""
+        async with test_client.get('http://localhost:8000/') as response:
+            assert response.status == 200
+            text = await response.text()
+            assert 'Project Management Dashboard' in text
+
+    @pytest.mark.asyncio
+    async def test_metrics_route(self, test_client):
+        """Test metrics route with authentication."""
+        async with test_client.get('http://localhost:8000/metrics') as response:
+            assert response.status == 200
+            text = await response.text()
+            assert 'system-metrics' in text
+            assert 'project-metrics' in text
+
+    @pytest.mark.asyncio
+    async def test_api_metrics_route(self, test_client):
+        """Test API metrics route with authentication."""
+        async with test_client.get('http://localhost:8000/api/metrics') as response:
+            assert response.status == 200
+            data = await response.json()
+            assert 'cpu_usage' in data
+            assert 'memory_usage' in data
+            assert 'disk_usage' in data

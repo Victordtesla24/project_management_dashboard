@@ -38,6 +38,19 @@ run_with_spinner "Setting script permissions" "find \"${PROJECT_ROOT}/scripts\" 
 # Set configuration file permissions
 run_with_spinner "Setting config permissions" "find \"${PROJECT_ROOT}\" -type f \( -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.md' -o -name '*.rst' -o -name '*.txt' \) -exec chmod 644 {} + 2>/dev/null || true"
 
+# Set API server permissions
+run_with_spinner "Setting API server permissions" "
+    chmod 755 \"${PROJECT_ROOT}/dashboard/run.sh\" 2>/dev/null || true
+    chmod 755 \"${PROJECT_ROOT}/dashboard/stop.sh\" 2>/dev/null || true
+    chmod 600 \"${PROJECT_ROOT}/config/env\"/*.json 2>/dev/null || true
+"
+
+# Set authentication file permissions
+run_with_spinner "Setting auth permissions" "
+    find \"${PROJECT_ROOT}/dashboard/auth\" -type f -name '*.py' -exec chmod 644 {} + 2>/dev/null || true
+    find \"${PROJECT_ROOT}/config\" -type f -name '*auth*.json' -exec chmod 600 {} + 2>/dev/null || true
+"
+
 # Restore original progress values
 CURRENT_STEP=$_ORIG_CURRENT_STEP
 TOTAL_STEPS=$_ORIG_TOTAL_STEPS

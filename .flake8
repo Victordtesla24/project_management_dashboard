@@ -1,16 +1,112 @@
 [flake8]
-max-line-length = 79
+# Maximum line length
+max-line-length = 100
+
+# Maximum complexity for functions
+max-complexity = 10
+
+# Ignore specific error codes
+ignore =
+    # E203: Whitespace before ':' (conflicts with Black)
+    E203,
+    # W503: Line break before binary operator (conflicts with Black)
+    W503,
+    # E231: Missing whitespace after ',' (conflicts with Black)
+    E231,
+    # E266: Too many leading '#' for block comment
+    E266,
+    # E402: Module level import not at top of file (sometimes needed for conditional imports)
+    E402,
+    # E731: Do not assign a lambda expression, use a def
+    E731,
+    # W291: Trailing whitespace (handled by pre-commit)
+    W291,
+    # W293: Blank line contains whitespace (handled by pre-commit)
+    W293
+
+# Select specific error codes to enable
+select =
+    # E: PEP8 errors
+    E,
+    # W: PEP8 warnings
+    W,
+    # F: PyFlakes errors
+    F,
+    # C: McCabe complexity
+    C,
+    # B: bugbear errors
+    B,
+    # B9: bugbear opinions
+    B9,
+    # D: docstring errors
+    D
+
+# Docstring configuration
+docstring-convention = google
+
+# Files to exclude from checking
 exclude =
     .git,
-    __pycache__,
     .venv,
-    .env,
-    venv,
-    env,
+    __pycache__,
     build,
     dist,
-    *.egg-info
+    *.egg-info,
+    .eggs,
+    .pytest_cache,
+    .mypy_cache,
+    .coverage,
+    htmlcov,
+    .tox,
+    docs
+
+# Per-file-ignores
 per-file-ignores =
-    __init__.py: F401, F403
-ignore = E203, W503
+    # Ignore unused imports in __init__.py files
+    __init__.py:F401,
+    # Ignore line length in test files
+    test_*.py:E501,
+    # Ignore docstring requirements in tests
+    tests/*:D100,D101,D102,D103
+
+# Additional configuration for plugins
+# flake8-docstrings
+docstring-style = google
+
+# flake8-import-order
+import-order-style = google
+application-import-names = dashboard
+
+# flake8-quotes
+inline-quotes = double
+multiline-quotes = double
+docstring-quotes = double
+avoid-escape = True
+
+# flake8-bugbear
+extend-select = B950
+
+# flake8-comprehensions
+extend-ignore = C408
+
+# flake8-simplify
+extend-select = SIM
+
+# Statistics configuration
+statistics = True
+count = True
+
+# Output format
+format = %(path)s:%(row)d:%(col)d: %(code)s %(text)s
+
+# Hang closing bracket instead of matching indentation
+hang-closing = True
+
+# Maximum allowed McCabe complexity
 max-complexity = 10
+
+# Maximum allowed line length for comments/docstrings
+max-doc-length = 100
+
+# Minimum allowed length for variable names
+min-name-length = 2

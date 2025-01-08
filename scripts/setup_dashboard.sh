@@ -37,9 +37,28 @@ run_with_spinner "Creating base templates" "
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
     <title>Project Management Dashboard</title>
     <link rel=\"stylesheet\" href=\"/static/css/style.css\">
+    <script>
+        // Get auth token from session storage or redirect to login
+        function getAuthToken() {
+            const token = sessionStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/login';
+                return null;
+            }
+            return token;
+        }
+    </script>
 </head>
 <body>
     <div id=\"app\">
+        <nav class=\"navbar\">
+            <div class=\"nav-brand\">Dashboard</div>
+            <div class=\"nav-menu\">
+                <a href=\"/\" class=\"nav-item\">Home</a>
+                <a href=\"/metrics\" class=\"nav-item\">Metrics</a>
+                <button onclick=\"logout()\" class=\"nav-item\">Logout</button>
+            </div>
+        </nav>
         {% block content %}{% endblock %}
     </div>
     <script src=\"/static/js/main.js\"></script>
@@ -88,24 +107,107 @@ run_with_spinner "Creating static files" "
 EOF
 
     cat > \"${PROJECT_ROOT}/dashboard/static/js/main.js\" << 'EOF'
-const ws = new WebSocket('ws://localhost:8765');
+// Authentication functions
+function logout() {
+    sessionStorage.removeItem('auth_token');
+    window.location.href = '/login';
+}
 
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    updateMetrics(data);
-    updateCharts(data);
-};
+// WebSocket connection with authentication
+function connectWebSocket() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const ws = new WebSocket(`ws://localhost:8765?token=${token}`);
+    
+    ws.onopen = () => {
+        console.log('Connected to WebSocket');
+        // Subscribe to metrics
+        ws.send(JSON.stringify({
+            type: 'subscribe',
+            metrics: ['cpu', 'memory', 'disk']
+        }));
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                console.error('WebSocket error:', data.error);
+                return;
+            }
+            updateMetrics(data);
+            updateCharts(data);
+        } catch (error) {
+            console.error('Error processing message:', error);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket connection closed');
+        // Attempt to reconnect after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    // Ping to keep connection alive
+    setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+        }
+    }, 30000);
+
+    return ws;
+}
 
 function updateMetrics(data) {
-    document.getElementById('system-metrics').innerHTML =
-        \`<div>CPU: \${data.cpu}%</div>
-         <div>Memory: \${data.memory}%</div>
-         <div>Disk: \${data.disk}%</div>\`;
+    try {
+        document.getElementById('system-metrics').innerHTML =
+            \`<div class="metric">
+                <div class="metric-title">CPU Usage</div>
+                <div class="metric-value">\${data.cpu}%</div>
+             </div>
+             <div class="metric">
+                <div class="metric-title">Memory Usage</div>
+                <div class="metric-value">\${data.memory}%</div>
+             </div>
+             <div class="metric">
+                <div class="metric-title">Disk Usage</div>
+                <div class="metric-value">\${data.disk}%</div>
+             </div>\`;
+    } catch (error) {
+        console.error('Error updating metrics:', error);
+    }
 }
 
 function updateCharts(data) {
-    // Chart updates will be implemented here
+    try {
+        // Update CPU chart
+        updateLineChart('cpu-chart', data.cpu_history, {
+            title: 'CPU Usage Over Time',
+            yAxisLabel: 'Usage %'
+        });
+
+        // Update Memory chart
+        updateLineChart('memory-chart', data.memory_history, {
+            title: 'Memory Usage Over Time',
+            yAxisLabel: 'Usage %'
+        });
+    } catch (error) {
+        console.error('Error updating charts:', error);
+    }
 }
+
+function updateLineChart(elementId, data, options) {
+    // Chart implementation using a library like Chart.js
+    // This is a placeholder for the actual implementation
+}
+
+// Initialize WebSocket connection when page loads
+document.addEventListener('DOMContentLoaded', connectWebSocket);
 EOF
 "
 
@@ -117,17 +219,47 @@ run_with_spinner "Installing UI dependencies" "
 # Setup UI routes
 run_with_spinner "Setting up UI routes" "
     cat > \"${PROJECT_ROOT}/dashboard/routes.py\" << 'EOF'
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, jsonify, request, redirect, url_for
+from functools import wraps
+import jwt
+from ..auth.middleware import verify_token, create_token
 
 bp = Blueprint('dashboard', __name__)
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        token = request.cookies.get('auth_token')
+        if not token:
+            return redirect(url_for('auth.login'))
+        try:
+            verify_token(token)
+        except jwt.InvalidTokenError:
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @bp.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @bp.route('/metrics')
+@login_required
 def metrics():
     return render_template('metrics.html')
+
+@bp.route('/api/metrics')
+@login_required
+def get_metrics():
+    try:
+        from ..core_scripts.metrics_collector import MetricsCollector
+        collector = MetricsCollector()
+        system_metrics = collector.collect_system_metrics()
+        project_metrics = collector.collect_project_metrics()
+        return jsonify({**system_metrics, **project_metrics})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 EOF
 "
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Project Management Dashboard Monitoring Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m dashboard.monitor
+WorkingDirectory=/Users/Shared/cursor/project_management_dashboard
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

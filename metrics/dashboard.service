@@ -1,0 +1,13 @@
+[Unit]
+Description=Project Management Dashboard Service
+After=network.target
+
+[Service]
+Type=simple
+Environment=STREAMLIT_SERVER_PORT=8000
+ExecStart=/Users/Shared/cursor/project_management_dashboard/.venv/bin/streamlit run /Users/Shared/cursor/project_management_dashboard/dashboard/main.py --server.port 8000 --server.address 0.0.0.0
+WorkingDirectory=/Users/Shared/cursor/project_management_dashboard
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

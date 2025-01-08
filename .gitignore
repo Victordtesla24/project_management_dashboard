@@ -23,6 +23,7 @@ wheels/
 # Virtual Environment
 .env
 .venv
+env/
 venv/
 ENV/
 
@@ -31,42 +32,143 @@ ENV/
 .vscode/
 *.swp
 *.swo
+*~
 
-# Project specific
-logs/
-metrics/
-coverage_report/
-coverage.xml
-test-results.xml
+# Testing
 .coverage
-
-# Dependencies
-node_modules/
-
-# Compiled files
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-
-# Distribution
-dist/
-build/
-*.egg-info/
-
-# Local development
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+.tox/
+nosetests.xml
+coverage/
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# System files
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Configuration
+config.json
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.sqlite3
+*.db
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Dependencies
+node_modules/
+jspm_packages/
+bower_components/
+
+# Distribution
+dist/
+build/
+*.min.js
+*.min.css
+
+# Documentation
+docs/_build/
+docs/build/
+site/
+
+# Cache
+.cache/
+.mypy_cache/
+.eslintcache
+.npm
+
+# Temporary files
+*.swp
+*.swo
+*~
+*.tmp
+*.bak
+*.backup
 .DS_Store
 Thumbs.db
+
+# Project specific
+.implementation.pid
+.monitor.pid
+.websocket.pid
+instance/
+certs/
+.influxdb/
+.prometheus/
+.grafana/
+
+# Generated files
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.dylib
+*.dll
+*.class
+*.mo
+*.pot
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/

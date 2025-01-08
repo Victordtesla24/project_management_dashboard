@@ -1,0 +1,96 @@
+# Bandit configuration file
+
+# Skip test IDs
+# B101: Use of assert detected
+# B104: Possible binding to all interfaces
+# B311: Standard pseudo-random generators are not suitable for security/cryptographic purposes
+# B403: Import of pickle module
+# B404: Import of subprocess module
+# B603: subprocess without shell=True
+skips: ['B101', 'B104', 'B311', 'B403', 'B404', 'B603']
+
+# File patterns to exclude
+exclude_dirs:
+  - '.git'
+  - '.venv'
+  - 'tests'
+  - 'docs'
+  - 'build'
+  - 'dist'
+  - '*.egg-info'
+  - '.eggs'
+  - '.pytest_cache'
+  - '.mypy_cache'
+  - '.coverage'
+  - 'htmlcov'
+  - '.tox'
+
+# Severity levels
+# LOW: 1-3
+# MEDIUM: 4-6
+# HIGH: 7-9
+severity: MEDIUM
+
+# Confidence levels
+# LOW: 1-3
+# MEDIUM: 4-6
+# HIGH: 7-9
+confidence: MEDIUM
+
+# Output format
+output: text
+
+# Number of processes to use for scanning
+processes: 4
+
+# Tests to run
+tests:
+  - B201  # Flask app secret key check
+  - B301  # Pickle usage
+  - B501  # Request without certificate validation
+  - B502  # SSL with bad version
+  - B503  # SSL with bad cipher
+  - B504  # SSL with no version
+  - B505  # Request with cert validation disabled
+  - B506  # Use of yaml.load
+  - B507  # SSH host key bypass
+  - B601  # Paramiko call with policy check disabled
+  - B602  # subprocess call with shell=True
+  - B604  # Any function with shell=True
+  - B608  # Hardcoded SQL query
+  - B609  # Linux command injection
+  - B701  # Jinja2 autoescape disabled
+  - B702  # Use of mako templates
+
+# Per-profile overrides
+profiles:
+  # High-security profile
+  high_security:
+    skips: []
+    tests: ['B*']
+    severity: HIGH
+    confidence: HIGH
+
+  # Development profile
+  development:
+    skips: ['B101', 'B104', 'B311', 'B403', 'B404', 'B603']
+    severity: LOW
+    confidence: LOW
+
+# Custom test configurations
+any_other_function_with_shell_equals_true:
+  no_shell: ['subprocess.*']
+
+hardcoded_tmp_directory:
+  tmp_dirs: ['/tmp', '/var/tmp', '/dev/shm']
+
+ssl_with_bad_version:
+  bad_protocol_versions: ['PROTOCOL_SSLv2', 'SSLv2', 'SSLv3', 'PROTOCOL_SSLv3', 'TLSv1', 'TLSv1_1']
+
+shell_injection:
+  subprocess:
+    - subprocess.Popen
+    - subprocess.call
+    - subprocess.check_call
+    - subprocess.check_output
+    - subprocess.run

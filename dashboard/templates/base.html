@@ -5,9 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Management Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script>
+        // Get auth token from session storage or redirect to login
+        function getAuthToken() {
+            const token = sessionStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/login';
+                return null;
+            }
+            return token;
+        }
+    </script>
 </head>
 <body>
     <div id="app">
+        <nav class="navbar">
+            <div class="nav-brand">Dashboard</div>
+            <div class="nav-menu">
+                <a href="/" class="nav-item">Home</a>
+                <a href="/metrics" class="nav-item">Metrics</a>
+                <button onclick="logout()" class="nav-item">Logout</button>
+            </div>
+        </nav>
         {% block content %}{% endblock %}
     </div>
     <script src="/static/js/main.js"></script>

@@ -57,7 +57,7 @@ run_script "${PROJECT_ROOT}/scripts/setup_env.sh" "Setting up database" 2
 run_script "${PROJECT_ROOT}/scripts/setup_permissions.sh" "Setting up API server" 3
 
 # 4. Setup WebSocket server
-run_script "${PROJECT_ROOT}/scripts/setup_github.sh" "Setting up WebSocket server" 4
+run_script "${PROJECT_ROOT}/scripts/setup_websocket.sh" "Setting up WebSocket server" 4
 
 # 5. Setup dashboard
 run_script "${PROJECT_ROOT}/scripts/setup_dashboard.sh" "Setting up dashboard" 5
@@ -108,5 +108,5 @@ printf "\n✨ Setup completed successfully!\n"
 printf "\n🌐 Dashboard is now running at: http://localhost:8000\n"
 printf "📊 Real-time metrics are being collected and displayed\n"
 printf "🔄 WebSocket server is running at: ws://localhost:8765\n"
-printf "\nPress Ctrl+C to stop the services\n"
+printf "\nPress Ctrl+C to stop all services (dashboard, metrics, and websocket)\n"
 exit 0

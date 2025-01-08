@@ -1,59 +1,113 @@
 #!/bin/bash
+
+# Exit on error
 set -e
 
-# Project root directory
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-# Source utility functions
-source "${PROJECT_ROOT}/scripts/utils/progress_bar.sh"
-
-# Save original progress values
-_ORIG_CURRENT_STEP=$CURRENT_STEP
-_ORIG_TOTAL_STEPS=$TOTAL_STEPS
-
-# Initialize local progress tracking
-CURRENT_STEP=0
-TOTAL_STEPS=3
-init_progress $TOTAL_STEPS
-
-# Install mypy
-run_with_spinner "Installing mypy" "
-    pip install -q mypy || { echo 'Error: Failed to install mypy' >&2; exit 1; }
-"
-
-# Install type stubs for dependencies
-run_with_spinner "Installing type stubs" "
-    pip install -q types-requests types-PyYAML types-python-dateutil || { echo 'Error: Failed to install type stubs' >&2; exit 1; }
-"
-
-# Create mypy configuration
-run_with_spinner "Creating mypy configuration" "
-    if [ ! -f mypy.ini ]; then
-        cat > mypy.ini << 'EOL' || { echo 'Error: Failed to create mypy.ini' >&2; exit 1; }
-[mypy]
-python_version = 3.8
-warn_return_any = True
-warn_unused_configs = True
-disallow_untyped_defs = True
-disallow_incomplete_defs = True
-check_untyped_defs = True
-disallow_untyped_decorators = True
-no_implicit_optional = True
-warn_redundant_casts = True
-warn_unused_ignores = True
-warn_no_return = True
-warn_unreachable = True
-
-[mypy.plugins.numpy.*]
-ignore_missing_imports = True
-
-[mypy.plugins.pandas.*]
-ignore_missing_imports = True
-EOL
+# Function to check if virtual environment is active
+check_venv() {
+    if [ -z "$VIRTUAL_ENV" ]; then
+        echo "Error: Virtual environment not activated"
+        echo "Please activate your virtual environment first:"
+        echo "source .venv/bin/activate"
+        exit 1
     fi
-"
+}
 
-# Restore original progress values
-CURRENT_STEP=$_ORIG_CURRENT_STEP
-TOTAL_STEPS=$_ORIG_TOTAL_STEPS
-export CURRENT_STEP TOTAL_STEPS
+# Function to install type stubs
+install_stubs() {
+    echo "Installing type stubs..."
+    
+    # Core dependencies
+    pip install types-Flask
+    pip install types-Werkzeug
+    pip install types-requests
+    pip install types-python-dateutil
+    pip install types-PyYAML
+    pip install types-psutil
+    pip install types-aiohttp
+    pip install types-redis
+    pip install types-setuptools
+    pip install types-six
+    pip install types-urllib3
+    
+    # Testing dependencies
+    pip install types-pytest
+    pip install types-pytest-lazy-fixture
+    
+    # Development dependencies
+    pip install types-click
+    pip install types-docutils
+    pip install types-Markdown
+    pip install types-pyOpenSSL
+    pip install types-cryptography
+    
+    echo "Type stubs installation complete!"
+}
+
+# Function to verify installations
+verify_installations() {
+    echo "Verifying installations..."
+    
+    # Create a temporary Python file for imports
+    TMP_FILE=$(mktemp)
+    cat > "$TMP_FILE" << EOL
+from typing import *
+import flask
+import werkzeug
+import requests
+import dateutil
+import yaml
+import psutil
+import aiohttp
+import redis
+import setuptools
+import six
+import urllib3
+import pytest
+import click
+import docutils
+import markdown
+import OpenSSL
+import cryptography
+EOL
+    
+    # Run mypy on the temporary file
+    if mypy "$TMP_FILE"; then
+        echo "All type stubs verified successfully!"
+    else
+        echo "Warning: Some type stubs may not be working correctly"
+    fi
+    
+    # Clean up
+    rm "$TMP_FILE"
+}
+
+# Function to update existing stubs
+update_stubs() {
+    echo "Updating existing type stubs..."
+    pip install --upgrade types-*
+    echo "Type stubs update complete!"
+}
+
+# Main script
+main() {
+    # Check if virtual environment is active
+    check_venv
+    
+    # Parse command line arguments
+    case "$1" in
+        --update)
+            update_stubs
+            ;;
+        --verify)
+            verify_installations
+            ;;
+        *)
+            install_stubs
+            verify_installations
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

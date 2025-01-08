@@ -1,0 +1,42 @@
+{
+    "environment": "development",
+    "metrics": {
+        "collection_interval": 5,
+        "enabled_metrics": ["cpu", "memory", "disk"],
+        "retention": 30,
+        "thresholds": {
+            "cpu": 80,
+            "memory": 90,
+            "disk": 85
+        }
+    },
+    "websocket": {
+        "host": "localhost",
+        "port": 8765,
+        "ssl": false
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "logs/dashboard.log",
+        "format": "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+    },
+    "auth": {
+        "session_lifetime": 3600,
+        "max_attempts": 3,
+        "lockout_duration": 300
+    },
+    "ui": {
+        "theme": "light",
+        "refresh_interval": 2000,
+        "max_datapoints": 100
+    },
+    "security": {
+        "allowed_hosts": ["localhost", "127.0.0.1"],
+        "cors_origins": ["http://localhost:3000"],
+        "jwt": {
+            "secret_key": "development-secret-key",
+            "algorithm": "HS256",
+            "access_token_expire_minutes": 30
+        }
+    }
+}

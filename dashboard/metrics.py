@@ -1,50 +1,66 @@
-"""Module for collecting and processing metrics."""
-
+from typing import List, Dict, Any
 from datetime import datetime
-from typing import Any, Dict
-
-import pandas as pd
 import psutil
+from prometheus_client import Gauge, CollectorRegistry
 
+# Initialize Prometheus registry
+REGISTRY = CollectorRegistry()
+
+# Define Prometheus metrics
+CPU_GAUGE = Gauge('cpu_usage_percent', 'CPU usage percentage', registry=REGISTRY)
+MEMORY_GAUGE = Gauge('memory_usage_percent', 'Memory usage percentage', registry=REGISTRY)
+DISK_GAUGE = Gauge('disk_usage_percent', 'Disk usage percentage', registry=REGISTRY)
+
+def _get_cpu_frequency() -> float:
+    """Get CPU frequency with error handling."""
+    try:
+        freq = psutil.cpu_freq()
+        return freq.current if freq else 0
+    except (FileNotFoundError, AttributeError):
+        return 0
 
 def collect_system_metrics() -> Dict[str, Any]:
-    """Collect current system metrics.
-
-    Returns:
-        Dict containing system metrics like CPU and memory usage
-    """
+    """Collect system metrics and update Prometheus gauges."""
     metrics = {
-        "timestamp": datetime.now(),
-        "cpu_percent": psutil.cpu_percent(),
-        "memory_percent": psutil.virtual_memory().percent,
-        "disk_percent": psutil.disk_usage("/").percent,
+        'cpu': {
+            'percent': psutil.cpu_percent(interval=1),
+            'count': psutil.cpu_count(),
+            'frequency': _get_cpu_frequency()
+        },
+        'memory': {
+            'total': psutil.virtual_memory().total,
+            'used': psutil.virtual_memory().used,
+            'percent': psutil.virtual_memory().percent
+        },
+        'disk': {
+            'total': psutil.disk_usage('/').total,
+            'used': psutil.disk_usage('/').used,
+            'percent': psutil.disk_usage('/').percent
+        }
     }
+    
+    # Update Prometheus metrics
+    CPU_GAUGE.set(metrics['cpu']['percent'])
+    MEMORY_GAUGE.set(metrics['memory']['percent'])
+    DISK_GAUGE.set(metrics['disk']['percent'])
+    
     return metrics
 
-
-def process_metrics(raw_metrics: Dict[str, Any]) -> pd.DataFrame:
-    """Process raw metrics into a pandas DataFrame.
-
-    Args:
-        raw_metrics: Dictionary of raw system metrics
-
-    Returns:
-        DataFrame with processed metrics
-    """
-    df = pd.DataFrame([raw_metrics])
-    df.set_index("timestamp", inplace=True)
-    return df
-
-
-def get_metrics_summary() -> Dict[str, float]:
-    """Get summary of current system metrics.
-
-    Returns:
-        Dict containing summary statistics
-    """
-    metrics = collect_system_metrics()
+def process_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
+    """Process and format metrics data."""
     return {
-        "cpu_avg": metrics["cpu_percent"],
-        "memory_avg": metrics["memory_percent"],
-        "disk_avg": metrics["disk_percent"],
+        'metrics': metrics,
+        'timestamp': datetime.utcnow().isoformat(),
+        'uptime': psutil.boot_time()
     }
+
+if __name__ == '__main__':
+    import time
+    print("Starting metrics collector...")
+    try:
+        while True:
+            metrics = collect_system_metrics()
+            processed = process_metrics(metrics)
+            time.sleep(1)  # Collect metrics every second
+    except KeyboardInterrupt:
+        print("\nMetrics collector stopped.")

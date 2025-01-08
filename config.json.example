@@ -1,0 +1,110 @@
+{
+    "environment": "development",
+    "metrics": {
+        "collection_interval": 5,
+        "enabled_metrics": ["cpu", "memory", "disk"],
+        "thresholds": {
+            "cpu": 80,
+            "memory": 90,
+            "disk": 85
+        }
+    },
+    "websocket": {
+        "host": "localhost",
+        "port": 8765,
+        "ssl": false
+    },
+    "influxdb": {
+        "url": "http://localhost:8086",
+        "token": "your-token-here",
+        "org": "your-org-here",
+        "bucket": "metrics"
+    },
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "name": "dashboard",
+        "user": "postgres",
+        "password": "your-password-here"
+    },
+    "alert_rules": [
+        {
+            "metric": "cpu",
+            "threshold": 80,
+            "duration": "5m",
+            "severity": "warning"
+        },
+        {
+            "metric": "memory",
+            "threshold": 90,
+            "duration": "10m",
+            "severity": "critical"
+        },
+        {
+            "metric": "disk",
+            "threshold": 85,
+            "duration": "1h",
+            "severity": "warning"
+        }
+    ],
+    "logging": {
+        "level": "INFO",
+        "file": "logs/dashboard.log",
+        "format": "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+    },
+    "auth": {
+        "session_lifetime": 3600,
+        "max_attempts": 3,
+        "lockout_duration": 300
+    },
+    "ui": {
+        "theme": "light",
+        "refresh_interval": 5000,
+        "max_datapoints": 100,
+        "layouts": {
+            "default": {
+                "name": "Default Layout",
+                "description": "Standard dashboard layout"
+            },
+            "minimal": {
+                "name": "Minimal Layout",
+                "description": "Simplified dashboard view"
+            }
+        }
+    },
+    "ssl": {
+        "enabled": false,
+        "cert_file": "certs/server.crt",
+        "key_file": "certs/server.key"
+    },
+    "prometheus": {
+        "enabled": true,
+        "port": 9090,
+        "path": "/metrics"
+    },
+    "cache": {
+        "type": "redis",
+        "url": "redis://localhost:6379/0",
+        "ttl": 300
+    },
+    "monitoring": {
+        "enabled": true,
+        "collect_process_metrics": true,
+        "collect_python_metrics": true,
+        "export_traces": false
+    },
+    "security": {
+        "allowed_hosts": ["localhost", "127.0.0.1"],
+        "cors_origins": ["http://localhost:3000"],
+        "rate_limit": {
+            "enabled": true,
+            "requests": 100,
+            "period": 60
+        },
+        "jwt": {
+            "secret_key": "your-secret-key-here",
+            "algorithm": "HS256",
+            "access_token_expire_minutes": 30
+        }
+    }
+}

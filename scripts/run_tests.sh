@@ -1,51 +1,181 @@
 #!/bin/bash
+
+# Exit on error
 set -e
 
-# Project root directory
-PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
+# Function to check if virtual environment is active
+check_venv() {
+    if [ -z "$VIRTUAL_ENV" ]; then
+        echo "Error: Virtual environment not activated"
+        echo "Please activate your virtual environment first:"
+        echo "source .venv/bin/activate"
+        exit 1
+    fi
+}
 
-# Source utility functions
-source "${PROJECT_ROOT}/scripts/utils/progress_bar.sh"
+# Function to run unit tests
+run_unit_tests() {
+    echo "Running unit tests..."
+    pytest dashboard/tests/unit/ \
+        --verbose \
+        --cov=dashboard \
+        --cov-report=term-missing \
+        --cov-report=html:coverage_report/unit \
+        "$@"
+}
 
-# Save original progress values
-_ORIG_CURRENT_STEP=$CURRENT_STEP
-_ORIG_TOTAL_STEPS=$TOTAL_STEPS
+# Function to run integration tests
+run_integration_tests() {
+    echo "Running integration tests..."
+    pytest dashboard/tests/integration/ \
+        --verbose \
+        --cov=dashboard \
+        --cov-report=term-missing \
+        --cov-report=html:coverage_report/integration \
+        "$@"
+}
 
-# Initialize local progress tracking
-CURRENT_STEP=0
-TOTAL_STEPS=5
-init_progress $TOTAL_STEPS
+# Function to run E2E tests
+run_e2e_tests() {
+    echo "Running E2E tests..."
+    pytest dashboard/tests/e2e/ \
+        --verbose \
+        --cov=dashboard \
+        --cov-report=term-missing \
+        --cov-report=html:coverage_report/e2e \
+        "$@"
+}
 
-echo "🧪 Running tests..."
+# Function to run all tests
+run_all_tests() {
+    echo "Running all tests..."
+    pytest dashboard/tests/ \
+        --verbose \
+        --cov=dashboard \
+        --cov-report=term-missing \
+        --cov-report=html:coverage_report/all \
+        "$@"
+}
 
-# Run unit tests
-run_with_spinner "Running unit tests" "
-    python3 -m pytest \"${PROJECT_ROOT}/tests/unit\" -v || true
-"
+# Function to run tests with specific markers
+run_marked_tests() {
+    local marker=$1
+    shift
+    echo "Running tests marked with '$marker'..."
+    pytest -m "$marker" \
+        --verbose \
+        --cov=dashboard \
+        --cov-report=term-missing \
+        --cov-report=html:coverage_report/"$marker" \
+        "$@"
+}
 
-# Run integration tests
-run_with_spinner "Running integration tests" "
-    python3 -m pytest \"${PROJECT_ROOT}/tests/integration\" -v || true
-"
+# Function to clean coverage reports
+clean_coverage() {
+    echo "Cleaning coverage reports..."
+    rm -rf coverage_report/
+    rm -f .coverage
+}
 
-# Generate coverage report
-run_with_spinner "Generating coverage report" "
-    python3 -m pytest --cov=\"${PROJECT_ROOT}/dashboard\" || true
-"
+# Function to show help message
+show_help() {
+    echo "Usage: $0 [OPTIONS] [PYTEST_ARGS...]"
+    echo
+    echo "Options:"
+    echo "  --unit         Run unit tests only"
+    echo "  --integration  Run integration tests only"
+    echo "  --e2e          Run E2E tests only"
+    echo "  --all          Run all tests (default)"
+    echo "  --clean        Clean coverage reports"
+    echo "  --marked TAG   Run tests with specific marker"
+    echo "  --parallel     Run tests in parallel"
+    echo "  --failed       Run only failed tests"
+    echo "  --help         Show this help message"
+    echo
+    echo "Additional arguments are passed to pytest"
+}
 
-# Run linting
-run_with_spinner "Running linting" "
-    python3 -m flake8 \"${PROJECT_ROOT}/dashboard\" || true
-"
+# Main script
+main() {
+    # Check if virtual environment is active
+    check_venv
 
-# Generate test report
-run_with_spinner "Generating test report" "
-    python3 -m pytest --html=report.html || true
-"
+    # Default test type
+    TEST_TYPE="all"
+    PARALLEL=""
+    EXTRA_ARGS=()
 
-# Restore original progress values
-CURRENT_STEP=$_ORIG_CURRENT_STEP
-TOTAL_STEPS=$_ORIG_TOTAL_STEPS
-export CURRENT_STEP TOTAL_STEPS
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --unit)
+                TEST_TYPE="unit"
+                shift
+                ;;
+            --integration)
+                TEST_TYPE="integration"
+                shift
+                ;;
+            --e2e)
+                TEST_TYPE="e2e"
+                shift
+                ;;
+            --all)
+                TEST_TYPE="all"
+                shift
+                ;;
+            --clean)
+                clean_coverage
+                exit 0
+                ;;
+            --marked)
+                TEST_TYPE="marked"
+                MARKER="$2"
+                shift 2
+                ;;
+            --parallel)
+                PARALLEL="-n auto"
+                shift
+                ;;
+            --failed)
+                EXTRA_ARGS+=("--lf")
+                shift
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                EXTRA_ARGS+=("$1")
+                shift
+                ;;
+        esac
+    done
 
-exit 0
+    # Add parallel flag if specified
+    if [ -n "$PARALLEL" ]; then
+        EXTRA_ARGS+=("$PARALLEL")
+    fi
+
+    # Run appropriate tests
+    case "$TEST_TYPE" in
+        unit)
+            run_unit_tests "${EXTRA_ARGS[@]}"
+            ;;
+        integration)
+            run_integration_tests "${EXTRA_ARGS[@]}"
+            ;;
+        e2e)
+            run_e2e_tests "${EXTRA_ARGS[@]}"
+            ;;
+        marked)
+            run_marked_tests "$MARKER" "${EXTRA_ARGS[@]}"
+            ;;
+        all)
+            run_all_tests "${EXTRA_ARGS[@]}"
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"
