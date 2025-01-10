@@ -1,173 +1,107 @@
-"""Metrics collector module for the dashboard."""
-
-import json
-import logging
-import os
+"""Metrics collection module."""
 import time
-from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any
 
 import psutil
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, start_http_server
-
-
-def get_config():
-    """Get configuration from config file."""
-    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "dashboard.json")
-    try:
-        with open(config_path) as f:
-            return json.load(f)
-    except Exception as e:
-        return {"retention_days": 30, "metrics_port": 8000}  # Default config
 
 
 class MetricsCollector:
-    """Collect and expose project management metrics."""
+    """Collect system metrics."""
+    def __init__(self):
+        """Initialize the metrics collector."""
+        self.last_collection = 0
+        self.collection_interval = 1  # seconds
 
-    def __init__(self, port: int = 9090, retention_days: int = 30) -> None:
-        """Initialize metrics collector with a custom registry."""
-        # Set up logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+    async def collect_metrics(self) -> dict[str, Any]:
+        """Collect system metrics.
 
-        # Load configuration
+        Returns:
+            Dict containing the collected metrics.
+        """
+        current_time = time.time()
+        if current_time - self.last_collection < self.collection_interval:
+            return {}
+
         try:
-            self.config = get_config()
-            self.retention_days = self.config.get("retention_days", retention_days)
-        except Exception as e:
-            self.logger.warning(f"Failed to load config, using defaults: {e}")
-            self.retention_days = retention_days
-        self.last_cleanup = datetime.now()
+            metrics = {
+                "cpu": self._get_cpu_metrics(),
+                "memory": self._get_memory_metrics(),
+                "disk": self._get_disk_metrics(),
+                "network": self._get_network_metrics(),
+                "timestamp": current_time,
+            }
+            self.last_collection = current_time
+            return metrics
+        except Exception:
+            return {}
 
-        # Create a custom registry for this instance
-        self.registry = CollectorRegistry()
+    def _get_cpu_metrics(self) -> dict[str, float]:
+        """Get CPU metrics.
 
-        # Initialize metrics
-        self._init_metrics()
-
-        # Start Prometheus HTTP server
+        Returns:
+            Dict containing CPU metrics.
+        """
         try:
-            metrics_port = self.config.get("metrics_port", port)
-            start_http_server(metrics_port, registry=self.registry)
-            self.logger.info(f"Metrics server started on port {port}")
-        except Exception as e:
-            self.logger.error(f"Failed to start metrics server: {e}")
-            raise
+            return {
+                "percent": psutil.cpu_percent(interval=None),
+                "count": psutil.cpu_count(),
+                "frequency": psutil.cpu_freq().current if psutil.cpu_freq() else 0,
+            }
+        except Exception:
+            return {"percent": 0, "count": 0, "frequency": 0}
 
-    def _init_metrics(self) -> None:
-        """Initialize Prometheus metrics."""
-        # Project metrics
-        self.active_tasks = Gauge(
-            "active_tasks",
-            "Number of active tasks",
-            registry=self.registry,
-        )
-        self.completed_tasks = Counter(
-            "completed_tasks",
-            "Number of completed tasks",
-            registry=self.registry,
-        )
-        self.team_velocity = Gauge(
-            "team_velocity",
-            "Team velocity in story points",
-            registry=self.registry,
-        )
-        self.sprint_progress = Gauge(
-            "sprint_progress",
-            "Sprint progress percentage",
-            registry=self.registry,
-        )
+    def _get_memory_metrics(self) -> dict[str, float]:
+        """Get memory metrics.
 
-        # System metrics
-        self.cpu_usage = Gauge(
-            "cpu_usage_percent",
-            "CPU usage percentage",
-            registry=self.registry,
-        )
-        self.memory_usage = Gauge(
-            "memory_usage_percent",
-            "Memory usage percentage",
-            registry=self.registry,
-        )
-        self.disk_usage = Gauge(
-            "disk_usage_percent",
-            "Disk usage percentage",
-            registry=self.registry,
-        )
-
-        # Performance metrics
-        self.response_time = Histogram(
-            "response_time_seconds",
-            "Response time in seconds",
-            buckets=(0.1, 0.5, 1.0, 2.0, 5.0),
-            registry=self.registry,
-        )
-
-    def collect_system_metrics(self) -> dict[str, Any]:
-        """Collect system metrics."""
+        Returns:
+            Dict containing memory metrics.
+        """
         try:
-            # CPU usage
-            cpu_percent = psutil.cpu_percent(interval=1)
-            self.cpu_usage.set(cpu_percent)
-
-            # Memory usage
             memory = psutil.virtual_memory()
-            self.memory_usage.set(memory.percent)
+            return {
+                "total": memory.total,
+                "available": memory.available,
+                "percent": memory.percent,
+                "used": memory.used,
+            }
+        except Exception:
+            return {"total": 0, "available": 0, "percent": 0, "used": 0}
 
-            # Disk usage
+    def _get_disk_metrics(self) -> dict[str, float]:
+        """Get disk metrics.
+
+        Returns:
+            Dict containing disk metrics.
+        """
+        try:
             disk = psutil.disk_usage("/")
-            self.disk_usage.set(disk.percent)
-
             return {
-                "cpu_usage": cpu_percent,
-                "memory_usage": memory.percent,
-                "disk_usage": disk.percent,
-                "timestamp": datetime.now().isoformat(),
+                "total": disk.total,
+                "used": disk.used,
+                "free": disk.free,
+                "percent": disk.percent,
             }
-        except Exception as e:
-            self.logger.error(f"Error collecting system metrics: {e}")
-            return {}
+        except Exception:
+            return {"total": 0, "used": 0, "free": 0, "percent": 0}
 
-    def collect_project_metrics(self) -> dict[str, Any]:
-        """Collect project metrics."""
+    def _get_network_metrics(self) -> dict[str, float]:
+        """Get network metrics.
+
+        Returns:
+            Dict containing network metrics.
+        """
         try:
-            # Here you would integrate with your project management system
-            # For now using sample data
-            active = 5
-            completed = 10
-            velocity = 15.5
-            progress = 75.0
-
-            self.active_tasks.set(active)
-            self.completed_tasks.inc()
-            self.team_velocity.set(velocity)
-            self.sprint_progress.set(progress)
-
+            net_io = psutil.net_io_counters()
             return {
-                "active_tasks": active,
-                "completed_tasks": completed,
-                "team_velocity": velocity,
-                "sprint_progress": progress,
-                "timestamp": datetime.now().isoformat(),
+                "bytes_sent": net_io.bytes_sent,
+                "bytes_recv": net_io.bytes_recv,
+                "packets_sent": net_io.packets_sent,
+                "packets_recv": net_io.packets_recv,
             }
-        except Exception as e:
-            self.logger.error(f"Error collecting project metrics: {e}")
-            return {}
-
-    def cleanup_old_metrics(self) -> None:
-        """Clean up metrics older than retention period."""
-        try:
-            if (datetime.now() - self.last_cleanup).days >= 1:
-                cutoff_date = datetime.now() - timedelta(days=self.retention_days)
-                # Here you would implement cleanup logic for your storage backend
-                self.last_cleanup = datetime.now()
-                self.logger.info(f"Cleaned up metrics older than {cutoff_date}")
-        except Exception as e:
-            self.logger.error(f"Error cleaning up old metrics: {e}")
-
-    def record_response_time(self, duration: float) -> None:
-        """Record response time metric."""
-        try:
-            self.response_time.observe(duration)
-        except Exception as e:
-            self.logger.error(f"Error recording response time: {e}")
+        except Exception:
+            return {
+                "bytes_sent": 0,
+                "bytes_recv": 0,
+                "packets_sent": 0,
+                "packets_recv": 0,
+            }

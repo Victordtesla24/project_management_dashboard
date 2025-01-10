@@ -1,13 +1,12 @@
-"""WebSocket middleware package."""
+"""\1"""
 
 
 class WebSocketMiddleware:
-    """Base WebSocket middleware."""
-
+    """\1"""
     async def process_request(self, websocket, next_handler):
-        """Process incoming request."""
+        """\1"""
         return await next_handler(websocket)
 
     async def process_message(self, websocket, message, next_handler):
-        """Process incoming message."""
+        """\1"""
         return await next_handler(websocket, message)

@@ -5,11 +5,7 @@
         "memory": true,
         "disk": true,
         "network": true,
-        "load": true
+        "load": true,
     },
-    "thresholds": {
-        "cpu_percent": 80,
-        "memory_percent": 85,
-        "disk_percent": 90
-    }
+    "thresholds": {"cpu_percent": 80, "memory_percent": 85, "disk_percent": 90},
 }

@@ -1,0 +1,12 @@
+[Unit]
+Description=Project Management Dashboard Implementation Tracking
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m dashboard.track
+WorkingDirectory=/Users/Shared/cursor/project_management_dashboard
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

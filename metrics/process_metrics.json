@@ -4,17 +4,17 @@
         {
             "name": "dashboard",
             "pattern": "python.*dashboard",
-            "metrics": ["cpu", "memory", "threads"]
+            "metrics": ["cpu", "memory", "threads"],
         },
         {
             "name": "websocket",
             "pattern": "python.*websocket",
-            "metrics": ["cpu", "memory", "connections"]
+            "metrics": ["cpu", "memory", "connections"],
         },
         {
             "name": "monitor",
             "pattern": "python.*monitor",
-            "metrics": ["cpu", "memory", "threads"]
-        }
-    ]
+            "metrics": ["cpu", "memory", "threads"],
+        },
+    ],
 }

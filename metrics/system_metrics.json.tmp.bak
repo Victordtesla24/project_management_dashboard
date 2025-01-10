@@ -1,0 +1,15 @@
+{
+"collection_interval": 300,
+"metrics": {
+"cpu": true,
+"memory": true,
+"disk": true,
+"network": true,
+"load": true
+},
+"thresholds": {
+"cpu_percent": 80,
+"memory_percent": 85,
+"disk_percent": 90
+}
+}

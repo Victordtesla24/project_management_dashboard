@@ -1,60 +1,25 @@
-from functools import wraps
+"""Dashboard routes module."""
+import logging
 
-import jwt
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, jsonify
 
-from dashboard.auth.middleware import create_token, verify_token
+from .metrics import MetricsCollector
 
+logger = logging.getLogger(__name__)
 bp = Blueprint("dashboard", __name__)
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = request.cookies.get("auth_token")
-        if not token:
-            return redirect(url_for("auth.login"))
-        try:
-            verify_token(token)
-        except jwt.InvalidTokenError:
-            return redirect(url_for("auth.login"))
-        return f(*args, **kwargs)
-
-    return decorated_function
-
-
-@bp.route("/")
-@login_required
-def index():
-    return render_template("index.html")
-
-
-@bp.route("/metrics")
-@login_required
-def metrics():
-    return render_template("metrics.html")
-
-
-@bp.route("/api/metrics")
-@login_required
-def get_metrics():
-    try:
-        from dashboard.core_scripts.metrics_collector import MetricsCollector
-
-        collector = MetricsCollector()
-        system_metrics = collector.collect_system_metrics()
-        project_metrics = collector.collect_project_metrics()
-        return jsonify({**system_metrics, **project_metrics})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 
 @bp.route("/health")
 def health_check():
     """Health check endpoint."""
-    return jsonify({"status": "healthy"})
+    return jsonify({"status": "ok"})
 
-
-def register_health_check(app):
-    """Register health check endpoint with the app."""
-    app.register_blueprint(bp)
+@bp.route("/metrics")
+def get_metrics():
+    """Get system metrics endpoint."""
+    try:
+        collector = MetricsCollector()
+        metrics = collector.get_metrics()
+        return jsonify({"status": "success", "data": metrics})
+    except Exception as e:
+        logger.error(f"Error getting metrics: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500

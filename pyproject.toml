@@ -25,7 +25,33 @@ dependencies = [
     "plotly",
     "psutil",
     "pandas",
-    "urllib3<2.0.0"
+    "urllib3<2.0.0",
+    "flask",
+    "flask-cors"
+]
+
+[project.scripts]
+dashboard = "dashboard.main:main"
+monitor = "monitor.main:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest-asyncio>=0.15.0",
+    "pytest-timeout>=2.0.0",
+    "pytest-cov>=2.12.0",
+    "black>=21.6b0",
+    "flake8>=3.9.0",
+    "mypy>=0.910"
+]
+test = [
+    "pytest>=6.2.0",
+    "pytest-cov>=2.12.0",
+    "pytest-mock>=3.6.0"
+]
+docs = [
+    "sphinx>=4.0.0",
+    "sphinx-rtd-theme>=0.5.0",
+    "sphinx-autodoc-typehints>=1.12.0"
 ]
 
 [tool.setuptools]

@@ -1,0 +1,39 @@
+from flask import Blueprint, jsonify, render_template
+
+from .auth import login_required
+
+dashboard_bp = Blueprint("dashboard", __name__)
+
+@dashboard_bp.route("/")
+@login_required
+def index():
+"""\1"""
+return render_template("index.html")
+
+@dashboard_bp.route("/metrics")
+@login_required
+def get_metrics():
+"""\1"""
+return jsonify({"status": "success", "data": []})
+
+@dashboard_bp.route("/config", methods=["POST"])
+@login_required
+def update_config():
+"""\1"""
+return jsonify({"status": "success"})
+
+@dashboard_bp.route("/alerts", methods=["POST"])
+@login_required
+def update_alerts():
+"""\1"""
+return jsonify({"status": "success"})
+
+@dashboard_bp.route("/health")
+def health_check():
+"""\1"""
+return jsonify({"status": "healthy"})
+
+def register_health_check(app):
+"""\1"""
+if "dashboard" not in app.blueprints:
+app.register_blueprint(dashboard_bp)

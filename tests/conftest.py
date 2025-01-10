@@ -1,13 +1,10 @@
-"""Shared test fixtures and configuration."""
-
+"""Test configuration and fixtures."""
 import os
 import shutil
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
-import pytest
-from flask import Flask
+import pytest  # type: ignore
 
 from dashboard import create_app
 from dashboard.config import init_config
@@ -47,12 +44,10 @@ def logs_dir(project_root):
 
 @pytest.fixture
 def test_config(test_data_dir):
-    """Create test configuration."""
+    """Create a test configuration file."""
     config_path = os.path.join(test_data_dir, "test_config.json")
-
     # Create test config directory if it doesn't exist
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
-
     # Write test configuration
     import json
 
@@ -63,11 +58,20 @@ def test_config(test_data_dir):
             "thresholds": {"cpu": 80, "memory": 85, "disk": 90},
             "retention": {"days": 7, "max_datapoints": 1000},
             "alert_rules": [
-                {"metric": "cpu", "threshold": 80, "duration": 300, "severity": "warning"}
+                {
+                    "metric": "cpu",
+                    "threshold": 80,
+                    "duration": 300,
+                    "severity": "warning",
+                },
             ],
             "aggregation": {"interval": 300, "functions": ["avg", "max", "min"]},
         },
-        "websocket": {"host": "localhost", "port": 8766, "ssl": False},  # Different port for tests
+        "websocket": {
+            "host": "localhost",
+            "port": 8766,
+            "ssl": False,
+        },  # Different port for tests
         "database": {
             "host": "localhost",
             "port": 5432,
@@ -87,19 +91,16 @@ def test_config(test_data_dir):
             "layout": {"sidebar": True, "charts": ["cpu", "memory", "disk"]},
         },
     }
-
     with open(config_path, "w") as f:
         json.dump(test_config, f, indent=4)
-
     return config_path
 
 
 @pytest.fixture
 def app(test_config):
-    """Create test Flask application."""
+    """Create a test Flask application."""
     # Initialize config with test configuration
     init_config(test_config)
-
     # Create app with test config
     test_flask_config = {
         "TESTING": True,
@@ -107,23 +108,19 @@ def app(test_config):
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
     }
-
     # Create app instance
     app = create_app(test_flask_config)
-
     # Ensure app context is available for tests
     ctx = app.app_context()
     ctx.push()
-
     yield app
-
     # Clean up
     ctx.pop()
 
 
 @pytest.fixture(autouse=True)
 def setup_test_env(monkeypatch, test_data_dir):
-    """Setup test environment variables."""
+    """Set up the test environment."""
     monkeypatch.setenv("TEST_MODE", "true")
     monkeypatch.setenv("TEST_DATA_DIR", test_data_dir)
     yield

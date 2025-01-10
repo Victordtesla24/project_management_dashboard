@@ -91,7 +91,7 @@ EOF
 handle_error() {
     local exit_code=$?
     local line_number=$1
-    echo "❌ Error on line ${line_number}: Command exited with status ${exit_code}"
+    printf "\r\033[K❌ Error on line ${line_number}: Command exited with status ${exit_code}\n"
     cleanup_and_exit ${exit_code}
 }
 trap 'handle_error ${LINENO}' ERR
@@ -244,7 +244,7 @@ run_script_with_retry() {
     while kill -0 $script_pid 2>/dev/null; do
         local spinner_char="${SPINNER_CHARS:$spinner_index:1}"
         # Clear line and print progress
-        printf "\r\033[K%b%s%b Running %s %s %3d%%" \
+        printf "\r\033[K%b%s%b %s %s %3d%%" \
             "${BLUE}" "$spinner_char" "${RESET}" \
             "$message" \
             "$(draw_progress_bar $percentage $BAR_WIDTH)" \
@@ -259,7 +259,7 @@ run_script_with_retry() {
     if [ $status -eq 0 ]; then
         ((CURRENT_STEP++))
         # Print final state with checkmark
-        printf "\r\033[K%b✓%b %s completed successfully %s %3d%%\n" \
+        printf "\r\033[K%b✓%b %s %s %3d%%\n" \
             "${GREEN}" "${RESET}" \
             "$message" \
             "$(draw_progress_bar $percentage $BAR_WIDTH)" \
@@ -267,7 +267,7 @@ run_script_with_retry() {
         return 0
     else
         # Print final state with X and error details
-        printf "\r\033[K%b✗%b %s failed %s %3d%%\n" \
+        printf "\r\033[K%b✗%b %s %s %3d%%\n" \
             "${RED}" "${RESET}" \
             "$message" \
             "$(draw_progress_bar $percentage $BAR_WIDTH)" \
@@ -299,11 +299,10 @@ main() {
     export failed_services
 
     # Clear line and print initial message with progress bar
-    printf "\r\033[K%b🚀%b Running project setup %s %3d%%" \
+    printf "\r\033[K%b🚀%b Setting up project... %s %3d%%" \
         "${BLUE}" "${RESET}" \
         "$(draw_progress_bar 0 $BAR_WIDTH)" \
         0
-    sleep $SPINNER_DELAY  # Brief pause to show initial state
 
     # Core setup sequence
     run_with_spinner "Validating system requirements" validate_system_requirements || exit 1
@@ -356,38 +355,28 @@ except Exception as e:
     declare -a failed_services=()
 
     # Group 1: Critical Environment Setup (foundational)
-    printf "\n\r\033[K%b📦%b Running critical environment setup...\n" "${BLUE}" "${RESET}"
-
-    # Environment and permissions setup with proper error handling
     for critical_setup in "setup_env:Environment" "setup_permissions:Permissions"; do
         script_name="${critical_setup%%:*}"
         display_name="${critical_setup#*:}"
 
         if ! run_script_with_retry "${PROJECT_ROOT}/scripts/${script_name}.sh" "${display_name} Setup" $CURRENT_STEP; then
-            printf "\r\033[K❌ Critical failure: ${display_name} setup failed. Exiting...\n"
+            printf "\r\033[K❌ Critical failure: ${display_name} setup failed\n"
             exit 1
         fi
     done
 
-    # Group 2: Development Environment (depends on env and permissions)
-    printf "\n\r\033[K%b📦%b Running development setup...\n" "${BLUE}" "${RESET}"
-
-    # Type stubs should be installed before test environment
+    # Group 2: Development Environment
     if ! run_script_with_retry "${PROJECT_ROOT}/scripts/install_type_stubs.sh" "Type Stubs Installation" $CURRENT_STEP; then
-        printf "\r\033[K❌ Failed to install type stubs. This may affect development experience.\n"
+        printf "\r\033[K⚠️  Failed to install type stubs\n"
         failed_services+=("type_stubs")
     fi
 
-    # Test environment setup depends on permissions and type stubs
     if ! run_script_with_retry "${PROJECT_ROOT}/scripts/setup_test_env.sh" "Test Environment Setup" $CURRENT_STEP; then
-        printf "\r\033[K❌ Failed to setup test environment. This will affect testing capabilities.\n"
+        printf "\r\033[K⚠️  Failed to setup test environment\n"
         failed_services+=("test_env")
     fi
 
-    # Group 3: Core Services (depends on env, permissions, and dev setup)
-    printf "\n\r\033[K%b📦%b Running core services setup...\n" "${BLUE}" "${RESET}"
-
-    # Setup core services in order
+    # Group 3: Core Services
     for service in "dashboard" "websocket" "monitor"; do
         service_name=$(echo "$service" | tr '[:lower:]' '[:upper:]' | cut -c1)$(echo "$service" | cut -c2-)
 
@@ -410,64 +399,54 @@ except Exception as e:
         esac
 
         if ! run_script_with_retry "${PROJECT_ROOT}/scripts/setup_${service}.sh" "${service_name} Service Setup" $CURRENT_STEP; then
-            printf "\r\033[K❌ Failed to setup %s service.\n" "$service"
+            printf "\r\033[K⚠️  Failed to setup %s service\n" "$service"
             failed_services+=("$service")
         fi
     done
 
-    # Group 4: Quality Assurance (depends on test environment and services)
-    printf "\n\r\033[K%b📦%b Running quality checks...\n" "${BLUE}" "${RESET}"
-
-    # Only run if test environment setup succeeded
+    # Group 4: Quality Assurance
     if [ ${#failed_services[@]} -eq 0 ] || ! printf '%s\n' "${failed_services[@]}" | grep -q '^test_env$'; then
         if ! run_script_with_retry "${PROJECT_ROOT}/scripts/verify_and_fix.sh" "Code Verification" $CURRENT_STEP; then
-            printf "\r\033[K⚠️  Code verification failed. Some issues may need manual review.\n"
+            printf "\r\033[K⚠️  Code verification failed\n"
         fi
 
         if ! run_script_with_retry "${PROJECT_ROOT}/scripts/lint_and_test.sh" "Linting and Testing" $CURRENT_STEP; then
-            printf "\r\033[K⚠️  Linting and testing failed. Please review test reports.\n"
+            printf "\r\033[K⚠️  Linting and testing failed\n"
         fi
     else
-        printf "\r\033[K⚠️  Skipping quality checks due to test environment setup failure.\n"
+        printf "\r\033[K⚠️  Skipping quality checks\n"
         ((CURRENT_STEP+=2))
     fi
 
-    # Group 5: Documentation (depends on successful core setup)
-    printf "\n\r\033[K%b📦%b Running documentation setup...\n" "${BLUE}" "${RESET}"
-
-    # Only proceed with documentation if core services are running
+    # Group 5: Documentation
     if [ ${#failed_services[@]} -eq 0 ] || ! printf '%s\n' "${failed_services[@]}" | grep -q '^dashboard$\|^websocket$'; then
         if ! run_script_with_retry "${PROJECT_ROOT}/scripts/create_update_docs.sh" "Documentation Generation" $CURRENT_STEP; then
-            printf "\r\033[K⚠️  Documentation generation failed. Manual documentation update may be needed.\n"
+            printf "\r\033[K⚠️  Documentation generation failed\n"
         fi
 
         if ! run_script_with_retry "${PROJECT_ROOT}/scripts/sync_docs.sh" "Documentation Sync" $CURRENT_STEP; then
-            printf "\r\033[K⚠️  Documentation sync failed. Please sync documentation manually.\n"
+            printf "\r\033[K⚠️  Documentation sync failed\n"
         fi
     else
-        printf "\r\033[K⚠️  Skipping documentation due to core service failures.\n"
+        printf "\r\033[K⚠️  Skipping documentation\n"
         ((CURRENT_STEP+=2))
     fi
 
-    # Group 6: Tracking & Demo (optional, depends on successful setup)
-    printf "\n\r\033[K%b📦%b Running final steps...\n" "${BLUE}" "${RESET}"
-
-    # Track implementation even if some services failed
+    # Group 6: Tracking & Demo
     if ! run_script_with_retry "${PROJECT_ROOT}/scripts/track_implementation.sh" "Implementation Tracking" $CURRENT_STEP; then
-        printf "\r\033[K⚠️  Implementation tracking failed but continuing...\n"
+        printf "\r\033[K⚠️  Implementation tracking failed\n"
     fi
 
-    # Only run demo if core services are working
     if [ ${#failed_services[@]} -eq 0 ] || ! printf '%s\n' "${failed_services[@]}" | grep -q '^dashboard$\|^websocket$'; then
         if ! run_script_with_retry "${PROJECT_ROOT}/scripts/demo_progress.sh" "Demo Setup" $CURRENT_STEP; then
-            printf "\r\033[K⚠️  Demo setup failed but continuing...\n"
+            printf "\r\033[K⚠️  Demo setup failed\n"
         fi
     else
-        printf "\r\033[K⚠️  Skipping demo setup due to core service failures.\n"
+        printf "\r\033[K⚠️  Skipping demo setup\n"
         ((CURRENT_STEP++))
     fi
 
-    # Skip GitHub sync since it's optional
+    # Skip GitHub sync
     printf "\r\033[K⚠️  Skipping GitHub sync (optional)\n"
     ((CURRENT_STEP++))
 

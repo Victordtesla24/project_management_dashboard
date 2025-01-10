@@ -1,0 +1,37 @@
+{
+"timestamp": 1736496986,
+"system": {
+"cpu": {
+"percent": 35.5,
+"count": 8,
+"freq": {}
+},
+"memory": {
+"total": 8589934592,
+"available": 2666954752,
+"percent": 69.0,
+"used": 3967664128,
+"free": 76709888
+},
+"disk": {
+"total": 245107195904,
+"used": 11131691008,
+"free": 157216006144,
+"percent": 6.6
+},
+"network": {
+"bytes_sent": 313489408,
+"bytes_recv": 1247437824,
+"packets_sent": 556593,
+"packets_recv": 1159816
+},
+"load": {
+"load_avg": [
+3.26416015625,
+2.96142578125,
+2.779296875
+]
+}
+},
+"processes": {}
+}

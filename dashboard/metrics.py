@@ -1,103 +1,80 @@
-"""Metrics collection module."""
-
+"""System metrics collection module."""
+import json
 import logging
 import os
-import sys
 from datetime import datetime
-from typing import Any, Dict, List
 
 import psutil
-from prometheus_client import CollectorRegistry, Gauge
 
-# Initialize Prometheus registry
-REGISTRY = CollectorRegistry()
-
-# Define Prometheus metrics
-CPU_GAUGE = Gauge("cpu_usage_percent", "CPU usage percentage", registry=REGISTRY)
-MEMORY_GAUGE = Gauge("memory_usage_percent", "Memory usage percentage", registry=REGISTRY)
-DISK_GAUGE = Gauge("disk_usage_percent", "Disk usage percentage", registry=REGISTRY)
+logger = logging.getLogger(__name__)
 
 
-def _get_cpu_frequency() -> float:
-    """Get CPU frequency with error handling."""
-    try:
-        freq = psutil.cpu_freq()
-        return freq.current if freq else 0
-    except (FileNotFoundError, AttributeError):
-        return 0
+class MetricsCollector:
+    """Collect and manage system metrics."""
+    def __init__(self, config=None):
+        self.config = config or {}
+        self.metrics = {
+            "system": {"cpu": 0.0, "memory": 0.0, "disk": 0.0},
+            "processes": [],
+            "timestamp": "",
+        }
 
+    def collect_system_metrics(self):
+        """Collect system-wide metrics."""
+        try:
+            self.metrics["system"]["cpu"] = psutil.cpu_percent(interval=1)
+            self.metrics["system"]["memory"] = psutil.virtual_memory().percent
+            self.metrics["system"]["disk"] = psutil.disk_usage("/").percent
+            self.metrics["timestamp"] = datetime.now().isoformat()
+        except Exception as e:
+            logger.error(f"Error collecting system metrics: {e}")
 
-def collect_system_metrics() -> dict[str, Any]:
-    """Collect system metrics and update Prometheus gauges."""
-    metrics = {
-        "cpu": {
-            "percent": psutil.cpu_percent(interval=1),
-            "count": psutil.cpu_count(),
-            "frequency": _get_cpu_frequency(),
-        },
-        "memory": {
-            "total": psutil.virtual_memory().total,
-            "used": psutil.virtual_memory().used,
-            "percent": psutil.virtual_memory().percent,
-        },
-        "disk": {
-            "total": psutil.disk_usage("/").total,
-            "used": psutil.disk_usage("/").used,
-            "percent": psutil.disk_usage("/").percent,
-        },
-    }
+    def collect_process_metrics(self):
+        """Collect process-specific metrics."""
+        try:
+            processes = []
+            for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
+                try:
+                    pinfo = proc.info
+                    processes.append(
+                        {
+                            "pid": pinfo["pid"],
+                            "name": pinfo["name"],
+                            "cpu_percent": pinfo["cpu_percent"] or 0.0,
+                            "memory_percent": pinfo["memory_percent"] or 0.0,
+                        }
+                    )
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            self.metrics["processes"] = sorted(
+                processes, key=lambda x: (x["cpu_percent"], x["memory_percent"]), reverse=True,
+            )[:10]  # Keep only top 10 processes
+        except Exception as e:
+            logger.error(f"Error collecting process metrics: {e}")
 
-    # Update Prometheus metrics
-    CPU_GAUGE.set(metrics["cpu"]["percent"])
-    MEMORY_GAUGE.set(metrics["memory"]["percent"])
-    DISK_GAUGE.set(metrics["disk"]["percent"])
+    def get_metrics(self):
+        """Get all metrics."""
+        self.collect_system_metrics()
+        self.collect_process_metrics()
+        return self.metrics
 
-    return metrics
+    def save_metrics(self, filepath):
+        """Save metrics to a file."""
+        try:
+            with open(filepath, "w") as f:
+                json.dump(self.metrics, f, indent=4)
+            logger.info(f"Metrics saved to {filepath}")
+        except Exception as e:
+            logger.error(f"Error saving metrics to {filepath}: {e}")
 
-
-def process_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
-    """Process and format metrics data."""
-    return {
-        "metrics": metrics,
-        "timestamp": datetime.utcnow().isoformat(),
-        "uptime": psutil.boot_time(),
-    }
-
-
-def setup_logging():
-    """Set up logging configuration."""
-    # Ensure logs directory exists
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, "metrics.log")
-
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler(log_file)],
-    )
-    return logging.getLogger(__name__)
-
-
-if __name__ == "__main__":
-    import time
-
-    logger = setup_logging()
-    logger.info("Starting metrics collector...")
-
-    try:
-        while True:
-            try:
-                metrics = collect_system_metrics()
-                processed = process_metrics(metrics)
-                logger.info(f"Collected metrics: {processed}")
-                time.sleep(1)  # Collect metrics every second
-            except Exception as e:
-                logger.error(f"Error collecting metrics: {e}", exc_info=True)
-                time.sleep(5)  # Back off on error
-    except KeyboardInterrupt:
-        logger.info("Metrics collector stopped by user.")
-    except Exception as e:
-        logger.error(f"Metrics collector crashed: {e}", exc_info=True)
-        sys.exit(1)
+    def load_metrics(self, filepath):
+        """Load metrics from a file."""
+        try:
+            if os.path.exists(filepath):
+                with open(filepath) as f:
+                    self.metrics = json.load(f)
+                logger.info(f"Metrics loaded from {filepath}")
+            else:
+                logger.warning(f"Metrics file not found: {filepath}")
+        except Exception as e:
+            logger.error(f"Error loading metrics from {filepath}: {e}")

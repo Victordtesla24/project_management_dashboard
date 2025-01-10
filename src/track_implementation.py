@@ -1,99 +1,72 @@
+"""Implementation tracking module."""
 import json
 import logging
-import time
+import os
 from datetime import datetime
 from pathlib import Path
 
-import git
+logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("implementation_tracker")
-
-
-def count_lines(file_path):
+def load_metrics(filepath):
+    """Load metrics from a JSON file."""
     try:
-        with open(file_path) as f:
-            return len(f.readlines())
-    except:
-        return 0
+        with open(filepath) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.warning(f"Metrics file not found: {filepath}")
+        return {}
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding metrics file {filepath}: {e}")
+        return {}
+    except OSError as e:
+        logger.error(f"IO error reading metrics file {filepath}: {e}")
+        return {}
 
-
-def get_git_stats():
+def save_metrics(metrics, filepath):
+    """Save metrics to a JSON file."""
     try:
-        repo = git.Repo(".")
-        commits = list(repo.iter_commits())
-        return {
-            "total_commits": len(commits),
-            "last_commit": (commits[0].committed_datetime.isoformat() if commits else None),
-            "active_branch": repo.active_branch.name,
-        }
-    except:
-        return {"total_commits": 0, "last_commit": None, "active_branch": "unknown"}
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w') as f:
+            json.dump(metrics, f, indent=4)
+        logger.info(f"Metrics saved to {filepath}")
+    except OSError as e:
+        logger.error(f"Error saving metrics to {filepath}: {e}")
 
+def track_implementation_progress(metrics):
+    """Track implementation progress by saving metrics to a file."""
+    try:
+        timestamp = datetime.now().isoformat()
+        metrics_dir = Path("tracking/history")
+        metrics_dir.mkdir(parents=True, exist_ok=True)
 
-def track_implementation():
-    project_root = Path(".")
+        # Save current metrics
+        current_metrics_file = metrics_dir / f"metrics_{timestamp}.json"
+        save_metrics(metrics, current_metrics_file)
 
-    # Count files by type
-    python_files = list(project_root.rglob("*.py"))
-    shell_files = list(project_root.rglob("*.sh"))
-    test_files = list(project_root.glob("tests/**/*.py"))
-    doc_files = list(project_root.glob("docs/**/*"))
+        # Update implementation metrics
+        implementation_file = Path("tracking/implementation_metrics.json")
+        implementation_metrics = load_metrics(implementation_file)
 
-    # Calculate metrics
-    metrics = {
-        "timestamp": datetime.now().isoformat(),
-        "files": {
-            "python": len(python_files),
-            "shell": len(shell_files),
-            "tests": len(test_files),
-            "docs": len(doc_files),
-        },
-        "lines": {
-            "python": sum(count_lines(f) for f in python_files),
-            "shell": sum(count_lines(f) for f in shell_files),
-            "tests": sum(count_lines(f) for f in test_files),
-        },
-        "git": get_git_stats(),
-        "components": {
-            "core": {
-                "total": 8,
-                "completed": sum(1 for f in python_files if "core" in str(f)),
-            },
-            "dashboard": {
-                "total": 6,
-                "completed": sum(1 for f in python_files if "dashboard" in str(f)),
-            },
-            "tests": {"total": 5, "completed": len(test_files)},
-        },
-    }
+        # Update metrics with timestamp
+        metrics["timestamp"] = timestamp
+        implementation_metrics["history"] = implementation_metrics.get("history", [])
+        implementation_metrics["history"].append(metrics)
+        implementation_metrics["latest"] = metrics
 
-    # Calculate completion percentages
-    for component in metrics["components"]:
-        total = metrics["components"][component]["total"]
-        completed = metrics["components"][component]["completed"]
-        metrics["components"][component]["percentage"] = (
-            (completed / total * 100) if total > 0 else 0
-        )
+        # Save updated implementation metrics
+        save_metrics(implementation_metrics, implementation_file)
 
-    return metrics
+        logger.info("Implementation progress tracked successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error tracking implementation progress: {e}")
+        return False
 
-
-def main():
-    tracking_dir = Path("tracking")
-    tracking_dir.mkdir(exist_ok=True)
-    metrics_file = tracking_dir / "implementation_metrics.json"
-
-    logger.info("Starting implementation tracking")
-    while True:
-        try:
-            metrics = track_implementation()
-            metrics_file.write_text(json.dumps(metrics, indent=2))
-            time.sleep(5)
-        except Exception as e:
-            logger.error(f"Error tracking implementation: {e}")
-            time.sleep(5)
-
-
-if __name__ == "__main__":
-    main()
+def get_implementation_status():
+    """Get the current implementation status."""
+    try:
+        implementation_file = Path("tracking/implementation_metrics.json")
+        return load_metrics(implementation_file)
+    except Exception as e:
+        logger.error(f"Error getting implementation status: {e}")
+        return {}

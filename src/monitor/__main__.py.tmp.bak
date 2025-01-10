@@ -1,0 +1,9 @@
+from . import MetricsMonitor
+
+
+def main():
+"""\1"""
+monitor = MetricsMonitor()
+monitor.start()
+if __name__ == "__main__":
+main()

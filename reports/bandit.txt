@@ -1,4 +1,4 @@
-Run started:2025-01-10 06:26:58.354897
+Run started:2025-01-10 08:24:37.079910
 
 Test results:
 >> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'dev'
@@ -20,7 +20,7 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 1443
+	Total lines of code: 1564
 	Total lines skipped (#nosec): 0
 	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
 

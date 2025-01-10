@@ -31,7 +31,9 @@ validate_tool() {
 # Check required tools
 echo "Checking required tools..."
 validate_tool "git"
-validate_tool "gh" # GitHub CLI
+if ! command -v "gh" >/dev/null 2>&1; then
+    echo "⚠️  GitHub CLI (gh) not found - continuing without it"
+fi
 
 # Load environment variables
 if [ -f "${PROJECT_ROOT}/.env" ]; then
@@ -49,6 +51,12 @@ fi
 # Check and fix permissions for git hooks if needed
 if [ -d "${PROJECT_ROOT}/.git/hooks" ]; then
     fix_permissions_if_needed "${PROJECT_ROOT}/.git/hooks"
+fi
+
+# Run verify and fix script
+if [ -f "${PROJECT_ROOT}/scripts/verify_and_fix.sh" ]; then
+    echo "Running code verification and fixes..."
+    bash "${PROJECT_ROOT}/scripts/verify_and_fix.sh" || handle_error "Failed to verify and fix code"
 fi
 
 # Configure git with .env credentials

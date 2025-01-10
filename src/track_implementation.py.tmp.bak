@@ -1,0 +1,73 @@
+import json
+import logging
+import os
+from datetime import datetime
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+def load_metrics(filepath):
+"""\1"""
+try:
+with open(filepath, 'r') as f:
+return json.load(f)
+except FileNotFoundError:
+logger.warning(f"Metrics file not found: {filepath}")
+return {}
+except json.JSONDecodeError as e:
+logger.error(f"Error decoding metrics file {filepath}: {e}")
+return {}
+except IOError as e:
+logger.error(f"IO error reading metrics file {filepath}: {e}")
+return {}
+
+def save_metrics(metrics, filepath):
+"""\1"""
+try:
+os.makedirs(os.path.dirname(filepath), exist_ok=True)
+with open(filepath, 'w') as f:
+json.dump(metrics, f, indent=4)
+logger.info(f"Metrics saved to {filepath}")
+except IOError as e:
+logger.error(f"Error saving metrics to {filepath}: {e}")
+
+def track_implementation_progress(metrics):
+"""\1"""
+try:
+timestamp = datetime.now().isoformat()
+metrics_dir = Path("tracking/history")
+metrics_dir.mkdir(parents=True, exist_ok=True)
+metrics_file = metrics_dir / f"metrics_{timestamp.replace(':', '')}.json"
+        
+# Load existing metrics if any
+existing_metrics = load_metrics(metrics_file)
+        
+# Update metrics with new data
+updated_metrics = {
+"timestamp": timestamp,
+"metrics": {
+**existing_metrics.get("metrics", {}),
+**metrics
+    }
+    }
+        
+# Save updated metrics
+save_metrics(updated_metrics, metrics_file)
+        
+# Update implementation tracking file
+implementation_file = Path("tracking/implementation_metrics.json")
+save_metrics(updated_metrics, implementation_file)
+        
+return True
+except Exception as e:
+logger.error(f"Error tracking implementation progress: {e}")
+return False
+
+def get_implementation_status():
+"""\1"""
+try:
+implementation_file = Path("tracking/implementation_metrics.json")
+return load_metrics(implementation_file)
+except Exception as e:
+logger.error(f"Error getting implementation status: {e}")
+return {}

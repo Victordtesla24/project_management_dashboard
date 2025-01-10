@@ -1,0 +1,37 @@
+"""\1"""
+import os
+
+from flask import Flask
+from flask_cors import CORS
+
+from .config import init_config
+from .routes import dashboard_bp
+
+
+def create_app(test_config=None):
+"""\1"""
+app = Flask(__name__)
+# Enable CORS
+CORS(app)
+# Load default configuration
+app.config.from_mapping(
+SECRET_KEY=os.environ.get("SECRET_KEY", "dev"),
+DATABASE=os.path.join(app.instance_path, "dashboard.sqlite"),
+    )
+
+if test_config is None:
+# Load the instance config, if it exists, when not testing
+app.config.from_pyfile("config.py", silent=True)
+else:
+# Load the test config if passed in
+app.config.update(test_config)
+# Ensure the instance folder exists
+try:
+os.makedirs(app.instance_path)
+except OSError:
+# Initialize configuration
+if "CONFIG_PATH" in app.config:
+init_config(app.config["CONFIG_PATH"])
+# Register blueprints
+app.register_blueprint(dashboard_bp, name="dashboard_" + str(id(app)))
+return app

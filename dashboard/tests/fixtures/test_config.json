@@ -19,24 +19,14 @@
       {
         "metric": "cpu",
         "threshold": 80,
-        "duration": "5m",
+        "duration": 300,
         "severity": "warning"
-      },
-      {
-        "metric": "memory",
-        "threshold": 90,
-        "duration": "5m",
-        "severity": "critical"
       }
     ],
     "aggregation": {
-      "interval": "1m",
-      "functions": [
-        "avg",
-        "max"
-      ]
-    },
-    "retention_days": 30
+      "interval": 300,
+      "functions": ["avg", "max", "min"]
+    }
   },
   "websocket": {
     "host": "localhost",
@@ -63,24 +53,6 @@
       "columns": 2,
       "rows": 2,
       "widgets": []
-    },
-    "custom_colors": {
-      "primary": "#000000"
     }
-  },
-  "environment": {
-    "name": "test",
-    "debug": true,
-    "host": "127.0.0.1",
-    "port": 5000
-  },
-  "invalid": "config",
-  "alert_rules": [
-    {
-      "metric": "cpu",
-      "threshold": 80,
-      "duration": "5m",
-      "severity": "warning"
-    }
-  ]
+  }
 }
