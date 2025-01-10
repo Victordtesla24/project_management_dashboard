@@ -12,26 +12,26 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+from contextlib import closing
 import getpass
 import os
 import socket
-import typing
 import unittest
-from contextlib import closing
 
 from tornado.concurrent import Future
-from tornado.gen import TimeoutError
-from tornado.netutil import Resolver, bind_sockets
+from tornado.netutil import bind_sockets, Resolver
 from tornado.queues import Queue
 from tornado.tcpclient import TCPClient, _Connector
 from tornado.tcpserver import TCPServer
-from tornado.test.util import refusing_port, skipIfNoIPv6, skipIfNonUnix
 from tornado.testing import AsyncTestCase, gen_test
+from tornado.test.util import skipIfNoIPv6, refusing_port, skipIfNonUnix
+from tornado.gen import TimeoutError
+
+import typing
 
 if typing.TYPE_CHECKING:
-    from typing import Dict, List, Tuple  # noqa: F401
-
     from tornado.iostream import IOStream  # noqa: F401
+    from typing import List, Dict, Tuple  # noqa: F401
 
 # Fake address families for testing.  Used in place of AF_INET
 # and AF_INET6 because some installations do not have AF_INET6.

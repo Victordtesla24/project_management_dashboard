@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import base64
-from typing import Optional, cast
+from typing import Dict, List, Optional, cast
 
 from playwright._impl._api_structures import HeadersArray
 from playwright._impl._connection import ChannelOwner, StackFrame
@@ -22,7 +22,7 @@ from playwright._impl._helper import HarLookupResult, locals_to_params
 
 class LocalUtils(ChannelOwner):
     def __init__(
-        self, parent: ChannelOwner, type: str, guid: str, initializer: dict,
+        self, parent: ChannelOwner, type: str, guid: str, initializer: Dict
     ) -> None:
         super().__init__(parent, type, guid, initializer)
         self._channel.mark_as_internal_type()
@@ -31,7 +31,7 @@ class LocalUtils(ChannelOwner):
             for device in initializer["deviceDescriptors"]
         }
 
-    async def zip(self, params: dict) -> None:
+    async def zip(self, params: Dict) -> None:
         await self._channel.send("zip", params)
 
     async def har_open(self, file: str) -> None:
@@ -70,19 +70,19 @@ class LocalUtils(ChannelOwner):
     async def trace_discarded(self, stacks_id: str) -> None:
         return await self._channel.send("traceDiscarded", {"stacksId": stacks_id})
 
-    def add_stack_to_tracing_no_reply(self, id: int, frames: list[StackFrame]) -> None:
+    def add_stack_to_tracing_no_reply(self, id: int, frames: List[StackFrame]) -> None:
         self._channel.send_no_reply(
             "addStackToTracingNoReply",
             {
                 "callData": {
                     "stack": frames,
                     "id": id,
-                },
+                }
             },
         )
 
 
-def parse_device_descriptor(dict: dict) -> dict:
+def parse_device_descriptor(dict: Dict) -> Dict:
     return {
         "user_agent": dict["userAgent"],
         "viewport": dict["viewport"],

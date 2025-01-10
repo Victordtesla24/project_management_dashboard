@@ -1,20 +1,21 @@
 import unittest
-from typing import Any, Dict, List, Tuple, Union  # noqa: F401
 
 import tornado
 from tornado.escape import (
-    json_decode,
-    json_encode,
-    recursive_unicode,
-    squeeze,
-    to_unicode,
-    url_escape,
-    url_unescape,
     utf8,
     xhtml_escape,
     xhtml_unescape,
+    url_escape,
+    url_unescape,
+    to_unicode,
+    json_decode,
+    json_encode,
+    squeeze,
+    recursive_unicode,
 )
 from tornado.util import unicode_type
+
+from typing import List, Tuple, Union, Dict, Any  # noqa: F401
 
 linkify_tests = [
     # (input, linkify_kwargs, expected_output)

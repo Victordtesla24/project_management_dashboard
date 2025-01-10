@@ -6,15 +6,15 @@ import traceback
 import typing
 import unittest
 
-from tornado import gen
 from tornado.concurrent import Future
+from tornado import gen
 from tornado.httpclient import HTTPError, HTTPRequest
 from tornado.locks import Event
-from tornado.log import app_log, gen_log
+from tornado.log import gen_log, app_log
 from tornado.netutil import Resolver
 from tornado.simple_httpclient import SimpleAsyncHTTPClient
 from tornado.template import DictLoader
-from tornado.testing import AsyncHTTPTestCase, ExpectLog, bind_unused_port, gen_test
+from tornado.testing import AsyncHTTPTestCase, gen_test, bind_unused_port, ExpectLog
 from tornado.web import Application, RequestHandler
 
 try:
@@ -29,10 +29,10 @@ except ImportError:
     raise
 
 from tornado.websocket import (
-    WebSocketClosedError,
-    WebSocketError,
     WebSocketHandler,
     websocket_connect,
+    WebSocketError,
+    WebSocketClosedError,
 )
 
 try:

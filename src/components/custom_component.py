@@ -102,6 +102,7 @@ class CustomComponent(BaseCustomComponent):
 
         try:
             import pyarrow  # noqa: F401
+
             from streamlit.components.v1 import component_arrow
         except ImportError:
             raise StreamlitAPIException(

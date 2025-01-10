@@ -21,7 +21,10 @@ from streamlit import config, logger
 from streamlit.dataframe_util import OptionSequence, convert_anything_to_list
 from streamlit.errors import StreamlitAPIException
 from streamlit.runtime.state.common import RegisterWidgetResult
-from streamlit.type_util import T, check_python_comparable
+from streamlit.type_util import (
+    T,
+    check_python_comparable,
+)
 
 _LOGGER: Final = logger.get_logger(__name__)
 

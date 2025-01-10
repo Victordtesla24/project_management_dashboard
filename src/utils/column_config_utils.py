@@ -19,15 +19,17 @@ import json
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, Final, Literal, Mapping, Union
 
+from typing_extensions import TypeAlias
+
 from streamlit.dataframe_util import DataFormat
 from streamlit.elements.lib.column_types import ColumnConfig, ColumnType
 from streamlit.elements.lib.dicttools import remove_none_values
 from streamlit.errors import StreamlitAPIException
-from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
     import pyarrow as pa
     from pandas import DataFrame, Index, Series
+
     from streamlit.proto.Arrow_pb2 import Arrow as ArrowProto
 
 

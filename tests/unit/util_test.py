@@ -1,26 +1,27 @@
-import datetime
+from io import StringIO
 import re
 import sys
-import typing
+import datetime
 import unittest
-from io import StringIO
-from typing import cast
 
 import tornado
 from tornado.escape import utf8
 from tornado.util import (
-    ArgReplacer,
+    raise_exc_info,
     Configurable,
     exec_in,
-    import_object,
-    is_finalizing,
-    raise_exc_info,
-    re_unescape,
+    ArgReplacer,
     timedelta_to_seconds,
+    import_object,
+    re_unescape,
+    is_finalizing,
 )
 
+import typing
+from typing import cast
+
 if typing.TYPE_CHECKING:
-    from typing import Any, Dict  # noqa: F401
+    from typing import Dict, Any  # noqa: F401
 
 
 class RaiseExcInfoTest(unittest.TestCase):

@@ -4,11 +4,12 @@ Tests for numpy/_core/src/multiarray/conversion_utils.c
 import re
 import sys
 
+import pytest
+
 import numpy as np
 import numpy._core._multiarray_tests as mt
-import pytest
-from numpy._core.multiarray import CLIP, RAISE, WRAP
-from numpy.testing import IS_PYPY, assert_warns
+from numpy._core.multiarray import CLIP, WRAP, RAISE
+from numpy.testing import assert_warns, IS_PYPY
 
 
 class StringConverterTestCase:

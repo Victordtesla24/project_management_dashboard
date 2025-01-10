@@ -46,7 +46,9 @@ from streamlit.runtime.caching.cached_message_replay import (
     replay_cached_messages,
 )
 from streamlit.runtime.caching.hashing import HashFuncsDict, update_hash
-from streamlit.runtime.scriptrunner_utils.script_run_context import in_cached_function
+from streamlit.runtime.scriptrunner_utils.script_run_context import (
+    in_cached_function,
+)
 from streamlit.util import HASHLIB_KWARGS
 
 if TYPE_CHECKING:

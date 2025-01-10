@@ -1,12 +1,16 @@
-import os
-import sys
+from .lib import TestBase, FileCreator
+
+from smmap.mman import (
+    SlidingWindowMapManager,
+    StaticWindowMapManager
+)
+from smmap.buf import SlidingWindowMapBuffer
+
 from random import randint
 from time import time
+import sys
+import os
 
-from smmap.buf import SlidingWindowMapBuffer
-from smmap.mman import SlidingWindowMapManager, StaticWindowMapManager
-
-from .lib import FileCreator, TestBase
 
 man_optimal = SlidingWindowMapManager()
 man_worst_case = SlidingWindowMapManager(

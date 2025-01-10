@@ -1,8 +1,8 @@
-import json
+import pytest
 import subprocess
+import json
 import sys
 
-import pytest
 from numpy.distutils import _shell_utils
 from numpy.testing import IS_WASM
 

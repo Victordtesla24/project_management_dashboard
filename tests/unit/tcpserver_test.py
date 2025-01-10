@@ -3,7 +3,6 @@ import subprocess
 import sys
 import textwrap
 import unittest
-from typing import Tuple
 
 from tornado import gen
 from tornado.iostream import IOStream
@@ -11,6 +10,8 @@ from tornado.log import app_log
 from tornado.tcpserver import TCPServer
 from tornado.test.util import skipIfNonUnix
 from tornado.testing import AsyncTestCase, ExpectLog, bind_unused_port, gen_test
+
+from typing import Tuple
 
 
 class TCPServerTest(AsyncTestCase):

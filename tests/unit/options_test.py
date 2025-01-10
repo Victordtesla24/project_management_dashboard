@@ -1,14 +1,15 @@
 import datetime
+from io import StringIO
 import os
 import sys
-import typing
-import unittest
-from io import StringIO
 from unittest import mock
+import unittest
 
-from tornado.options import Error, OptionParser
-from tornado.test.util import subTest
+from tornado.options import OptionParser, Error
 from tornado.util import basestring_type
+from tornado.test.util import subTest
+
+import typing
 
 if typing.TYPE_CHECKING:
     from typing import List  # noqa: F401

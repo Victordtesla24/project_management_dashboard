@@ -4,11 +4,11 @@
 # the New BSD License: https://opensource.org/license/bsd-3-clause/
 """Module with examples from the tutorial section of the docs"""
 import os
-from io import BytesIO
-
+from gitdb.test.lib import TestBase
 from gitdb import IStream
 from gitdb.db import LooseObjectDB
-from gitdb.test.lib import TestBase
+
+from io import BytesIO
 
 
 class TestExamples(TestBase):

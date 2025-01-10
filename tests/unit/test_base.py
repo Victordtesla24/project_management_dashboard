@@ -3,18 +3,28 @@
 # This module is part of GitDB and is released under
 # the New BSD License: https://opensource.org/license/bsd-3-clause/
 """Test for object db"""
+from gitdb.test.lib import (
+    TestBase,
+    DummyStream,
+    DeriveTest,
+)
+
 from gitdb import (
-    IStream,
-    ODeltaPackInfo,
-    ODeltaPackStream,
     OInfo,
     OPackInfo,
-    OPackStream,
+    ODeltaPackInfo,
     OStream,
+    OPackStream,
+    ODeltaPackStream,
+    IStream
 )
-from gitdb.test.lib import DeriveTest, DummyStream, TestBase
-from gitdb.typ import str_blob_type
-from gitdb.util import NULL_BIN_SHA
+from gitdb.util import (
+    NULL_BIN_SHA
+)
+
+from gitdb.typ import (
+    str_blob_type
+)
 
 
 class TestBaseTypes(TestBase):

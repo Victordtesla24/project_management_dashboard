@@ -7,7 +7,6 @@ class TestTutorial(TestBase):
         # Memory Managers
         ##################
         import smmap
-
         # This instance should be globally available in your application
         # It is configured to be well suitable for 32-bit or 64 bit applications.
         mman = smmap.SlidingWindowMapManager()

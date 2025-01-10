@@ -131,6 +131,8 @@ fi
 
 # Push to GitHub using token for authentication
 echo "Pushing to GitHub..."
+# Try to pull first to avoid rejection
+git pull https://${GITHUB_TOKEN}@github.com/${GITHUB_USER_NAME}/${GITHUB_REPO}.git ${GITHUB_BRANCH} || echo "⚠️  Pull failed, continuing with push..."
 git push https://${GITHUB_TOKEN}@github.com/${GITHUB_USER_NAME}/${GITHUB_REPO}.git ${GITHUB_BRANCH} || handle_error "Failed to push to GitHub"
 
 echo "✓ GitHub synchronization completed"

@@ -59,22 +59,19 @@ from __future__ import annotations
 
 import string
 from queue import Empty
-from typing import Any
+from typing import Any, Dict, Set
 
 import azure.core.exceptions
 import azure.servicebus.exceptions
 import isodate
-from azure.servicebus import (
-    ServiceBusClient,
-    ServiceBusMessage,
-    ServiceBusReceiveMode,
-    ServiceBusReceiver,
-    ServiceBusSender,
-)
+from azure.servicebus import (ServiceBusClient, ServiceBusMessage,
+                              ServiceBusReceiveMode, ServiceBusReceiver,
+                              ServiceBusSender)
 from azure.servicebus.management import ServiceBusAdministrationClient
 
 try:
-    from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
+    from azure.identity import (DefaultAzureCredential,
+                                ManagedIdentityCredential)
 except ImportError:
     DefaultAzureCredential = None
     ManagedIdentityCredential = None
@@ -89,7 +86,7 @@ from . import virtual
 PUNCTUATIONS_TO_REPLACE = set(string.punctuation) - {'_', '.', '-'}
 CHARS_REPLACE_TABLE = {
     ord('.'): ord('-'),
-    **{ord(c): ord('_') for c in PUNCTUATIONS_TO_REPLACE},
+    **{ord(c): ord('_') for c in PUNCTUATIONS_TO_REPLACE}
 }
 
 
@@ -125,8 +122,8 @@ class Channel(virtual.Channel):
     # Max time to backoff (is the default from service bus repo)
     default_retry_backoff_max: int = 120
     domain_format: str = 'kombu%(vhost)s'
-    _queue_cache: dict[str, SendReceive] = {}
-    _noack_queues: set[str] = set()
+    _queue_cache: Dict[str, SendReceive] = {}
+    _noack_queues: Set[str] = set()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -151,7 +148,7 @@ class Channel(virtual.Channel):
             ManagedIdentityCredential is not None
             and isinstance(self._credential, ManagedIdentityCredential)
         ):
-            return
+            return None
 
         if ":" in self._credential:
             self._policy, self._sas_key = self._credential.split(':', 1)
@@ -168,7 +165,7 @@ class Channel(virtual.Channel):
         if no_ack:
             self._noack_queues.add(queue)
         return super().basic_consume(
-            queue, no_ack, *args, **kwargs,
+            queue, no_ack, *args, **kwargs
         )
 
     def basic_cancel(self, consumer_tag):
@@ -180,7 +177,7 @@ class Channel(virtual.Channel):
     def _add_queue_to_cache(
             self, name: str,
             receiver: ServiceBusReceiver | None = None,
-            sender: ServiceBusSender | None = None,
+            sender: ServiceBusSender | None = None
     ) -> SendReceive:
         if name in self._queue_cache:
             obj = self._queue_cache[name]
@@ -261,7 +258,7 @@ class Channel(virtual.Channel):
 
     def _get(
             self, queue: str,
-            timeout: float | int | None = None,
+            timeout: float | int | None = None
     ) -> dict[str, Any]:
         """Try to retrieve a single message off ``queue``."""
         # If we're not ack'ing for this queue, just change receive_mode
@@ -331,13 +328,13 @@ class Channel(virtual.Channel):
            queue_obj is None or queue_obj.receiver is None:
             queue_obj = self._get_asb_receiver(
                 queue,
-                ServiceBusReceiveMode.RECEIVE_AND_DELETE, 'purge_' + queue,
+                ServiceBusReceiveMode.RECEIVE_AND_DELETE, 'purge_' + queue
             )
 
         while True:
             messages = queue_obj.receiver.receive_messages(
                 max_message_count=max_purge_count,
-                max_wait_time=0.2,
+                max_wait_time=0.2
             )
             n += len(messages)
 
@@ -364,7 +361,7 @@ class Channel(virtual.Channel):
                 self._connection_string,
                 retry_total=self.retry_total,
                 retry_backoff_factor=self.retry_backoff_factor,
-                retry_backoff_max=self.retry_backoff_max,
+                retry_backoff_max=self.retry_backoff_max
             )
 
         return ServiceBusClient(
@@ -372,18 +369,18 @@ class Channel(virtual.Channel):
             self._credential,
             retry_total=self.retry_total,
             retry_backoff_factor=self.retry_backoff_factor,
-            retry_backoff_max=self.retry_backoff_max,
+            retry_backoff_max=self.retry_backoff_max
         )
 
     @cached_property
     def queue_mgmt_service(self) -> ServiceBusAdministrationClient:
         if self._connection_string:
             return ServiceBusAdministrationClient.from_connection_string(
-                self._connection_string,
+                self._connection_string
             )
 
         return ServiceBusAdministrationClient(
-            self._namespace, self._credential,
+            self._namespace, self._credential
         )
 
     @property
@@ -413,7 +410,7 @@ class Channel(virtual.Channel):
     def uamqp_keep_alive_interval(self) -> int:
         return self.transport_options.get(
             'uamqp_keep_alive_interval',
-            self.default_uamqp_keep_alive_interval,
+            self.default_uamqp_keep_alive_interval
         )
 
     @cached_property
@@ -478,8 +475,8 @@ class Transport(virtual.Transport):
         if not all([namespace, credential]):
             raise ValueError(
                 'Need a URI like '
-                'azureservicebus://{SAS policy name}:{SAS key}@{ServiceBus Namespace} '
-                'or the azure Endpoint connection string',
+                'azureservicebus://{SAS policy name}:{SAS key}@{ServiceBus Namespace} ' # noqa
+                'or the azure Endpoint connection string'
             )
 
         return namespace, credential
@@ -489,6 +486,13 @@ class Transport(virtual.Transport):
         namespace, credential = cls.parse_uri(uri)
         if isinstance(credential, str) and ":" in credential:
             policy, sas_key = credential.split(':', 1)
-            return f'azureservicebus://{policy}:{sas_key if include_password else mask}@{namespace}'
+            return 'azureservicebus://{}:{}@{}'.format(
+                policy,
+                sas_key if include_password else mask,
+                namespace
+            )
 
-        return f'azureservicebus://{credential.__class__.__name__}@{namespace}'
+        return 'azureservicebus://{}@{}'.format(
+            credential.__class__.__name__,
+            namespace
+        )

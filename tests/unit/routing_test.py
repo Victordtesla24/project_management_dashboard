@@ -10,8 +10,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import typing  # noqa: F401
-
 from tornado.httputil import (
     HTTPHeaders,
     HTTPMessageDelegate,
@@ -29,6 +27,8 @@ from tornado.routing import (
 from tornado.testing import AsyncHTTPTestCase
 from tornado.web import Application, HTTPError, RequestHandler
 from tornado.wsgi import WSGIContainer
+
+import typing  # noqa: F401
 
 
 class BasicRouter(Router):

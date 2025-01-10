@@ -36,7 +36,7 @@ class PosixStdinReader:
     # with "Option as Meta" checked (You should choose "Option as +Esc".)
 
     def __init__(
-        self, stdin_fd: int, errors: str = "surrogateescape", encoding: str = "utf-8",
+        self, stdin_fd: int, errors: str = "surrogateescape", encoding: str = "utf-8"
     ) -> None:
         self.stdin_fd = stdin_fd
         self.errors = errors

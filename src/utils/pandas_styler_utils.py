@@ -22,6 +22,7 @@ from streamlit.errors import StreamlitAPIException
 if TYPE_CHECKING:
     from pandas import DataFrame
     from pandas.io.formats.style import Styler
+
     from streamlit.proto.Arrow_pb2 import Arrow as ArrowProto
 
 

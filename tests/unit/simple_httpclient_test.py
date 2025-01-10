@@ -1,4 +1,5 @@
 import collections
+from contextlib import closing
 import errno
 import logging
 import os
@@ -7,10 +8,9 @@ import socket
 import ssl
 import sys
 import typing  # noqa: F401
-from contextlib import closing
 
-from tornado import gen, version
 from tornado.escape import to_unicode, utf8
+from tornado import gen, version
 from tornado.httpclient import AsyncHTTPClient
 from tornado.httputil import HTTPHeaders, ResponseStartLine
 from tornado.ioloop import IOLoop
@@ -19,11 +19,10 @@ from tornado.locks import Event
 from tornado.log import gen_log
 from tornado.netutil import Resolver, bind_sockets
 from tornado.simple_httpclient import (
+    SimpleAsyncHTTPClient,
     HTTPStreamClosedError,
     HTTPTimeoutError,
-    SimpleAsyncHTTPClient,
 )
-from tornado.test import httpclient_test
 from tornado.test.httpclient_test import (
     ChunkHandler,
     CountdownHandler,
@@ -31,15 +30,16 @@ from tornado.test.httpclient_test import (
     RedirectHandler,
     UserAgentHandler,
 )
-from tornado.test.util import refusing_port, skipIfNoIPv6, skipOnTravis
+from tornado.test import httpclient_test
 from tornado.testing import (
-    AsyncHTTPSTestCase,
     AsyncHTTPTestCase,
+    AsyncHTTPSTestCase,
     AsyncTestCase,
     ExpectLog,
     gen_test,
 )
-from tornado.web import Application, RequestHandler, stream_request_body, url
+from tornado.test.util import skipOnTravis, skipIfNoIPv6, refusing_port
+from tornado.web import RequestHandler, Application, url, stream_request_body
 
 
 class SimpleHTTPClientCommonTestCase(httpclient_test.HTTPClientCommonTestCase):

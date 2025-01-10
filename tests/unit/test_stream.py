@@ -4,22 +4,32 @@
 # the New BSD License: https://opensource.org/license/bsd-3-clause/
 """Test for object db"""
 
-import os
-import tempfile
-import zlib
-from io import BytesIO
+from gitdb.test.lib import (
+    TestBase,
+    DummyStream,
+    make_bytes,
+    make_object,
+    fixture_path
+)
 
 from gitdb import (
     DecompressMemMapReader,
     FDCompressedSha1Writer,
-    IStream,
     LooseObjectDB,
-    MemoryDB,
     Sha1Writer,
+    MemoryDB,
+    IStream,
 )
-from gitdb.test.lib import DummyStream, TestBase, fixture_path, make_bytes, make_object
-from gitdb.typ import str_blob_type
 from gitdb.util import hex_to_bin
+
+import zlib
+from gitdb.typ import (
+    str_blob_type
+)
+
+import tempfile
+import os
+from io import BytesIO
 
 
 class TestStream(TestBase):

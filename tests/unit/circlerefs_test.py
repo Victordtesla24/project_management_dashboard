@@ -18,7 +18,7 @@ import typing
 import unittest
 
 import tornado
-from tornado import gen, httpclient, web
+from tornado import web, gen, httpclient
 from tornado.test.util import skipNotCPython
 
 

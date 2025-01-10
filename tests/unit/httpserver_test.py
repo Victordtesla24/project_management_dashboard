@@ -1,27 +1,11 @@
-import datetime
-import gzip
-import logging
-import os
-import shutil
-import socket
-import ssl
-import sys
-import tempfile
-import textwrap
-import typing
-import unittest
-import urllib.parse
-from contextlib import closing
-from io import BytesIO
-
 from tornado import gen, netutil
 from tornado.escape import (
-    _unicode,
     json_decode,
     json_encode,
-    native_str,
-    recursive_unicode,
     utf8,
+    _unicode,
+    recursive_unicode,
+    native_str,
 )
 from tornado.http1connection import HTTP1Connection
 from tornado.httpclient import HTTPError
@@ -34,18 +18,35 @@ from tornado.httputil import (
 )
 from tornado.iostream import IOStream
 from tornado.locks import Event
-from tornado.log import app_log, gen_log
+from tornado.log import gen_log, app_log
 from tornado.netutil import ssl_options_to_context
 from tornado.simple_httpclient import SimpleAsyncHTTPClient
-from tornado.test.util import skipOnTravis
 from tornado.testing import (
-    AsyncHTTPSTestCase,
     AsyncHTTPTestCase,
+    AsyncHTTPSTestCase,
     AsyncTestCase,
     ExpectLog,
     gen_test,
 )
+from tornado.test.util import skipOnTravis
 from tornado.web import Application, RequestHandler, stream_request_body
+
+from contextlib import closing
+import datetime
+import gzip
+import logging
+import os
+import shutil
+import socket
+import ssl
+import sys
+import tempfile
+import textwrap
+import unittest
+import urllib.parse
+from io import BytesIO
+
+import typing
 
 if typing.TYPE_CHECKING:
     from typing import Dict, List  # noqa: F401

@@ -31,6 +31,8 @@ from typing import (
     cast,
 )
 
+from typing_extensions import TypeAlias
+
 from streamlit import dataframe_util, type_util
 from streamlit.elements.lib.color_util import (
     Color,
@@ -40,11 +42,11 @@ from streamlit.elements.lib.color_util import (
     to_css_color,
 )
 from streamlit.errors import Error, StreamlitAPIException
-from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
     import altair as alt
     import pandas as pd
+
     from streamlit.dataframe_util import Data
 
 VegaLiteType: TypeAlias = Literal["quantitative", "ordinal", "temporal", "nominal"]

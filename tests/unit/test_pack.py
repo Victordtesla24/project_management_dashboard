@@ -3,17 +3,33 @@
 # This module is part of GitDB and is released under
 # the New BSD License: https://opensource.org/license/bsd-3-clause/
 """Test everything about packs reading and writing"""
-import os
-import tempfile
+from gitdb.test.lib import (
+    TestBase,
+    with_rw_directory,
+    fixture_path
+)
+
+from gitdb.stream import DeltaApplyReader
+
+from gitdb.pack import (
+    PackEntity,
+    PackIndexFile,
+    PackFile
+)
+
+from gitdb.base import (
+    OInfo,
+    OStream,
+)
+
+from gitdb.fun import delta_types
+from gitdb.exc import UnsupportedOperation
+from gitdb.util import to_bin_sha
 
 import pytest
-from gitdb.base import OInfo, OStream
-from gitdb.exc import UnsupportedOperation
-from gitdb.fun import delta_types
-from gitdb.pack import PackEntity, PackFile, PackIndexFile
-from gitdb.stream import DeltaApplyReader
-from gitdb.test.lib import TestBase, fixture_path, with_rw_directory
-from gitdb.util import to_bin_sha
+
+import os
+import tempfile
 
 
 #{ Utilities

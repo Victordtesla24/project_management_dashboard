@@ -18,8 +18,9 @@ import mimetypes
 import os
 from typing import TYPE_CHECKING, Final
 
-import streamlit.web.server.routes
 import tornado.web
+
+import streamlit.web.server.routes
 from streamlit.logger import get_logger
 
 if TYPE_CHECKING:

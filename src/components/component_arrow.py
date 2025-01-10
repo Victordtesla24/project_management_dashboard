@@ -25,6 +25,7 @@ from streamlit.elements.lib import pandas_styler_utils
 
 if TYPE_CHECKING:
     from pandas import DataFrame, Index, Series
+
     from streamlit.proto.Components_pb2 import ArrowTable as ArrowTableProto
 
 

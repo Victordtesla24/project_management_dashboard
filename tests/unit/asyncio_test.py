@@ -15,15 +15,15 @@ import threading
 import time
 import unittest
 import warnings
-from concurrent.futures import ThreadPoolExecutor
 
+from concurrent.futures import ThreadPoolExecutor
 from tornado import gen
 from tornado.ioloop import IOLoop
 from tornado.platform.asyncio import (
-    AddThreadSelectorEventLoop,
-    AnyThreadEventLoopPolicy,
     AsyncIOLoop,
     to_asyncio_future,
+    AnyThreadEventLoopPolicy,
+    AddThreadSelectorEventLoop,
 )
 from tornado.testing import AsyncTestCase, gen_test
 

@@ -5,21 +5,21 @@
 
 import unittest
 
-from tornado import gen
 from tornado.auth import (
-    FacebookGraphMixin,
-    GoogleOAuth2Mixin,
-    OAuth2Mixin,
-    OAuthMixin,
     OpenIdMixin,
+    OAuthMixin,
+    OAuth2Mixin,
+    GoogleOAuth2Mixin,
+    FacebookGraphMixin,
     TwitterMixin,
 )
 from tornado.escape import json_decode
+from tornado import gen
 from tornado.httpclient import HTTPClientError
 from tornado.httputil import url_concat
 from tornado.log import app_log
 from tornado.testing import AsyncHTTPTestCase, ExpectLog
-from tornado.web import Application, HTTPError, RequestHandler
+from tornado.web import RequestHandler, Application, HTTPError
 
 try:
     from unittest import mock

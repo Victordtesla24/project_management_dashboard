@@ -3,11 +3,16 @@
 # This module is part of GitDB and is released under
 # the New BSD License: https://opensource.org/license/bsd-3-clause/
 """Test for object db"""
-import os
 import tempfile
+import os
 
 from gitdb.test.lib import TestBase
-from gitdb.util import NULL_HEX_SHA, LockedFD, to_bin_sha, to_hex_sha
+from gitdb.util import (
+    to_hex_sha,
+    to_bin_sha,
+    NULL_HEX_SHA,
+    LockedFD
+)
 
 
 class TestUtils(TestBase):

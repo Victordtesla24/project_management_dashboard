@@ -2,21 +2,22 @@ import errno
 import os
 import signal
 import socket
+from subprocess import Popen
 import sys
 import time
-import typing
 import unittest
-from subprocess import Popen
 
 from tornado.netutil import (
     BlockingResolver,
     OverrideResolver,
     ThreadedResolver,
-    bind_sockets,
     is_valid_ip,
+    bind_sockets,
 )
+from tornado.testing import AsyncTestCase, gen_test, bind_unused_port
 from tornado.test.util import skipIfNoNetwork
-from tornado.testing import AsyncTestCase, bind_unused_port, gen_test
+
+import typing
 
 if typing.TYPE_CHECKING:
     from typing import List  # noqa: F401

@@ -1,4 +1,7 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from concurrent import futures
+from collections.abc import Generator
 import contextlib
 import datetime
 import functools
@@ -8,26 +11,28 @@ import sys
 import threading
 import time
 import types
-import typing
-import unittest
-from collections.abc import Generator
-from concurrent import futures
-from concurrent.futures import ThreadPoolExecutor
 from unittest import mock
+import unittest
 
-from tornado import gen
-from tornado.concurrent import Future
 from tornado.escape import native_str
-from tornado.ioloop import IOLoop, PeriodicCallback, TimeoutError
+from tornado import gen
+from tornado.ioloop import IOLoop, TimeoutError, PeriodicCallback
 from tornado.log import app_log
-from tornado.test.util import ignore_deprecation, skipIfNonUnix, skipOnTravis
 from tornado.testing import (
     AsyncTestCase,
-    ExpectLog,
     bind_unused_port,
+    ExpectLog,
     gen_test,
     setup_with_context_manager,
 )
+from tornado.test.util import (
+    ignore_deprecation,
+    skipIfNonUnix,
+    skipOnTravis,
+)
+from tornado.concurrent import Future
+
+import typing
 
 if typing.TYPE_CHECKING:
     from typing import List  # noqa: F401

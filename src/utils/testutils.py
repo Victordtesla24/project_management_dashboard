@@ -8,18 +8,14 @@
 import operator
 
 import numpy as np
+from numpy import ndarray
 import numpy._core.umath as umath
 import numpy.testing
-from numpy import ndarray
 from numpy.testing import (
-    assert_,
-    assert_allclose,
-    assert_array_almost_equal_nulp,
-    assert_raises,
-    build_err_msg,
-)
-
-from .core import filled, getmask, mask_or, masked, masked_array, nomask
+    assert_, assert_allclose, assert_array_almost_equal_nulp,
+    assert_raises, build_err_msg
+    )
+from .core import mask_or, getmask, masked_array, nomask, masked, filled
 
 __all__masked = [
     'almost', 'approx', 'assert_almost_equal', 'assert_array_almost_equal',
@@ -34,7 +30,6 @@ __all__masked = [
 # unfortunate, as some of these functions are not intended to work with
 # masked arrays. But there was no way to tell before.
 from unittest import TestCase
-
 __some__from_testing = [
     'TestCase', 'assert_', 'assert_allclose', 'assert_array_almost_equal_nulp',
     'assert_raises'

@@ -1,13 +1,17 @@
+from .lib import TestBase, FileCreator
+
+from smmap.mman import (
+    WindowCursor,
+    SlidingWindowMapManager,
+    StaticWindowMapManager
+)
+from smmap.util import align_to_mmap
+
+from random import randint
+from time import time
 import os
 import sys
 from copy import copy
-from random import randint
-from time import time
-
-from smmap.mman import SlidingWindowMapManager, StaticWindowMapManager, WindowCursor
-from smmap.util import align_to_mmap
-
-from .lib import FileCreator, TestBase
 
 
 class TestMMan(TestBase):
