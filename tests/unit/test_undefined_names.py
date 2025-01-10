@@ -1,7 +1,6 @@
 import ast
 
-from pyflakes import checker
-from pyflakes import messages as m
+from pyflakes import messages as m, checker
 from pyflakes.test.harness import TestCase, skip
 
 

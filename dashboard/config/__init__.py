@@ -1,7 +1,7 @@
 """Configuration module for the dashboard."""
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .config import ConfigError as ConfigurationError
 from .config import ConfigManager

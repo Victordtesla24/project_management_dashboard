@@ -48,12 +48,15 @@ EXPECTED_CONF_REMOVE_KEY = "functional_remove"
 
 
 def get_expected_configuration(
-    configuration_path: str, default_configuration: PylintConfiguration,
+    configuration_path: str,
+    default_configuration: PylintConfiguration,
 ) -> PylintConfiguration:
     """Get the expected parsed configuration of a configuration functional test."""
     result = copy.deepcopy(default_configuration)
     config_as_json = get_expected_or_default(
-        configuration_path, suffix="result.json", default="{}",
+        configuration_path,
+        suffix="result.json",
+        default="{}",
     )
     to_override = json.loads(config_as_json)
     for key, value in to_override.items():
@@ -73,7 +76,8 @@ def get_expected_configuration(
 
 
 def get_related_files(
-    tested_configuration_file: str | Path, suffix_filter: str,
+    tested_configuration_file: str | Path,
+    suffix_filter: str,
 ) -> list[Path]:
     """Return all the file related to a test conf file ending with a suffix."""
     conf_path = Path(tested_configuration_file)
@@ -85,7 +89,8 @@ def get_related_files(
 
 
 def get_expected_output(
-    configuration_path: str | Path, user_specific_path: Path,
+    configuration_path: str | Path,
+    user_specific_path: Path,
 ) -> tuple[int, str]:
     """Get the expected output of a functional test."""
     exit_code = 0
@@ -120,7 +125,9 @@ def get_expected_output(
         return -1, "out file is broken"
 
     output = get_expected_or_default(
-        configuration_path, suffix=f"{exit_code}.out", default="",
+        configuration_path,
+        suffix=f"{exit_code}.out",
+        default="",
     )
     logging.info(
         "Output exists for %s so the expected exit code is %s",
@@ -134,7 +141,8 @@ def get_expected_output(
 
 
 def run_using_a_configuration_file(
-    configuration_path: Path | str, file_to_lint: str = __file__,
+    configuration_path: Path | str,
+    file_to_lint: str = __file__,
 ) -> tuple[Mock, Mock, Run]:
     """Simulate a run with a configuration without really launching the checks."""
     configuration_path = str(configuration_path)

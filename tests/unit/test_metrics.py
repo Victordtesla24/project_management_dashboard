@@ -1,35 +1,17 @@
-import json
+from dashboard.metrics import collect_metrics
 
 
-def test_metrics_data(test_data):
-"""\1"""
-metrics_file = test_data / "metrics.json"
-with open(metrics_file) as f:
-metrics = json.loads(f.read())
-assert "cpu" in metrics
-assert "memory" in metrics
+def test_collect_metrics():
+    """Test metrics collection."""
+    metrics = collect_metrics()
+    assert isinstance(metrics, dict)
+    assert "cpu" in metrics
+    assert "memory" in metrics
+    assert "disk" in metrics
 
 
-def test_coverage_data(test_data):
-"""\1"""
-coverage_file = test_data / "coverage.xml"
-with open(coverage_file) as f:
-coverage = f.read()
-assert 'version="1.0"' in coverage
-
-
-def test_test_results(test_data):
-"""\1"""
-# Since test_data is a directory, we'll check if it exists
-assert test_data.exists()
-assert test_data.is_dir()
-
-
-def test_temp_directory(temp_test_dir):
-"""\1"""
-assert temp_test_dir.exists()
-assert temp_test_dir.is_dir()
-test_file = temp_test_dir / "test.txt"
-test_file.write_text("test content")
-assert test_file.exists()
-assert test_file.read_text() == "test content"
+def test_metrics_format():
+    """Test metrics format."""
+    metrics = collect_metrics()
+    assert all(isinstance(v, dict) for v in metrics.values())
+    assert all(isinstance(v, (int, float)) for m in metrics.values() for v in m.values())

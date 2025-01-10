@@ -1,13 +1,11 @@
 import json
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from .schema import SchemaValidationError, ValidationResult
+from .schema import ValidationResult
 
 
 class ConfigurationError(Exception):
     """Configuration error class."""
-    pass
 
 ConfigError = ConfigurationError  # For backwards compatibility
 

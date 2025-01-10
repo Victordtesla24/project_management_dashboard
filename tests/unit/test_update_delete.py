@@ -42,9 +42,7 @@ class SimpleUpdateDeleteTest(fixtures.TablesTest):
 
     def test_update(self, connection):
         t = self.tables.plain_pk
-        r = connection.execute(
-            t.update().where(t.c.id == 2), dict(data="d2_new")
-        )
+        r = connection.execute(t.update().where(t.c.id == 2), dict(data="d2_new"))
         assert not r.is_insert
         assert not r.returns_rows
         assert r.rowcount == 1
@@ -93,9 +91,11 @@ class SimpleUpdateDeleteTest(fixtures.TablesTest):
 
         eq_(
             connection.execute(t.select().order_by(t.c.id)).fetchall(),
-            [(1, "d1"), (2, "d2_new"), (3, "d3")]
-            if criteria.rows
-            else [(1, "d1"), (2, "d2"), (3, "d3")],
+            (
+                [(1, "d1"), (2, "d2_new"), (3, "d3")]
+                if criteria.rows
+                else [(1, "d1"), (2, "d2"), (3, "d3")]
+            ),
         )
 
     @testing.variation("criteria", ["rows", "norows", "emptyin"])
@@ -126,9 +126,11 @@ class SimpleUpdateDeleteTest(fixtures.TablesTest):
 
         eq_(
             connection.execute(t.select().order_by(t.c.id)).fetchall(),
-            [(1, "d1"), (3, "d3")]
-            if criteria.rows
-            else [(1, "d1"), (2, "d2"), (3, "d3")],
+            (
+                [(1, "d1"), (3, "d3")]
+                if criteria.rows
+                else [(1, "d1"), (2, "d2"), (3, "d3")]
+            ),
         )
 
 

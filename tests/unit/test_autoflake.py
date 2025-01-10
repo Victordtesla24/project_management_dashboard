@@ -12,10 +12,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
+from typing import Iterator
+from typing import Mapping
+from typing import Sequence
 
 import autoflake
+
 
 ROOT_DIRECTORY = os.path.abspath(os.path.dirname(__file__))
 
@@ -797,7 +800,7 @@ def foo() -> None:
                 output.write("import re\n")
 
             p = subprocess.Popen(
-                [*list(AUTOFLAKE_COMMAND), "--ignore-init-module-imports", temp_file],
+                list(AUTOFLAKE_COMMAND) + ["--ignore-init-module-imports", temp_file],
                 stdout=subprocess.PIPE,
             )
             result = p.communicate()[0].decode("utf-8")
@@ -815,7 +818,7 @@ def foo() -> None:
                 output.write("import re\n")
 
             p = subprocess.Popen(
-                [*list(AUTOFLAKE_COMMAND), temp_file],
+                list(AUTOFLAKE_COMMAND) + [temp_file],
                 stdout=subprocess.PIPE,
             )
             result = p.communicate()[0].decode("utf-8")
@@ -1988,7 +1991,8 @@ def func11() -> None:
                 output.write("import os\n")
 
             p = subprocess.Popen(
-                [*list(AUTOFLAKE_COMMAND), temp_directory, "--recursive", "--exclude=a*"],
+                list(AUTOFLAKE_COMMAND)
+                + [temp_directory, "--recursive", "--exclude=a*"],
                 stdout=subprocess.PIPE,
             )
             result = p.communicate()[0].decode("utf-8")
@@ -2447,7 +2451,11 @@ print(x)
 """,
         ) as filename:
             process = subprocess.Popen(
-                [*AUTOFLAKE_COMMAND, "--imports=fake_foo,fake_bar", filename],
+                AUTOFLAKE_COMMAND
+                + [
+                    "--imports=fake_foo,fake_bar",
+                    filename,
+                ],
                 stdout=subprocess.PIPE,
             )
             self.assertEqual(
@@ -2480,7 +2488,14 @@ print(x)
 """,
             ) as filename2:
                 process = subprocess.Popen(
-                    [*AUTOFLAKE_COMMAND, "--imports=fake_foo,fake_bar", "--check", "--jobs=2", filename1, filename2],
+                    AUTOFLAKE_COMMAND
+                    + [
+                        "--imports=fake_foo,fake_bar",
+                        "--check",
+                        "--jobs=2",
+                        filename1,
+                        filename2,
+                    ],
                     stdout=subprocess.PIPE,
                 )
 
@@ -2497,7 +2512,11 @@ print(x)
 """,
         ) as filename:
             process = subprocess.Popen(
-                [*AUTOFLAKE_COMMAND, "--remove-all", filename],
+                AUTOFLAKE_COMMAND
+                + [
+                    "--remove-all",
+                    filename,
+                ],
                 stdout=subprocess.PIPE,
             )
             self.assertEqual(
@@ -2528,7 +2547,11 @@ print(a)
 """,
         ) as filename:
             process = subprocess.Popen(
-                [*AUTOFLAKE_COMMAND, "--remove-duplicate-keys", filename],
+                AUTOFLAKE_COMMAND
+                + [
+                    "--remove-duplicate-keys",
+                    filename,
+                ],
                 stdout=subprocess.PIPE,
             )
             self.assertEqual(
@@ -2566,7 +2589,11 @@ print(a)
 """,
         ) as filename:
             process = subprocess.Popen(
-                [*AUTOFLAKE_COMMAND, "--remove-duplicate-keys", filename],
+                AUTOFLAKE_COMMAND
+                + [
+                    "--remove-duplicate-keys",
+                    filename,
+                ],
                 stdout=subprocess.PIPE,
             )
             self.assertEqual(
@@ -2599,7 +2626,11 @@ print(a)
 """,
         ) as filename:
             process = subprocess.Popen(
-                [*AUTOFLAKE_COMMAND, "--remove-duplicate-keys", filename],
+                AUTOFLAKE_COMMAND
+                + [
+                    "--remove-duplicate-keys",
+                    filename,
+                ],
                 stdout=subprocess.PIPE,
             )
             self.assertEqual(
@@ -2624,7 +2655,12 @@ print(x)
 """,
         ) as filename:
             process = subprocess.Popen(
-                [*AUTOFLAKE_COMMAND, "--imports=fake_foo,fake_bar", "--remove-all", filename],
+                AUTOFLAKE_COMMAND
+                + [
+                    "--imports=fake_foo,fake_bar",
+                    "--remove-all",
+                    filename,
+                ],
                 stderr=subprocess.PIPE,
             )
             self.assertIn(
@@ -2640,7 +2676,7 @@ x = os.sep
 print(x)
 """
         process = subprocess.Popen(
-            [*AUTOFLAKE_COMMAND, "--remove-all", "-"],
+            AUTOFLAKE_COMMAND + ["--remove-all", "-"],
             stdout=subprocess.PIPE,
             stdin=subprocess.PIPE,
         )
@@ -2662,7 +2698,7 @@ x = os.sep
 print(x)
 """
         process = subprocess.Popen(
-            [*AUTOFLAKE_COMMAND, "--remove-all", "--in-place", "-"],
+            AUTOFLAKE_COMMAND + ["--remove-all", "--in-place", "-"],
             stdout=subprocess.PIPE,
             stdin=subprocess.PIPE,
         )
@@ -2685,7 +2721,10 @@ fake_foo.fake_function()
 """,
         ) as filename:
             process = subprocess.Popen(
-                [*AUTOFLAKE_COMMAND, filename],
+                AUTOFLAKE_COMMAND
+                + [
+                    filename,
+                ],
                 stdout=subprocess.PIPE,
             )
             self.assertEqual(

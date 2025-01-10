@@ -5,15 +5,21 @@ Tests for L{pyflakes.scripts.pyflakes}.
 import contextlib
 import io
 import os
+import sys
 import shutil
 import subprocess
-import sys
 import tempfile
 
-from pyflakes.api import check, checkPath, checkRecursive, iterSourceCode, main
 from pyflakes.checker import PYPY
 from pyflakes.messages import UnusedImport
 from pyflakes.reporter import Reporter
+from pyflakes.api import (
+    main,
+    check,
+    checkPath,
+    checkRecursive,
+    iterSourceCode,
+)
 from pyflakes.test.harness import TestCase, skipIf
 
 

@@ -201,9 +201,7 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
             lightweight_percent_table.alias(),
         ):
             eq_(
-                list(
-                    conn.execute(table.select().order_by(table.c["percent%"]))
-                ),
+                list(conn.execute(table.select().order_by(table.c["percent%"]))),
                 [(5, 12), (7, 11), (9, 10), (11, 9)],
             )
 
@@ -218,9 +216,7 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
                 [(9, 10), (11, 9)],
             )
 
-            row = conn.execute(
-                table.select().order_by(table.c["percent%"])
-            ).first()
+            row = conn.execute(table.select().order_by(table.c["percent%"])).first()
             eq_(row._mapping["percent%"], 5)
             eq_(row._mapping["spaces % more spaces"], 12)
 
@@ -228,26 +224,20 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
             eq_(row._mapping[table.c["spaces % more spaces"]], 12)
 
         conn.execute(
-            percent_table.update().values(
-                {percent_table.c["spaces % more spaces"]: 15}
-            )
+            percent_table.update().values({percent_table.c["spaces % more spaces"]: 15})
         )
 
         eq_(
             list(
                 conn.execute(
-                    percent_table.select().order_by(
-                        percent_table.c["percent%"]
-                    )
+                    percent_table.select().order_by(percent_table.c["percent%"])
                 )
             ),
             [(5, 15), (7, 15), (9, 15), (11, 15)],
         )
 
 
-class ServerSideCursorsTest(
-    fixtures.TestBase, testing.AssertsExecutionResults
-):
+class ServerSideCursorsTest(fixtures.TestBase, testing.AssertsExecutionResults):
     __requires__ = ("server_side_cursors",)
 
     __backend__ = True
@@ -329,9 +319,7 @@ class ServerSideCursorsTest(
         id_="iaaa",
         argnames="engine_ss_arg, statement, cursor_ss_status",
     )
-    def test_ss_cursor_status(
-        self, engine_ss_arg, statement, cursor_ss_status
-    ):
+    def test_ss_cursor_status(self, engine_ss_arg, statement, cursor_ss_status):
         engine = self._fixture(engine_ss_arg)
         with engine.begin() as conn:
             if isinstance(statement, str):
@@ -346,9 +334,9 @@ class ServerSideCursorsTest(
 
         with engine.connect() as conn:
             # should be enabled for this one
-            result = conn.execution_options(
-                stream_results=True
-            ).exec_driver_sql("select 1")
+            result = conn.execution_options(stream_results=True).exec_driver_sql(
+                "select 1"
+            )
             assert self._is_server_side(result.cursor)
 
             # the connection has autobegun, which means at the end of the
@@ -429,9 +417,7 @@ class ServerSideCursorsTest(
             )
             connection.execute(test_table.delete())
             eq_(
-                connection.scalar(
-                    select(func.count("*")).select_from(test_table)
-                ),
+                connection.scalar(select(func.count("*")).select_from(test_table)),
                 0,
             )
 
@@ -453,9 +439,7 @@ class ServerSideCursorsTest(
                 [dict(data="data%d" % i) for i in range(1, 20)],
             )
 
-            result = connection.execute(
-                test_table.select().order_by(test_table.c.id)
-            )
+            result = connection.execute(test_table.select().order_by(test_table.c.id))
 
             eq_(
                 result.fetchmany(5),

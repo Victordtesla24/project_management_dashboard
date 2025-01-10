@@ -7,12 +7,7 @@ import tempfile
 import os
 
 from gitdb.test.lib import TestBase
-from gitdb.util import (
-    to_hex_sha,
-    to_bin_sha,
-    NULL_HEX_SHA,
-    LockedFD
-)
+from gitdb.util import to_hex_sha, to_bin_sha, NULL_HEX_SHA, LockedFD
 
 
 class TestUtils(TestBase):
@@ -67,14 +62,14 @@ class TestUtils(TestBase):
 
             assert os.path.isfile(lockfilepath)
             # deletion rolls back
-            del(lfd)
+            del lfd
             assert not os.path.isfile(lockfilepath)
 
             # write data - concurrently
             lfd = LockedFD(my_file)
             olfd = LockedFD(my_file)
             assert not os.path.isfile(lockfilepath)
-            wfdstream = lfd.open(write=True, stream=True)       # this time as stream
+            wfdstream = lfd.open(write=True, stream=True)  # this time as stream
             assert os.path.isfile(lockfilepath)
             # another one fails
             self.assertRaises(IOError, olfd.open)

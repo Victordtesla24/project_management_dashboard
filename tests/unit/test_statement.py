@@ -31,15 +31,9 @@ class TestStatement(Statement):
       attribute_map (dict): The key is attribute name
                             and the value is json key in definition.
     """
-    openapi_types = {
-        'type': 'str',
-        'assignment': 'VariableAssignment'
-    }
+    openapi_types = {"type": "str", "assignment": "VariableAssignment"}
 
-    attribute_map = {
-        'type': 'type',
-        'assignment': 'assignment'
-    }
+    attribute_map = {"type": "type", "assignment": "assignment"}
 
     def __init__(self, type=None, assignment=None):  # noqa: E501,D401,D403
         """TestStatement - a model defined in OpenAPI."""  # noqa: E501
@@ -101,18 +95,22 @@ class TestStatement(Statement):
         for attr, _ in self.openapi_types.items():
             value = getattr(self, attr)
             if isinstance(value, list):
-                result[attr] = list(map(
-                    lambda x: x.to_dict() if hasattr(x, "to_dict") else x,
-                    value
-                ))
+                result[attr] = list(
+                    map(lambda x: x.to_dict() if hasattr(x, "to_dict") else x, value)
+                )
             elif hasattr(value, "to_dict"):
                 result[attr] = value.to_dict()
             elif isinstance(value, dict):
-                result[attr] = dict(map(
-                    lambda item: (item[0], item[1].to_dict())
-                    if hasattr(item[1], "to_dict") else item,
-                    value.items()
-                ))
+                result[attr] = dict(
+                    map(
+                        lambda item: (
+                            (item[0], item[1].to_dict())
+                            if hasattr(item[1], "to_dict")
+                            else item
+                        ),
+                        value.items(),
+                    )
+                )
             else:
                 result[attr] = value
 

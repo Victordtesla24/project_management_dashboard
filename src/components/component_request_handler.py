@@ -16,21 +16,19 @@ from __future__ import annotations
 
 import mimetypes
 import os
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
 import tornado.web
 
 import streamlit.web.server.routes
+from streamlit.components.v1.components import ComponentRegistry
 from streamlit.logger import get_logger
-
-if TYPE_CHECKING:
-    from streamlit.components.types.base_component_registry import BaseComponentRegistry
 
 _LOGGER: Final = get_logger(__name__)
 
 
 class ComponentRequestHandler(tornado.web.RequestHandler):
-    def initialize(self, registry: BaseComponentRegistry):
+    def initialize(self, registry: ComponentRegistry):
         self._registry = registry
 
     def get(self, path: str) -> None:
@@ -45,7 +43,7 @@ class ComponentRequestHandler(tornado.web.RequestHandler):
         # follow symlinks to get an accurate normalized path
         component_root = os.path.realpath(component_root)
         filename = "/".join(parts[1:])
-        abspath = os.path.normpath(os.path.join(component_root, filename))
+        abspath = os.path.realpath(os.path.join(component_root, filename))
 
         # Do NOT expose anything outside of the component root.
         if os.path.commonpath([component_root, abspath]) != component_root:

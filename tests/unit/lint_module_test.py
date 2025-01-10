@@ -41,7 +41,9 @@ class LintModuleTest:
     maxDiff = None
 
     def __init__(
-        self, test_file: FunctionalTestFile, config: Config | None = None,
+        self,
+        test_file: FunctionalTestFile,
+        config: Config | None = None,
     ) -> None:
         _test_reporter = FunctionalTestReporter()
         self._linter = PyLinter()
@@ -75,16 +77,24 @@ class LintModuleTest:
 
         # Add testoptions
         self._linter._arg_parser.add_argument(
-            "--min_pyver", type=parse_python_version, default=(2, 5),
+            "--min_pyver",
+            type=parse_python_version,
+            default=(2, 5),
         )
         self._linter._arg_parser.add_argument(
-            "--max_pyver", type=parse_python_version, default=(4, 0),
+            "--max_pyver",
+            type=parse_python_version,
+            default=(4, 0),
         )
         self._linter._arg_parser.add_argument(
-            "--min_pyver_end_position", type=parse_python_version, default=(3, 8),
+            "--min_pyver_end_position",
+            type=parse_python_version,
+            default=(3, 8),
         )
         self._linter._arg_parser.add_argument(
-            "--requires", type=lambda s: [i.strip() for i in s.split(",")], default=[],
+            "--requires",
+            type=lambda s: [i.strip() for i in s.split(",")],
+            default=[],
         )
         self._linter._arg_parser.add_argument(
             "--except_implementations",
@@ -97,11 +107,15 @@ class LintModuleTest:
             default=[],
         )
         self._linter._arg_parser.add_argument(
-            "--exclude_from_minimal_messages_config", default=False,
+            "--exclude_from_minimal_messages_config",
+            default=False,
         )
 
         _config_initialization(
-            self._linter, args_list=args, config_file=rc_file, reporter=_test_reporter,
+            self._linter,
+            args_list=args,
+            config_file=rc_file,
+            reporter=_test_reporter,
         )
 
         self._check_end_position = (
@@ -255,7 +269,9 @@ class LintModuleTest:
         assert (
             expected_messages == actual_messages
         ), self.error_msg_for_unequal_messages(
-            actual_messages, expected_messages, actual_output,
+            actual_messages,
+            expected_messages,
+            actual_output,
         )
         self._check_output_text(expected_messages, expected_output, actual_output)
 
@@ -267,7 +283,8 @@ class LintModuleTest:
     ) -> str:
         msg = [f'Wrong message(s) raised for "{Path(self._test_file.source).name}":']
         missing, unexpected = self.multiset_difference(
-            expected_messages, actual_messages,
+            expected_messages,
+            actual_messages,
         )
         if missing:
             msg.append("\nExpected in testdata:")
@@ -321,5 +338,6 @@ class LintModuleTest:
         LintModuleOutputUpdate.
         """
         assert expected_output == actual_output, self.error_msg_for_unequal_output(
-            expected_output, actual_output,
+            expected_output,
+            actual_output,
         )

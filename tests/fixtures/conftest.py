@@ -4,14 +4,19 @@ from pathlib import Path
 
 import pytest
 
-  @pytest.fixture(scope="session")
+
+@pytest.fixture(scope="session")
 def test_data_dir():
     return Path(__file__).parent / "data"
-  @pytest.fixture(scope="function")
+
+
+@pytest.fixture(scope="function")
 def temp_dir():
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
-  @pytest.fixture(scope="session")
+
+
+@pytest.fixture(scope="session")
 def test_config():
     return {
         "database": {
@@ -32,17 +37,22 @@ def test_config():
             "token_expiry": 3600,
             "algorithm": "HS256",
         },
-        }
-  @pytest.fixture(scope="function")
+    }
+
+
+@pytest.fixture(scope="function")
 async def app_context():
     """Provides an async application context for tests."""
     import asyncio
 
     from dashboard.app import create_app
-     app = create_app(test_config())
+
+    app = create_app(test_config())
     loop = asyncio.get_event_loop()
-     yield app
-     # Clean up any remaining tasks
+
+    yield app
+
+    # Clean up any remaining tasks
     pending = asyncio.all_tasks(loop)
     for task in pending:
         task.cancel()

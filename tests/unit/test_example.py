@@ -14,7 +14,7 @@ from io import BytesIO
 class TestExamples(TestBase):
 
     def test_base(self):
-        ldb = LooseObjectDB(os.path.join(self.gitrepopath, 'objects'))
+        ldb = LooseObjectDB(os.path.join(self.gitrepopath, "objects"))
 
         for sha1 in ldb.sha_iter():
             oinfo = ldb.info(sha1)
@@ -26,8 +26,8 @@ class TestExamples(TestBase):
         # END for each sha in database
         # assure we close all files
         try:
-            del(ostream)
-            del(oinfo)
+            del ostream
+            del oinfo
         except UnboundLocalError:
             pass
         # END ignore exception if there are no loose objects

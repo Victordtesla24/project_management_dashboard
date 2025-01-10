@@ -1,4 +1,5 @@
 """\1"""
+
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -29,10 +30,13 @@ def test_update_metrics(mock_metrics, mock_session_state):
             mock_collect.assert_called_once()
             mock_process.assert_called_once()
 
+
 @patch("dashboard.main.st")
 @patch("plotly.graph_objects")
 @patch("plotly.subplots.make_subplots")
-def test_display_metrics(mock_make_subplots, mock_go, mock_st, mock_metrics, mock_session_state):
+def test_display_metrics(
+    mock_make_subplots, mock_go, mock_st, mock_metrics, mock_session_state
+):
     """\1"""
     # Setup mock data
     mock_session_state = MagicMock()

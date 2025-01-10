@@ -1,8 +1,7 @@
-import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,17 +14,14 @@ class ValidationResult:
 
 class ConfigurationError(Exception):
     """Base configuration error class."""
-    pass
 
 
 class SchemaValidationError(ConfigurationError):
     """Schema validation error class."""
-    pass
 
 
 class ValidationError(Exception):
     """Validation error class."""
-    pass
 
 
 class ConfigManager:

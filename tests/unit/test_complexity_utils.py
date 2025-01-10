@@ -2,15 +2,14 @@ import ast
 import operator
 
 import pytest
+
 from radon.complexity import *
 from radon.contrib.flake8 import Flake8Checker
 from radon.visitors import Class, Function
 
 from .test_complexity_visitor import GENERAL_CASES, dedent
 
-
-def get_index(seq):
-    return lambda index: seq[index]
+get_index = lambda seq: lambda index: seq[index]
 
 
 def _compute_cc_rank(score):
@@ -38,8 +37,8 @@ RANK_CASES = [(score, _compute_cc_rank(score)) for score in range(-1, 100)]
 
 @pytest.mark.parametrize('score,expected_rank', RANK_CASES)
 def test_rank(score, expected_rank):
-    if callable(expected_rank) and isinstance(
-        expected_rank(), Exception,
+    if hasattr(expected_rank, '__call__') and isinstance(
+        expected_rank(), Exception
     ):
         with pytest.raises(expected_rank):
             cc_rank(score)
@@ -47,12 +46,10 @@ def test_rank(score, expected_rank):
         assert cc_rank(score) == expected_rank
 
 
-def fun(complexity):
-    return Function(
-    'randomname', 1, 4, 23, False, None, [], complexity,
+fun = lambda complexity: Function(
+    'randomname', 1, 4, 23, False, None, [], complexity
 )
-def cls(complexity):
-    return Class('randomname_', 3, 21, 18, [], [], complexity)
+cls = lambda complexity: Class('randomname_', 3, 21, 18, [], [], complexity)
 
 # This works with both the next two tests
 SIMPLE_BLOCKS = [

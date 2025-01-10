@@ -46,7 +46,6 @@ class DateHelper:
         :return: Returns a :class:`datetime.datetime` object or compliant implementation
                  like :class:`class 'pandas._libs.tslibs.timestamps.Timestamp`
         """
-        pass
 
     def to_nanoseconds(self, delta):
         """
