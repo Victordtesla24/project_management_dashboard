@@ -112,7 +112,9 @@ def server():
     
     # Start thread to read server output
     stop_event = threading.Event()
-    output_thread = threading.Thread(target=read_server_output, args=(server_process, stop_event))
+    output_thread = threading.Thread(
+        target=lambda: [print(f"Server output: {line}") for line in iter(server_process.stdout.readline, "")]
+    )
     output_thread.daemon = True
     output_thread.start()
     
@@ -126,11 +128,11 @@ def server():
             response = requests.get(urljoin(base_url, "_stcore/health"))
             if response.status_code == 200:
                 print("Server started successfully")
+                time.sleep(5)  # Give extra time for app to fully initialize
                 break
         except requests.exceptions.ConnectionError:
             print("Waiting for server to start...")
-            pass
-        time.sleep(retry_delay)
+            time.sleep(retry_delay)
     else:
         print("Server failed to start")
         server_process.terminate()
@@ -142,5 +144,5 @@ def server():
     # Stop server and output thread
     stop_event.set()
     server_process.terminate()
-    server_process.wait()
+    server_process.wait(timeout=5)
     output_thread.join(timeout=1)

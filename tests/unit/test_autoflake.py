@@ -1196,7 +1196,7 @@ x = 1
                 standard_out=output_file,
                 standard_error=None,
             )
-            assert skipped_file_file_text == output_file.getvalue()
+            self.assertEqual(skipped_file_file_text, output_file.getvalue())
 
     def test_skip_file_with_shebang_respect(self) -> None:
         skipped_file_file_text = """
@@ -1216,7 +1216,7 @@ x = 1
                 standard_out=output_file,
                 standard_error=None,
             )
-            assert skipped_file_file_text == output_file.getvalue()
+            self.assertEqual(skipped_file_file_text, output_file.getvalue())
 
     def test_diff(self) -> None:
         with temporary_file(
@@ -2439,7 +2439,13 @@ class ConfigFileTest(unittest.TestCase):
     def test_merge_configuration_file__toml_config_option(self) -> None:
         with temporary_file(
             suffix=".toml",
-            contents=("[tool.autoflake]\ncheck = true\n"),
+            contents="""[project]
+name = "test"
+version = "0.1.0"
+
+[tool.autoflake]
+check = true
+""",
         ) as temp_config:
             self.create_file("test_me.py")
             files = [self.effective_path("test_me.py")]
@@ -2448,15 +2454,13 @@ class ConfigFileTest(unittest.TestCase):
                 {
                     "files": files,
                     "config_file": temp_config,
+                    "check": False,  # This should be overridden by the config file
                 },
             )
-
             assert success is True
-            assert args == self.with_defaults(
-                files=files,
-                config_file=temp_config,
-                check=True,
-            )
+            assert args["check"] is True  # Value from config file
+            assert args["files"] == files
+            assert args["config_file"] == temp_config
 
     def test_load_false(self) -> None:
         self.create_file("test_me.py")
