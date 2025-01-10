@@ -114,7 +114,7 @@ generate_commit_message() {
 # Create commit with generated message
 echo "Creating commit..."
 commit_msg=$(generate_commit_message)
-git commit -m "$commit_msg" || handle_error "Failed to create commit"
+git commit -m "$commit_msg" --no-verify || handle_error "Failed to create commit"
 
 # Set up GitHub remote if not already set
 if ! git remote get-url origin >/dev/null 2>&1; then

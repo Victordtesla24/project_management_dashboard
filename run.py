@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Run script for the dashboard application."""
 
 from dashboard.main import main

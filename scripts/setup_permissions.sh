@@ -48,32 +48,18 @@ set_permissions() {
 # Executable files - ensure scripts are executable
 set_permissions "*.sh" 755 "script"
 
-# Python files - only make specific ones executable
-find "${PROJECT_ROOT}" -type f -name "run*.py" -exec sh -c '
+# Python files - only make executable if they have a shebang
+log_message "INFO" "Setting Python file permissions based on shebang..."
+find "${PROJECT_ROOT}" -type f -name "*.py" -exec sh -c '
     if head -n1 "$1" | grep -q "^#!.*python" ; then
         chmod 755 "$1"
     else
         chmod 644 "$1"
     fi
-' sh {} \; 2>/dev/null || handle_error "python executable files"
-
-find "${PROJECT_ROOT}" -type f -name "setup.py" -exec sh -c '
-    if head -n1 "$1" | grep -q "^#!.*python" ; then
-        chmod 755 "$1"
-    else
-        chmod 644 "$1"
-    fi
-' sh {} \; 2>/dev/null || handle_error "setup.py file"
-
-# Regular Python files - should not be executable
-find "${PROJECT_ROOT}" -type f -name "*.py" ! -name "run*.py" ! -name "setup.py" -exec chmod 644 {} + 2>/dev/null || handle_error "python files"
+' sh {} \; 2>/dev/null || handle_error "python files"
 
 # Configuration files
 set_permissions "*.json" 644 "configuration"
-set_permissions "*.yaml" 644 "configuration"
-set_permissions "*.yml" 644 "configuration"
-set_permissions "*.ini" 644 "configuration"
-set_permissions "*.conf" 644 "configuration"
 
 # Documentation files
 set_permissions "*.md" 644 "documentation"
