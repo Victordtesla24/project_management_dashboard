@@ -7,7 +7,7 @@ import pytest
 from src.monitor import MetricsMonitor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config_dir(tmp_path):
     """Mock configuration directory fixture."""
     config_dir = tmp_path / "metrics"
@@ -45,7 +45,7 @@ def mock_config_dir(tmp_path):
     return config_dir
 
 
-@pytest.fixture
+@pytest.fixture()
 def monitor(mock_config_dir):
     """Monitor fixture."""
     return MetricsMonitor(config_dir=str(mock_config_dir))

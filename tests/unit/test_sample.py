@@ -5,12 +5,12 @@ def test_sample():
     assert True
 
 
-@pytest.mark.unit
+@pytest.mark.unit()
 def test_addition():
     assert 1 + 1 == 2
 
 
-@pytest.mark.integration
+@pytest.mark.integration()
 def test_with_fixture(test_config):
     import json
 
@@ -19,8 +19,8 @@ def test_with_fixture(test_config):
     assert config["database"]["host"] == "localhost"
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.e2e()
+@pytest.mark.slow()
 def test_with_temp_dir(test_data_dir):
     from pathlib import Path
 

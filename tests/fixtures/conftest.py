@@ -1,4 +1,3 @@
-import os
 import tempfile
 from pathlib import Path
 
@@ -10,7 +9,7 @@ def test_data_dir():
     return Path(__file__).parent / "data"
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def temp_dir():
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
@@ -40,7 +39,7 @@ def test_config():
     }
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def app_context():
     """Provides an async application context for tests."""
     import asyncio

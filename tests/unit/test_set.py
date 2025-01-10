@@ -5,21 +5,18 @@
 import importlib
 import logging
 
-from bandit.core import blacklisting
-from bandit.core import extension_loader
+from bandit.core import blacklisting, extension_loader
 
 LOG = logging.getLogger(__name__)
 
 
 class BanditTestSet:
-    def __init__(self, config, profile=None):
+    def __init__(self, config, profile=None) -> None:
         if not profile:
             profile = {}
         extman = extension_loader.MANAGER
         filtering = self._get_filter(config, profile)
-        self.plugins = [
-            p for p in extman.plugins if p.plugin._test_id in filtering
-        ]
+        self.plugins = [p for p in extman.plugins if p.plugin._test_id in filtering]
         self.plugins.extend(self._load_builtins(filtering, profile))
         self._load_tests(config, self.plugins)
 
@@ -31,7 +28,7 @@ class BanditTestSet:
         exc = set(profile.get("exclude", []))
 
         all_blacklist_tests = set()
-        for _, tests in extman.blacklist.items():
+        for tests in extman.blacklist.values():
             all_blacklist_tests.update(t["id"] for t in tests)
 
         # this block is purely for backwards compatibility, the rules are as
@@ -57,10 +54,10 @@ class BanditTestSet:
         return filtered - exc
 
     def _load_builtins(self, filtering, profile):
-        """loads up builtin functions, so they can be filtered."""
+        """Loads up builtin functions, so they can be filtered."""
 
         class Wrapper:
-            def __init__(self, name, plugin):
+            def __init__(self, name, plugin) -> None:
                 self.name = name
                 self.plugin = plugin
 
@@ -106,7 +103,7 @@ class BanditTestSet:
                 )
 
     def get_tests(self, checktype):
-        """Returns all tests that are of type checktype
+        """Returns all tests that are of type checktype.
 
         :param checktype: The type of test to filter on
         :return: A list of tests which are of the specified type

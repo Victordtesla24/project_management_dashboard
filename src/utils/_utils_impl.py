@@ -1,26 +1,23 @@
+import functools
 import os
+import platform
 import sys
 import textwrap
 import types
 import warnings
-import functools
-import platform
 
+import numpy as np
 from numpy._core import ndarray
 from numpy._utils import set_module
-import numpy as np
 
-__all__ = [
-    'get_include', 'info', 'show_runtime'
-]
+__all__ = ["get_include", "info", "show_runtime"]
 
 
-@set_module('numpy')
+@set_module("numpy")
 def show_runtime():
-    """
-    Print information about various resources in the system
+    """Print information about various resources in the system
     including available intrinsic support and BLAS/LAPACK library
-    in use
+    in use.
 
     .. versionadded:: 1.24.0
 
@@ -36,43 +33,53 @@ def show_runtime():
        ``__cpu_baseline__`` and ``__cpu_dispatch__``
 
     """
-    from numpy._core._multiarray_umath import (
-        __cpu_features__, __cpu_baseline__, __cpu_dispatch__
-    )
     from pprint import pprint
-    config_found = [{
-        "numpy_version": np.__version__,
-        "python": sys.version,
-        "uname": platform.uname(),
-        }]
+
+    from numpy._core._multiarray_umath import (
+        __cpu_baseline__,
+        __cpu_dispatch__,
+        __cpu_features__,
+    )
+
+    config_found = [
+        {
+            "numpy_version": np.__version__,
+            "python": sys.version,
+            "uname": platform.uname(),
+        },
+    ]
     features_found, features_not_found = [], []
     for feature in __cpu_dispatch__:
         if __cpu_features__[feature]:
             features_found.append(feature)
         else:
             features_not_found.append(feature)
-    config_found.append({
-        "simd_extensions": {
-            "baseline": __cpu_baseline__,
-            "found": features_found,
-            "not_found": features_not_found
-        }
-    })
+    config_found.append(
+        {
+            "simd_extensions": {
+                "baseline": __cpu_baseline__,
+                "found": features_found,
+                "not_found": features_not_found,
+            },
+        },
+    )
     try:
         from threadpoolctl import threadpool_info
+
         config_found.extend(threadpool_info())
     except ImportError:
-        print("WARNING: `threadpoolctl` not found in system!"
-              " Install it by `pip install threadpoolctl`."
-              " Once installed, try `np.show_runtime` again"
-              " for more detailed build information")
+        print(
+            "WARNING: `threadpoolctl` not found in system!"
+            " Install it by `pip install threadpoolctl`."
+            " Once installed, try `np.show_runtime` again"
+            " for more detailed build information",
+        )
     pprint(config_found)
 
 
-@set_module('numpy')
+@set_module("numpy")
 def get_include():
-    """
-    Return the directory that contains the NumPy \\*.h header files.
+    r"""Return the directory that contains the NumPy \\*.h header files.
 
     Extension modules that need to compile against NumPy may need to use this
     function to locate the appropriate include directory.
@@ -105,19 +112,20 @@ def get_include():
 
     """
     import numpy
+
     if numpy.show_config is None:
         # running from numpy source directory
-        d = os.path.join(os.path.dirname(numpy.__file__), '_core', 'include')
+        d = os.path.join(os.path.dirname(numpy.__file__), "_core", "include")
     else:
         # using installed numpy core headers
-        import numpy._core as _core
-        d = os.path.join(os.path.dirname(_core.__file__), 'include')
+        from numpy import _core
+
+        d = os.path.join(os.path.dirname(_core.__file__), "include")
     return d
 
 
 class _Deprecate:
-    """
-    Decorator class to deprecate old functions.
+    """Decorator class to deprecate old functions.
 
     Refer to `deprecate` for details.
 
@@ -127,16 +135,13 @@ class _Deprecate:
 
     """
 
-    def __init__(self, old_name=None, new_name=None, message=None):
+    def __init__(self, old_name=None, new_name=None, message=None) -> None:
         self.old_name = old_name
         self.new_name = new_name
         self.message = message
 
     def __call__(self, func, *args, **kwargs):
-        """
-        Decorator call.  Refer to ``decorate``.
-
-        """
+        """Decorator call.  Refer to ``decorate``."""
         old_name = self.old_name
         new_name = self.new_name
         message = self.message
@@ -146,8 +151,7 @@ class _Deprecate:
         if new_name is None:
             depdoc = "`%s` is deprecated!" % old_name
         else:
-            depdoc = "`%s` is deprecated, use `%s` instead!" % \
-                     (old_name, new_name)
+            depdoc = f"`{old_name}` is deprecated, use `{new_name}` instead!"
 
         if message is not None:
             depdoc += "\n" + message
@@ -162,12 +166,12 @@ class _Deprecate:
         if doc is None:
             doc = depdoc
         else:
-            lines = doc.expandtabs().split('\n')
+            lines = doc.expandtabs().split("\n")
             indent = _get_indent(lines[1:])
             if lines[0].lstrip():
                 # Indent the original first line to let inspect.cleandoc()
                 # dedent the docstring despite the deprecation notice.
-                doc = indent * ' ' + doc
+                doc = indent * " " + doc
             else:
                 # Remove the same leading blank lines as cleandoc() would.
                 skip = len(lines[0]) + 1
@@ -176,17 +180,15 @@ class _Deprecate:
                         break
                     skip += len(line) + 1
                 doc = doc[skip:]
-            depdoc = textwrap.indent(depdoc, ' ' * indent)
-            doc = f'{depdoc}\n\n{doc}'
+            depdoc = textwrap.indent(depdoc, " " * indent)
+            doc = f"{depdoc}\n\n{doc}"
         newfunc.__doc__ = doc
 
         return newfunc
 
 
 def _get_indent(lines):
-    """
-    Determines the leading whitespace that could be removed from all the lines.
-    """
+    """Determines the leading whitespace that could be removed from all the lines."""
     indent = sys.maxsize
     for line in lines:
         content = len(line.lstrip())
@@ -198,8 +200,7 @@ def _get_indent(lines):
 
 
 def deprecate(*args, **kwargs):
-    """
-    Issues a DeprecationWarning, adds warning to `old_name`'s
+    """Issues a DeprecationWarning, adds warning to `old_name`'s
     docstring, rebinds ``old_name.__name__`` and returns the new
     function object.
 
@@ -250,7 +251,7 @@ def deprecate(*args, **kwargs):
         "use `warn` with `DeprecationWarning` instead. "
         "(deprecated in NumPy 2.0)",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     if args:
@@ -263,8 +264,7 @@ def deprecate(*args, **kwargs):
 
 
 def deprecate_with_doc(msg):
-    """
-    Deprecates a function and includes the deprecation in its docstring.
+    """Deprecates a function and includes the deprecation in its docstring.
 
     .. deprecated:: 2.0
         Use `~warnings.warn` with :exc:`DeprecationWarning` instead.
@@ -290,24 +290,24 @@ def deprecate_with_doc(msg):
     obj : object
 
     """
-
     # Deprecated in NumPy 2.0, 2023-07-11
     warnings.warn(
         "`deprecate` is deprecated, "
         "use `warn` with `DeprecationWarning` instead. "
         "(deprecated in NumPy 2.0)",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     return _Deprecate(message=msg)
 
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 # NOTE:  pydoc defines a help function which works similarly to this
 #  except it uses a pager to take over the screen.
+
 
 # combine name and arguments and split to multiple lines of width
 # characters.  End lines on a comma and begin argument list indented with
@@ -319,33 +319,32 @@ def _split_line(name, arguments, width):
     sepstr = ", "
     arglist = arguments.split(sepstr)
     for argument in arglist:
-        if k == firstwidth:
-            addstr = ""
-        else:
-            addstr = sepstr
+        addstr = "" if k == firstwidth else sepstr
         k = k + len(argument) + len(addstr)
         if k > width:
             k = firstwidth + 1 + len(argument)
-            newstr = newstr + ",\n" + " "*(firstwidth+2) + argument
+            newstr = newstr + ",\n" + " " * (firstwidth + 2) + argument
         else:
             newstr = newstr + addstr + argument
     return newstr
 
+
 _namedict = None
 _dictlist = None
 
+
 # Traverse all module directories underneath globals
 # to see if something is defined
-def _makenamedict(module='numpy'):
+def _makenamedict(module="numpy"):
     module = __import__(module, globals(), locals(), [])
-    thedict = {module.__name__:module.__dict__}
+    thedict = {module.__name__: module.__dict__}
     dictlist = [module.__name__]
     totraverse = [module.__dict__]
     while True:
         if len(totraverse) == 0:
             break
         thisdict = totraverse.pop(0)
-        for x in thisdict.keys():
+        for x in thisdict:
             if isinstance(thisdict[x], types.ModuleType):
                 modname = thisdict[x].__name__
                 if modname not in dictlist:
@@ -376,9 +375,12 @@ def _info(obj, output=None):
     """
     extra = ""
     tic = ""
-    bp = lambda x: x
-    cls = getattr(obj, '__class__', type(obj))
-    nm = getattr(cls, '__name__', cls)
+
+    def bp(x):
+        return x
+
+    cls = getattr(obj, "__class__", type(obj))
+    nm = getattr(cls, "__name__", cls)
     strides = obj.strides
     endian = obj.dtype.byteorder
 
@@ -392,28 +394,24 @@ def _info(obj, output=None):
     print("aligned: ", bp(obj.flags.aligned), file=output)
     print("contiguous: ", bp(obj.flags.contiguous), file=output)
     print("fortran: ", obj.flags.fortran, file=output)
-    print(
-        "data pointer: %s%s" % (hex(obj.ctypes._as_parameter_.value), extra),
-        file=output
-        )
-    print("byteorder: ", end=' ', file=output)
-    if endian in ['|', '=']:
-        print("%s%s%s" % (tic, sys.byteorder, tic), file=output)
+    print(f"data pointer: {hex(obj.ctypes._as_parameter_.value)}{extra}", file=output)
+    print("byteorder: ", end=" ", file=output)
+    if endian in ["|", "="]:
+        print(f"{tic}{sys.byteorder}{tic}", file=output)
         byteswap = False
-    elif endian == '>':
-        print("%sbig%s" % (tic, tic), file=output)
+    elif endian == ">":
+        print(f"{tic}big{tic}", file=output)
         byteswap = sys.byteorder != "big"
     else:
-        print("%slittle%s" % (tic, tic), file=output)
+        print(f"{tic}little{tic}", file=output)
         byteswap = sys.byteorder != "little"
     print("byteswap: ", bp(byteswap), file=output)
     print("type: %s" % obj.dtype, file=output)
 
 
-@set_module('numpy')
-def info(object=None, maxwidth=76, output=None, toplevel='numpy'):
-    """
-    Get help information for an array, function, class, or module.
+@set_module("numpy")
+def info(object=None, maxwidth=76, output=None, toplevel="numpy"):
+    """Get help information for an array, function, class, or module.
 
     Parameters
     ----------
@@ -476,13 +474,12 @@ def info(object=None, maxwidth=76, output=None, toplevel='numpy'):
     """
     global _namedict, _dictlist
     # Local import to speed up numpy's import time.
-    import pydoc
     import inspect
+    import pydoc
 
-    if (hasattr(object, '_ppimport_importer') or
-           hasattr(object, '_ppimport_module')):
+    if hasattr(object, "_ppimport_importer") or hasattr(object, "_ppimport_module"):
         object = object._ppimport_module
-    elif hasattr(object, '_ppimport_attr'):
+    elif hasattr(object, "_ppimport_attr"):
         object = object._ppimport_attr
 
     if output is None:
@@ -501,25 +498,19 @@ def info(object=None, maxwidth=76, output=None, toplevel='numpy'):
             try:
                 obj = _namedict[namestr][object]
                 if id(obj) in objlist:
-                    print("\n     "
-                          "*** Repeat reference found in %s *** " % namestr,
-                          file=output
-                          )
+                    print("\n     *** Repeat reference found in %s *** " % namestr, file=output)
                 else:
                     objlist.append(id(obj))
                     print("     *** Found in %s ***" % namestr, file=output)
                     info(obj)
-                    print("-"*maxwidth, file=output)
+                    print("-" * maxwidth, file=output)
                 numfound += 1
             except KeyError:
                 pass
         if numfound == 0:
             print("Help for %s not found." % object, file=output)
         else:
-            print("\n     "
-                  "*** Total of %d references found. ***" % numfound,
-                  file=output
-                  )
+            print("\n     *** Total of %d references found. ***" % numfound, file=output)
 
     elif inspect.isfunction(object) or inspect.ismethod(object):
         name = object.__name__
@@ -528,7 +519,7 @@ def info(object=None, maxwidth=76, output=None, toplevel='numpy'):
         except Exception:
             arguments = "()"
 
-        if len(name+arguments) > maxwidth:
+        if len(name + arguments) > maxwidth:
             argstr = _split_line(name, arguments, maxwidth)
         else:
             argstr = name + arguments
@@ -543,7 +534,7 @@ def info(object=None, maxwidth=76, output=None, toplevel='numpy'):
         except Exception:
             arguments = "()"
 
-        if len(name+arguments) > maxwidth:
+        if len(name + arguments) > maxwidth:
             argstr = _split_line(name, arguments, maxwidth)
         else:
             argstr = name + arguments
@@ -551,31 +542,28 @@ def info(object=None, maxwidth=76, output=None, toplevel='numpy'):
         print(" " + argstr + "\n", file=output)
         doc1 = inspect.getdoc(object)
         if doc1 is None:
-            if hasattr(object, '__init__'):
+            if hasattr(object, "__init__"):
                 print(inspect.getdoc(object.__init__), file=output)
         else:
             print(inspect.getdoc(object), file=output)
 
         methods = pydoc.allmethods(object)
 
-        public_methods = [meth for meth in methods if meth[0] != '_']
+        public_methods = [meth for meth in methods if meth[0] != "_"]
         if public_methods:
             print("\n\nMethods:\n", file=output)
             for meth in public_methods:
                 thisobj = getattr(object, meth, None)
                 if thisobj is not None:
-                    methstr, other = pydoc.splitdoc(
-                            inspect.getdoc(thisobj) or "None"
-                            )
-                print("  %s  --  %s" % (meth, methstr), file=output)
+                    methstr, other = pydoc.splitdoc(inspect.getdoc(thisobj) or "None")
+                print(f"  {meth}  --  {methstr}", file=output)
 
-    elif hasattr(object, '__doc__'):
+    elif hasattr(object, "__doc__"):
         print(inspect.getdoc(object), file=output)
 
 
 def safe_eval(source):
-    """
-    Protected string evaluation.
+    """Protected string evaluation.
 
     .. deprecated:: 2.0
         Use `ast.literal_eval` instead.
@@ -625,24 +613,23 @@ def safe_eval(source):
     ValueError: malformed node or string: <_ast.Call object at 0x...>
 
     """
-
     # Deprecated in NumPy 2.0, 2023-07-11
     warnings.warn(
         "`safe_eval` is deprecated. Use `ast.literal_eval` instead. "
         "Be aware of security implications, such as memory exhaustion "
         "based attacks (deprecated in NumPy 2.0)",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     # Local import to speed up numpy's import time.
     import ast
+
     return ast.literal_eval(source)
 
 
 def _median_nancheck(data, result, axis):
-    """
-    Utility function to check median result from data for NaN values at the end
+    """Utility function to check median result from data for NaN values at the end
     and return NaN in that case. Input result can also be a MaskedArray.
 
     Parameters
@@ -682,9 +669,9 @@ def _median_nancheck(data, result, axis):
     np.copyto(result, potential_nans, where=n)
     return result
 
+
 def _opt_info():
-    """
-    Returns a string containing the CPU features supported
+    """Returns a string containing the CPU features supported
     by the current build.
 
     The format of the string can be explained as follows:
@@ -693,17 +680,20 @@ def _opt_info():
           end with `?`.
         - Remaining features represent the baseline.
 
-    Returns:
+    Returns
+    -------
         str: A formatted string indicating the supported CPU features.
     """
     from numpy._core._multiarray_umath import (
-        __cpu_features__, __cpu_baseline__, __cpu_dispatch__
+        __cpu_baseline__,
+        __cpu_dispatch__,
+        __cpu_features__,
     )
 
     if len(__cpu_baseline__) == 0 and len(__cpu_dispatch__) == 0:
-        return ''
+        return ""
 
-    enabled_features = ' '.join(__cpu_baseline__)
+    enabled_features = " ".join(__cpu_baseline__)
     for feature in __cpu_dispatch__:
         if __cpu_features__[feature]:
             enabled_features += f" {feature}*"
@@ -712,9 +702,9 @@ def _opt_info():
 
     return enabled_features
 
+
 def drop_metadata(dtype, /):
-    """
-    Returns the dtype unchanged if it contained no metadata or a copy of the
+    """Returns the dtype unchanged if it contained no metadata or a copy of the
     dtype if it (or any of its structure dtypes) contained metadata.
 
     This utility is used by `np.save` and `np.savez` to drop metadata before
@@ -753,9 +743,13 @@ def drop_metadata(dtype, /):
         if not found_metadata:
             return dtype
 
-        structure = dict(
-            names=names, formats=formats, offsets=offsets, titles=titles,
-            itemsize=dtype.itemsize)
+        structure = {
+            "names": names,
+            "formats": formats,
+            "offsets": offsets,
+            "titles": titles,
+            "itemsize": dtype.itemsize,
+        }
 
         # NOTE: Could pass (dtype.type, structure) to preserve record dtypes...
         return np.dtype(structure, align=dtype.isalignedstruct)

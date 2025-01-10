@@ -14,7 +14,7 @@
 
 import json
 import re
-from typing import Pattern, Union
+from typing import Optional, Pattern, Union
 
 
 def escape_regex_flags(pattern: Pattern) -> str:
@@ -28,8 +28,7 @@ def escape_regex_flags(pattern: Pattern) -> str:
     if (pattern.flags & int(re.MULTILINE)) != 0:
         flags += "m"
     assert (
-        pattern.flags
-        & ~(int(re.MULTILINE) | int(re.IGNORECASE) | int(re.DOTALL) | int(re.UNICODE))
+        pattern.flags & ~(int(re.MULTILINE) | int(re.IGNORECASE) | int(re.DOTALL) | int(re.UNICODE))
         == 0
     ), "Unexpected re.Pattern flag, only MULTILINE, IGNORECASE and DOTALL are supported."
     return flags
@@ -43,34 +42,27 @@ def escape_regex_for_selector(text: Pattern) -> str:
     # Even number of backslashes followed by the quote -> insert a backslash.
     return (
         "/"
-        + re.sub(r'(^|[^\\])(\\\\)*(["\'`])', r"\1\2\\\3", text.pattern).replace(
-            ">>", "\\>\\>"
-        )
+        + re.sub(r'(^|[^\\])(\\\\)*(["\'`])', r"\1\2\\\3", text.pattern).replace(">>", "\\>\\>")
         + "/"
         + escape_regex_flags(text)
     )
 
 
 def escape_for_text_selector(
-    text: Union[str, Pattern[str]], exact: bool = None, case_sensitive: bool = None
+    text: Union[str, Pattern[str]],
+    exact: Optional[bool] = None,
+    case_sensitive: Optional[bool] = None,
 ) -> str:
     if isinstance(text, Pattern):
         return escape_regex_for_selector(text)
     return json.dumps(text) + ("s" if exact else "i")
 
 
-def escape_for_attribute_selector(
-    value: Union[str, Pattern], exact: bool = None
-) -> str:
+def escape_for_attribute_selector(value: Union[str, Pattern], exact: Optional[bool] = None) -> str:
     if isinstance(value, Pattern):
         return escape_regex_for_selector(value)
     # TODO: this should actually be
     #   cssEscape(value).replace(/\\ /g, ' ')
     # However, our attribute selectors do not conform to CSS parsing spec,
     # so we escape them differently.
-    return (
-        '"'
-        + value.replace("\\", "\\\\").replace('"', '\\"')
-        + '"'
-        + ("s" if exact else "i")
-    )
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"' + ("s" if exact else "i")

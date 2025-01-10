@@ -21,10 +21,7 @@ from streamlit import config, logger
 from streamlit.dataframe_util import OptionSequence, convert_anything_to_list
 from streamlit.errors import StreamlitAPIException
 from streamlit.runtime.state.common import RegisterWidgetResult
-from streamlit.type_util import (
-    T,
-    check_python_comparable,
-)
+from streamlit.type_util import T, check_python_comparable
 
 _LOGGER: Final = logger.get_logger(__name__)
 
@@ -54,11 +51,13 @@ def index_(iterable: Iterable[_Value], x: _Value) -> int:
         elif isinstance(value, float) and isinstance(x, float):
             if abs(x - value) < _FLOAT_EQUALITY_EPSILON:
                 return i
-    raise ValueError(f"{str(x)} is not in iterable")
+    msg = f"{x!s} is not in iterable"
+    raise ValueError(msg)
 
 
 def check_and_convert_to_indices(
-    opt: Sequence[Any], default_values: Sequence[Any] | Any | None
+    opt: Sequence[Any],
+    default_values: Sequence[Any] | Any | None,
 ) -> list[int] | None:
     """Perform validation checks and return indices based on the default values."""
     if default_values is None:
@@ -68,9 +67,9 @@ def check_and_convert_to_indices(
 
     for value in default_values:
         if value not in opt:
+            msg = f"The default value '{value}' is not part of the options. Please make sure that every default values also exists in the options."
             raise StreamlitAPIException(
-                f"The default value '{value}' is not part of the options. "
-                "Please make sure that every default values also exists in the options."
+                msg,
             )
 
     return [opt.index(value) for value in default_values]
@@ -83,11 +82,11 @@ def convert_to_sequence_and_check_comparable(options: OptionSequence[T]) -> Sequ
 
 
 def get_default_indices(
-    indexable_options: Sequence[T], default: Sequence[Any] | Any | None = None
+    indexable_options: Sequence[T],
+    default: Sequence[Any] | Any | None = None,
 ) -> list[int]:
     default_indices = check_and_convert_to_indices(indexable_options, default)
-    default_indices = default_indices if default_indices is not None else []
-    return default_indices
+    return default_indices if default_indices is not None else []
 
 
 E1 = TypeVar("E1", bound=Enum)
@@ -104,22 +103,21 @@ def _coerce_enum(from_enum_value: E1, to_enum_class: type[E2]) -> E1 | E2:
     match as well. (This is configurable in streamlist configs)
     """
     if not isinstance(from_enum_value, Enum):
-        raise ValueError(
-            f"Expected an Enum in the first argument. Got {type(from_enum_value)}"
-        )
+        msg = f"Expected an Enum in the first argument. Got {type(from_enum_value)}"
+        raise ValueError(msg)
     if not isinstance(to_enum_class, EnumMeta):
+        msg = f"Expected an EnumMeta/Type in the second argument. Got {type(to_enum_class)}"
         raise ValueError(
-            f"Expected an EnumMeta/Type in the second argument. Got {type(to_enum_class)}"
+            msg,
         )
     if isinstance(from_enum_value, to_enum_class):
         return from_enum_value  # Enum is already a member, no coersion necessary
 
     coercion_type = config.get_option("runner.enumCoercion")
     if coercion_type not in _ALLOWED_ENUM_COERCION_CONFIG_SETTINGS:
+        msg = f"Invalid value for config option runner.enumCoercion. Expected one of {_ALLOWED_ENUM_COERCION_CONFIG_SETTINGS}, but got '{coercion_type}'."
         raise StreamlitAPIException(
-            "Invalid value for config option runner.enumCoercion. "
-            f"Expected one of {_ALLOWED_ENUM_COERCION_CONFIG_SETTINGS}, "
-            f"but got '{coercion_type}'."
+            msg,
         )
     if coercion_type == "off":
         return from_enum_value  # do not attempt to coerce
@@ -136,8 +134,7 @@ def _coerce_enum(from_enum_value: E1, to_enum_class: type[E2]) -> E1 | E2:
         )
         or (
             coercion_type == "nameAndValue"
-            and set(to_enum_class._value2member_map_)
-            != set(from_enum_class._value2member_map_)
+            and set(to_enum_class._value2member_map_) != set(from_enum_class._value2member_map_)
         )
     ):
         _LOGGER.debug("Failed to coerce %s to class %s", from_enum_value, to_enum_class)
@@ -152,7 +149,8 @@ def _coerce_enum(from_enum_value: E1, to_enum_class: type[E2]) -> E1 | E2:
 
 def _extract_common_class_from_iter(iterable: Iterable[Any]) -> Any:
     """Return the common class of all elements in a iterable if they share one.
-    Otherwise, return None."""
+    Otherwise, return None.
+    """
     try:
         inner_iter = iter(iterable)
         first_class = type(next(inner_iter))
@@ -168,7 +166,8 @@ def maybe_coerce_enum(
     register_widget_result: RegisterWidgetResult[Enum],
     options: type[Enum],
     opt_sequence: Sequence[Any],
-) -> RegisterWidgetResult[Enum]: ...
+) -> RegisterWidgetResult[Enum]:
+    ...
 
 
 @overload
@@ -176,14 +175,15 @@ def maybe_coerce_enum(
     register_widget_result: RegisterWidgetResult[T],
     options: OptionSequence[T],
     opt_sequence: Sequence[T],
-) -> RegisterWidgetResult[T]: ...
+) -> RegisterWidgetResult[T]:
+    ...
 
 
 def maybe_coerce_enum(register_widget_result, options, opt_sequence):
     """Maybe Coerce a RegisterWidgetResult with an Enum member value to
     RegisterWidgetResult[option] if option is an EnumType, otherwise just return
-    the original RegisterWidgetResult."""
-
+    the original RegisterWidgetResult.
+    """
     # If the value is not a Enum, return early
     if not isinstance(register_widget_result.value, Enum):
         return register_widget_result
@@ -209,7 +209,8 @@ def maybe_coerce_enum_sequence(
     register_widget_result: RegisterWidgetResult[list[T]],
     options: OptionSequence[T],
     opt_sequence: Sequence[T],
-) -> RegisterWidgetResult[list[T]]: ...
+) -> RegisterWidgetResult[list[T]]:
+    ...
 
 
 @overload
@@ -217,14 +218,15 @@ def maybe_coerce_enum_sequence(
     register_widget_result: RegisterWidgetResult[tuple[T, T]],
     options: OptionSequence[T],
     opt_sequence: Sequence[T],
-) -> RegisterWidgetResult[tuple[T, T]]: ...
+) -> RegisterWidgetResult[tuple[T, T]]:
+    ...
 
 
 def maybe_coerce_enum_sequence(register_widget_result, options, opt_sequence):
     """Maybe Coerce a RegisterWidgetResult with a sequence of Enum members as value
     to RegisterWidgetResult[Sequence[option]] if option is an EnumType, otherwise just return
-    the original RegisterWidgetResult."""
-
+    the original RegisterWidgetResult.
+    """
     # If not all widget values are Enums, return early
     if not all(isinstance(val, Enum) for val in register_widget_result.value):
         return register_widget_result

@@ -2,8 +2,7 @@
 # For details: https://github.com/pylint-dev/astroid/blob/main/LICENSE
 # Copyright (c) https://github.com/pylint-dev/astroid/blob/main/CONTRIBUTORS.txt
 
-"""
-Data object model, as per https://docs.python.org/3/reference/datamodel.html.
+"""Data object model, as per https://docs.python.org/3/reference/datamodel.html.
 
 This module describes, at least partially, a data object model for some
 of astroid's nodes. The model contains special attributes that nodes such
@@ -27,7 +26,6 @@ import itertools
 import os
 import pprint
 import types
-from collections.abc import Iterator
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -37,10 +35,12 @@ from astroid.context import InferenceContext, copy_context
 from astroid.exceptions import AttributeInferenceError, InferenceError, NoDefault
 from astroid.manager import AstroidManager
 from astroid.nodes import node_classes
-from astroid.typing import InferenceResult, SuccessfulInferenceResult
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from astroid.objects import Property
+    from astroid.typing import InferenceResult, SuccessfulInferenceResult
 
 IMPL_PREFIX = "attr_"
 LEN_OF_IMPL_PREFIX = len(IMPL_PREFIX)
@@ -56,9 +56,7 @@ def _dunder_dict(instance, attributes):
     )
 
     # Convert the keys to node strings
-    keys = [
-        node_classes.Const(value=value, parent=obj) for value in list(attributes.keys())
-    ]
+    keys = [node_classes.Const(value=value, parent=obj) for value in list(attributes.keys())]
 
     # The original attribute has a list of elements for each key,
     # but that is not useful for retrieving the special attribute's value.
@@ -78,10 +76,10 @@ def _get_bound_node(model: ObjectModel) -> Any:
 
 
 class ObjectModel:
-    def __init__(self):
+    def __init__(self) -> None:
         self._instance = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         result = []
         cname = type(self).__name__
         string = "%(cname)s(%(fields)s)"
@@ -180,9 +178,7 @@ class ModuleModel(ObjectModel):
 
         path_objs = [
             node_classes.Const(
-                value=path
-                if not path.endswith("__init__.py")
-                else os.path.dirname(path),
+                value=path if not path.endswith("__init__.py") else os.path.dirname(path),
                 parent=self._instance,
             )
             for path in self._instance.path
@@ -214,10 +210,7 @@ class ModuleModel(ObjectModel):
 
     @property
     def attr___package__(self):
-        if not self._instance.package:
-            value = ""
-        else:
-            value = self._instance.name
+        value = "" if not self._instance.package else self._instance.name
 
         return node_classes.Const(value=value, parent=self._instance)
 
@@ -277,10 +270,7 @@ class FunctionModel(ObjectModel):
             end_col_offset=self._instance.end_col_offset,
         )
 
-        if not self._instance.returns:
-            returns = None
-        else:
-            returns = self._instance.returns
+        returns = None if not self._instance.returns else self._instance.returns
 
         args = self._instance.args
         pair_annotations = itertools.chain(
@@ -289,9 +279,7 @@ class FunctionModel(ObjectModel):
             zip(args.posonlyargs or [], args.posonlyargs_annotations),
         )
 
-        annotations = {
-            arg.name: annotation for (arg, annotation) in pair_annotations if annotation
-        }
+        annotations = {arg.name: annotation for (arg, annotation) in pair_annotations if annotation}
         if args.varargannotation:
             annotations[args.vararg] = args.varargannotation
         if args.kwargannotation:
@@ -300,8 +288,7 @@ class FunctionModel(ObjectModel):
             annotations["return"] = returns
 
         items = [
-            (node_classes.Const(key, parent=obj), value)
-            for (key, value) in annotations.items()
+            (node_classes.Const(key, parent=obj), value) for (key, value) in annotations.items()
         ]
 
         obj.postinit(items)
@@ -368,8 +355,9 @@ class FunctionModel(ObjectModel):
                 context: InferenceContext | None = None,
             ) -> Iterator[bases.BoundMethod]:
                 if len(caller.args) > 2 or len(caller.args) < 1:
+                    msg = "Invalid arguments for descriptor binding"
                     raise InferenceError(
-                        "Invalid arguments for descriptor binding",
+                        msg,
                         target=self,
                         context=context,
                     )
@@ -381,8 +369,11 @@ class FunctionModel(ObjectModel):
                     raise InferenceError(context=context, node=caller.args[0]) from e
 
                 if isinstance(cls, util.UninferableBase):
+                    msg = "Invalid class inferred"
                     raise InferenceError(
-                        "Invalid class inferred", target=self, context=context,
+                        msg,
+                        target=self,
+                        context=context,
                     )
 
                 # For some reason func is a Node that the below
@@ -428,7 +419,9 @@ class FunctionModel(ObjectModel):
                 """
                 nonlocal func
                 arguments = astroid.Arguments(
-                    parent=func.args.parent, vararg=None, kwarg=None,
+                    parent=func.args.parent,
+                    vararg=None,
+                    kwarg=None,
                 )
 
                 positional_or_keyword_params = func.args.args.copy()
@@ -486,7 +479,7 @@ class FunctionModel(ObjectModel):
 
 
 class ClassModel(ObjectModel):
-    def __init__(self):
+    def __init__(self) -> None:
         # Add a context so that inferences called from an instance don't recurse endlessly
         self.context = InferenceContext()
 
@@ -563,7 +556,8 @@ class ClassModel(ObjectModel):
         """
         if not self._instance.newstyle:
             raise AttributeInferenceError(
-                target=self._instance, attribute="__subclasses__",
+                target=self._instance,
+                attribute="__subclasses__",
             )
 
         qname = self._instance.qname()
@@ -718,7 +712,8 @@ class GeneratorModel(FunctionModel, ContextManagerModel):
     @property
     def attr___name__(self):
         return node_classes.Const(
-            value=self._instance.parent.name, parent=self._instance,
+            value=self._instance.parent.name,
+            parent=self._instance,
         )
 
     @property
@@ -942,12 +937,16 @@ class PropertyModel(ObjectModel):
             ) -> Iterator[InferenceResult]:
                 nonlocal func
                 if caller and len(caller.args) != 1:
+                    msg = "fget() needs a single argument"
                     raise InferenceError(
-                        "fget() needs a single argument", target=self, context=context,
+                        msg,
+                        target=self,
+                        context=context,
                     )
 
                 yield from func.function.infer_call_result(
-                    caller=caller, context=context,
+                    caller=caller,
+                    context=context,
                 )
 
         property_accessor = PropertyFuncAccessor(
@@ -966,15 +965,12 @@ class PropertyModel(ObjectModel):
         func = self._instance
 
         def find_setter(func: Property) -> astroid.FunctionDef | None:
-            """
-            Given a property, find the corresponding setter function and returns it.
+            """Given a property, find the corresponding setter function and returns it.
 
             :param func: property for which the setter has to be found
             :return: the setter function or None
             """
-            for target in [
-                t for t in func.parent.get_children() if t.name == func.function.name
-            ]:
+            for target in [t for t in func.parent.get_children() if t.name == func.function.name]:
                 for dec_name in target.decoratornames():
                     if dec_name.endswith(func.function.name + ".setter"):
                         return target
@@ -982,8 +978,9 @@ class PropertyModel(ObjectModel):
 
         func_setter = find_setter(func)
         if not func_setter:
+            msg = f"Unable to find the setter of property {func.function.name}"
             raise InferenceError(
-                f"Unable to find the setter of property {func.function.name}",
+                msg,
             )
 
         class PropertyFuncAccessor(nodes.FunctionDef):
@@ -994,8 +991,11 @@ class PropertyModel(ObjectModel):
             ) -> Iterator[InferenceResult]:
                 nonlocal func_setter
                 if caller and len(caller.args) != 2:
+                    msg = "fset() needs two arguments"
                     raise InferenceError(
-                        "fset() needs two arguments", target=self, context=context,
+                        msg,
+                        target=self,
+                        context=context,
                     )
                 yield from func_setter.infer_call_result(caller=caller, context=context)
 

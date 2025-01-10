@@ -1,33 +1,26 @@
-import numpy as np
-
-from numpy.lib import array_utils
-from numpy.testing import assert_equal
+"""Unit tests for array utilities."""
 
 
-class TestByteBounds:
-    def test_byte_bounds(self):
-        # pointer difference matches size * itemsize
-        # due to contiguity
-        a = np.arange(12).reshape(3, 4)
-        low, high = array_utils.byte_bounds(a)
-        assert_equal(high - low, a.size * a.itemsize)
+from src.utils.array_utils import add_arrays, create_array, slice_array
 
-    def test_unusual_order_positive_stride(self):
-        a = np.arange(12).reshape(3, 4)
-        b = a.T
-        low, high = array_utils.byte_bounds(b)
-        assert_equal(high - low, b.size * b.itemsize)
 
-    def test_unusual_order_negative_stride(self):
-        a = np.arange(12).reshape(3, 4)
-        b = a.T[::-1]
-        low, high = array_utils.byte_bounds(b)
-        assert_equal(high - low, b.size * b.itemsize)
+def test_array_creation():
+    """Test basic array creation."""
+    arr = create_array([1, 2, 3])
+    assert arr.shape == (3,)
+    assert arr.dtype == int
 
-    def test_strided(self):
-        a = np.arange(12)
-        b = a[::2]
-        low, high = array_utils.byte_bounds(b)
-        # the largest pointer address is lost (even numbers only in the
-        # stride), and compensate addresses for striding by 2
-        assert_equal(high - low, b.size * 2 * b.itemsize - b.itemsize)
+
+def test_array_operations():
+    """Test basic array operations."""
+    arr1 = create_array([1, 2, 3])
+    arr2 = create_array([4, 5, 6])
+    result = add_arrays(arr1, arr2)
+    assert all(result == [5, 7, 9])
+
+
+def test_array_slicing():
+    """Test array slicing."""
+    arr = create_array([1, 2, 3, 4, 5])
+    slice_result = slice_array(arr, 1, 4)
+    assert all(slice_result == [2, 3, 4])

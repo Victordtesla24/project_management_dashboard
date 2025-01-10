@@ -1,12 +1,12 @@
 import os
 import shutil
 import subprocess
-from subprocess import Popen
 import sys
-from tempfile import mkdtemp
 import textwrap
 import time
 import unittest
+from subprocess import Popen
+from tempfile import mkdtemp
 
 
 class AutoreloadTest(unittest.TestCase):
@@ -38,8 +38,8 @@ class AutoreloadTest(unittest.TestCase):
                         tornado.autoreload._reload()
                     else:
                         os._exit(0)
-                """
-            }
+                """,
+            },
         )
 
     def tearDown(self):
@@ -88,16 +88,17 @@ class AutoreloadTest(unittest.TestCase):
 
         # This timeout needs to be fairly generous for pypy due to jit
         # warmup costs.
-        for i in range(40):
+        for _i in range(40):
             if p.poll() is not None:
                 break
             time.sleep(0.1)
         else:
             p.kill()
-            raise Exception("subprocess failed to terminate")
+            msg = "subprocess failed to terminate"
+            raise Exception(msg)
 
         out = p.communicate()[0]
-        self.assertEqual(p.returncode, 0)
+        assert p.returncode == 0
         return out
 
     def test_reload(self):
@@ -124,7 +125,7 @@ exec(open("run_twice_magic.py").read())
                     "__init__.py": "",
                     "__main__.py": main,
                 },
-            }
+            },
         )
 
         # The autoreload wrapper should support all the same modes as the python interpreter.
@@ -139,46 +140,42 @@ exec(open("run_twice_magic.py").read())
                         base_args = [sys.executable]
                     # In module mode, the path is set to the parent directory and we can import
                     # testapp. Also, the __spec__.name is set to the fully qualified module name.
-                    out = self.run_subprocess(base_args + ["-m", "testapp"])
-                    self.assertEqual(
-                        out,
-                        (
+                    out = self.run_subprocess([*base_args, "-m", "testapp"])
+                    assert (
+                        out
+                        == (
                             "import testapp succeeded\n"
                             + "Starting __name__='__main__', __spec__.name=testapp.__main__\n"
                         )
-                        * 2,
+                        * 2
                     )
 
                 with self.subTest(mode="file"):
-                    out = self.run_subprocess(base_args + ["testapp/__main__.py"])
+                    out = self.run_subprocess([*base_args, "testapp/__main__.py"])
                     # In file mode, we do not expect the path to be set so we can import testapp,
                     # but when the wrapper is used the -m argument to the python interpreter
                     # does this for us.
                     expect_import = (
-                        "import testapp succeeded"
-                        if wrapper
-                        else "import testapp failed"
+                        "import testapp succeeded" if wrapper else "import testapp failed"
                     )
                     # In file mode there is no qualified module spec.
-                    self.assertEqual(
-                        out,
-                        f"{expect_import}\nStarting __name__='__main__', __spec__.name=None\n"
-                        * 2,
+                    assert (
+                        out
+                        == f"{expect_import}\nStarting __name__='__main__', __spec__.name=None\n"
+                        * 2
                     )
 
                 with self.subTest(mode="directory"):
                     # Running as a directory finds __main__.py like a module. It does not manipulate
                     # sys.path but it does set a spec with a name of exactly __main__.
-                    out = self.run_subprocess(base_args + ["testapp"])
+                    out = self.run_subprocess([*base_args, "testapp"])
                     expect_import = (
-                        "import testapp succeeded"
-                        if wrapper
-                        else "import testapp failed"
+                        "import testapp succeeded" if wrapper else "import testapp failed"
                     )
-                    self.assertEqual(
-                        out,
-                        f"{expect_import}\nStarting __name__='__main__', __spec__.name=__main__\n"
-                        * 2,
+                    assert (
+                        out
+                        == f"{expect_import}\nStarting __name__='__main__', __spec__.name=__main__\n"
+                        * 2
                     )
 
     def test_reload_wrapper_preservation(self):
@@ -204,13 +201,11 @@ exec(open("run_twice_magic.py").read())
                     "__init__.py": "",
                     "__main__.py": main,
                 },
-            }
+            },
         )
 
-        out = self.run_subprocess(
-            [sys.executable, "-m", "tornado.autoreload", "-m", "testapp"]
-        )
-        self.assertEqual(out, "Starting\n" * 2)
+        out = self.run_subprocess([sys.executable, "-m", "tornado.autoreload", "-m", "testapp"])
+        assert out == "Starting\n" * 2
 
     def test_reload_wrapper_args(self):
         main = """\
@@ -239,7 +234,7 @@ exec(open("run_twice_magic.py").read())
             ],
         )
 
-        self.assertEqual(out, "main.py\nargv=['arg1', '--arg2', '-m', 'arg3']\n" * 2)
+        assert out == "main.py\nargv=['arg1', '--arg2', '-m', 'arg3']\n" * 2
 
     def test_reload_wrapper_until_success(self):
         main = """\
@@ -258,7 +253,7 @@ else:
         self.write_files({"main.py": main})
 
         out = self.run_subprocess(
-            [sys.executable, "-m", "tornado.autoreload", "--until-success", "main.py"]
+            [sys.executable, "-m", "tornado.autoreload", "--until-success", "main.py"],
         )
 
-        self.assertEqual(out, "reloading\nexiting cleanly\n")
+        assert out == "reloading\nexiting cleanly\n"

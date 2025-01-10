@@ -15,6 +15,7 @@
 
 import unittest
 
+import pytest
 from tornado.testing import AsyncTestCase, gen_test
 
 try:
@@ -43,7 +44,7 @@ class ConvertDeferredTest(AsyncTestCase):
             return 42
 
         res = yield fn()
-        self.assertEqual(res, 42)
+        assert res == 42
 
     @gen_test
     def test_failure(self):
@@ -53,7 +54,7 @@ class ConvertDeferredTest(AsyncTestCase):
                 yield
             1 / 0
 
-        with self.assertRaises(ZeroDivisionError):
+        with pytest.raises(ZeroDivisionError):
             yield fn()
 
 

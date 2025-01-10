@@ -34,19 +34,17 @@ if this_python < min_version:
     sys.exit(1)
 
 
+import argparse
+import importlib
 import os.path
 import pkgutil
 import shutil
 import tempfile
-import argparse
-import importlib
 from base64 import b85decode
 
 
 def include_setuptools(args):
-    """
-    Install setuptools only if absent, not excluded and when using Python <3.12.
-    """
+    """Install setuptools only if absent, not excluded and when using Python <3.12."""
     cli = not args.no_setuptools
     env = not os.environ.get("PIP_NO_SETUPTOOLS")
     absent = not importlib.util.find_spec("setuptools")
@@ -55,9 +53,7 @@ def include_setuptools(args):
 
 
 def include_wheel(args):
-    """
-    Install wheel only if absent, not excluded and when using Python <3.12.
-    """
+    """Install wheel only if absent, not excluded and when using Python <3.12."""
     cli = not args.no_wheel
     env = not os.environ.get("PIP_NO_WHEEL")
     absent = not importlib.util.find_spec("wheel")
@@ -79,7 +75,7 @@ def determine_pip_install_arguments():
     if include_wheel(pre):
         args.append("wheel")
 
-    return ["install", "--upgrade", "--force-reinstall"] + args
+    return ["install", "--upgrade", "--force-reinstall", *args]
 
 
 def monkeypatch_for_cert(tmpdir):
@@ -115,6 +111,7 @@ def bootstrap(tmpdir):
     # Execute the included pip and use it to install the latest pip and
     # any user-requested packages from PyPI.
     from pip._internal.cli.main import main as pip_entry_point
+
     args = determine_pip_install_arguments()
     sys.exit(pip_entry_point(args))
 

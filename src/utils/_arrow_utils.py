@@ -3,16 +3,14 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
-import pyarrow
-
+import pyarrow as pa
 from pandas.errors import PerformanceWarning
 from pandas.util._exceptions import find_stack_level
 
 
 def fallback_performancewarning(version: str | None = None) -> None:
-    """
-    Raise a PerformanceWarning for falling back to ExtensionArray's
-    non-pyarrow method
+    """Raise a PerformanceWarning for falling back to ExtensionArray's
+    non-pyarrow method.
     """
     msg = "Falling back on a non-pyarrow code path which may decrease performance."
     if version is not None:
@@ -20,11 +18,8 @@ def fallback_performancewarning(version: str | None = None) -> None:
     warnings.warn(msg, PerformanceWarning, stacklevel=find_stack_level())
 
 
-def pyarrow_array_to_numpy_and_mask(
-    arr, dtype: np.dtype
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Convert a primitive pyarrow.Array to a numpy array and boolean mask based
+def pyarrow_array_to_numpy_and_mask(arr, dtype: np.dtype) -> tuple[np.ndarray, np.ndarray]:
+    """Convert a primitive pyarrow.Array to a numpy array and boolean mask based
     on the buffers of the Array.
 
     At the moment pyarrow.BooleanArray is not supported.
@@ -42,7 +37,7 @@ def pyarrow_array_to_numpy_and_mask(
     """
     dtype = np.dtype(dtype)
 
-    if pyarrow.types.is_null(arr.type):
+    if pa.types.is_null(arr.type):
         # No initialization of data is needed since everything is null
         data = np.empty(len(arr), dtype=dtype)
         mask = np.zeros(len(arr), dtype=bool)
@@ -57,8 +52,11 @@ def pyarrow_array_to_numpy_and_mask(
     data = np.frombuffer(data_buf, dtype=dtype)
     bitmask = buflist[0]
     if bitmask is not None:
-        mask = pyarrow.BooleanArray.from_buffers(
-            pyarrow.bool_(), len(arr), [None, bitmask], offset=arr.offset
+        mask = pa.BooleanArray.from_buffers(
+            pa.bool_(),
+            len(arr),
+            [None, bitmask],
+            offset=arr.offset,
         )
         mask = np.asarray(mask)
     else:

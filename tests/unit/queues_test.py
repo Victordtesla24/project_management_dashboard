@@ -11,28 +11,29 @@
 # under the License.
 
 import asyncio
+import unittest
 from datetime import timedelta
 from random import random
-import unittest
 
+import pytest
 from tornado import gen, queues
 from tornado.gen import TimeoutError
-from tornado.testing import gen_test, AsyncTestCase
+from tornado.testing import AsyncTestCase, gen_test
 
 
 class QueueBasicTest(AsyncTestCase):
     def test_repr_and_str(self):
         q = queues.Queue(maxsize=1)  # type: queues.Queue[None]
-        self.assertIn(hex(id(q)), repr(q))
-        self.assertNotIn(hex(id(q)), str(q))
+        assert hex(id(q)) in repr(q)
+        assert hex(id(q)) not in str(q)
         q.get()
 
         for q_str in repr(q), str(q):
-            self.assertTrue(q_str.startswith("<Queue"))
-            self.assertIn("maxsize=1", q_str)
-            self.assertIn("getters[1]", q_str)
-            self.assertNotIn("putters", q_str)
-            self.assertNotIn("tasks", q_str)
+            assert q_str.startswith("<Queue")
+            assert "maxsize=1" in q_str
+            assert "getters[1]" in q_str
+            assert "putters" not in q_str
+            assert "tasks" not in q_str
 
         q.put(None)
         q.put(None)
@@ -40,9 +41,9 @@ class QueueBasicTest(AsyncTestCase):
         q.put(None)
 
         for q_str in repr(q), str(q):
-            self.assertNotIn("getters", q_str)
-            self.assertIn("putters[1]", q_str)
-            self.assertIn("tasks=2", q_str)
+            assert "getters" not in q_str
+            assert "putters[1]" in q_str
+            assert "tasks=2" in q_str
 
     def test_order(self):
         q = queues.Queue()  # type: queues.Queue[int]
@@ -50,7 +51,7 @@ class QueueBasicTest(AsyncTestCase):
             q.put_nowait(i)
 
         items = [q.get_nowait() for _ in range(3)]
-        self.assertEqual([1, 3, 2], items)
+        assert [1, 3, 2] == items
 
     @gen_test
     def test_maxsize(self):
@@ -58,19 +59,19 @@ class QueueBasicTest(AsyncTestCase):
         self.assertRaises(ValueError, queues.Queue, maxsize=-1)
 
         q = queues.Queue(maxsize=2)  # type: queues.Queue[int]
-        self.assertTrue(q.empty())
-        self.assertFalse(q.full())
-        self.assertEqual(2, q.maxsize)
-        self.assertTrue(q.put(0).done())
-        self.assertTrue(q.put(1).done())
-        self.assertFalse(q.empty())
-        self.assertTrue(q.full())
+        assert q.empty()
+        assert not q.full()
+        assert q.maxsize == 2
+        assert q.put(0).done()
+        assert q.put(1).done()
+        assert not q.empty()
+        assert q.full()
         put2 = q.put(2)
-        self.assertFalse(put2.done())
-        self.assertEqual(0, (yield q.get()))  # Make room.
-        self.assertTrue(put2.done())
-        self.assertFalse(q.empty())
-        self.assertTrue(q.full())
+        assert not put2.done()
+        assert (yield q.get()) == 0  # Make room.
+        assert put2.done()
+        assert not q.empty()
+        assert q.full()
 
 
 class QueueGetTest(AsyncTestCase):
@@ -78,12 +79,12 @@ class QueueGetTest(AsyncTestCase):
     def test_blocking_get(self):
         q = queues.Queue()  # type: queues.Queue[int]
         q.put_nowait(0)
-        self.assertEqual(0, (yield q.get()))
+        assert (yield q.get()) == 0
 
     def test_nonblocking_get(self):
         q = queues.Queue()  # type: queues.Queue[int]
         q.put_nowait(0)
-        self.assertEqual(0, q.get_nowait())
+        assert q.get_nowait() == 0
 
     def test_nonblocking_get_exception(self):
         q = queues.Queue()  # type: queues.Queue[int]
@@ -94,8 +95,8 @@ class QueueGetTest(AsyncTestCase):
         q = queues.Queue(1)  # type: queues.Queue[int]
         q.put_nowait(0)
         put = q.put(1)
-        self.assertEqual(0, (yield q.get()))
-        self.assertIsNone((yield put))
+        assert (yield q.get()) == 0
+        assert (yield put) is None
 
     @gen_test
     def test_blocking_get_wait(self):
@@ -103,19 +104,19 @@ class QueueGetTest(AsyncTestCase):
         q.put(0)
         self.io_loop.call_later(0.01, q.put_nowait, 1)
         self.io_loop.call_later(0.02, q.put_nowait, 2)
-        self.assertEqual(0, (yield q.get(timeout=timedelta(seconds=1))))
-        self.assertEqual(1, (yield q.get(timeout=timedelta(seconds=1))))
+        assert (yield q.get(timeout=timedelta(seconds=1))) == 0
+        assert (yield q.get(timeout=timedelta(seconds=1))) == 1
 
     @gen_test
     def test_get_timeout(self):
         q = queues.Queue()  # type: queues.Queue[int]
         get_timeout = q.get(timeout=timedelta(seconds=0.01))
         get = q.get()
-        with self.assertRaises(TimeoutError):
+        with pytest.raises(TimeoutError):
             yield get_timeout
 
         q.put_nowait(0)
-        self.assertEqual(0, (yield get))
+        assert (yield get) == 0
 
     @gen_test
     def test_get_timeout_preempted(self):
@@ -123,7 +124,7 @@ class QueueGetTest(AsyncTestCase):
         get = q.get(timeout=timedelta(seconds=0.01))
         q.put(0)
         yield gen.sleep(0.02)
-        self.assertEqual(0, (yield get))
+        assert (yield get) == 0
 
     @gen_test
     def test_get_clears_timed_out_putters(self):
@@ -131,29 +132,27 @@ class QueueGetTest(AsyncTestCase):
         # First putter succeeds, remainder block.
         putters = [q.put(i, timedelta(seconds=0.01)) for i in range(10)]
         put = q.put(10)
-        self.assertEqual(10, len(q._putters))
+        assert len(q._putters) == 10
         yield gen.sleep(0.02)
-        self.assertEqual(10, len(q._putters))
-        self.assertFalse(put.done())  # Final waiter is still active.
+        assert len(q._putters) == 10
+        assert not put.done()  # Final waiter is still active.
         q.put(11)
-        self.assertEqual(0, (yield q.get()))  # get() clears the waiters.
-        self.assertEqual(1, len(q._putters))
+        assert (yield q.get()) == 0  # get() clears the waiters.
+        assert len(q._putters) == 1
         for putter in putters[1:]:
             self.assertRaises(TimeoutError, putter.result)
 
     @gen_test
     def test_get_clears_timed_out_getters(self):
         q = queues.Queue()  # type: queues.Queue[int]
-        getters = [
-            asyncio.ensure_future(q.get(timedelta(seconds=0.01))) for _ in range(10)
-        ]
+        getters = [asyncio.ensure_future(q.get(timedelta(seconds=0.01))) for _ in range(10)]
         get = asyncio.ensure_future(q.get())
-        self.assertEqual(11, len(q._getters))
+        assert len(q._getters) == 11
         yield gen.sleep(0.02)
-        self.assertEqual(11, len(q._getters))
-        self.assertFalse(get.done())  # Final waiter is still active.
+        assert len(q._getters) == 11
+        assert not get.done()  # Final waiter is still active.
         q.get()  # get() clears the waiters.
-        self.assertEqual(2, len(q._getters))
+        assert len(q._getters) == 2
         for getter in getters:
             self.assertRaises(TimeoutError, getter.result)
 
@@ -169,9 +168,10 @@ class QueueGetTest(AsyncTestCase):
                 results.append(i)
                 if i == 4:
                     return results
+            return None
 
         results = yield f()
-        self.assertEqual(results, list(range(5)))
+        assert results == list(range(5))
 
 
 class QueuePutTest(AsyncTestCase):
@@ -179,7 +179,7 @@ class QueuePutTest(AsyncTestCase):
     def test_blocking_put(self):
         q = queues.Queue()  # type: queues.Queue[int]
         q.put(0)
-        self.assertEqual(0, q.get_nowait())
+        assert q.get_nowait() == 0
 
     def test_nonblocking_put_exception(self):
         q = queues.Queue(1)  # type: queues.Queue[int]
@@ -192,9 +192,9 @@ class QueuePutTest(AsyncTestCase):
         get0 = q.get()
         get1 = q.get()
         yield q.put(0)
-        self.assertEqual(0, (yield get0))
+        assert (yield get0) == 0
         yield q.put(1)
-        self.assertEqual(1, (yield get1))
+        assert (yield get1) == 1
 
     @gen_test
     def test_nonblocking_put_with_getters(self):
@@ -204,10 +204,10 @@ class QueuePutTest(AsyncTestCase):
         q.put_nowait(0)
         # put_nowait does *not* immediately unblock getters.
         yield gen.moment
-        self.assertEqual(0, (yield get0))
+        assert (yield get0) == 0
         q.put_nowait(1)
         yield gen.moment
-        self.assertEqual(1, (yield get1))
+        assert (yield get1) == 1
 
     @gen_test
     def test_blocking_put_wait(self):
@@ -220,7 +220,7 @@ class QueuePutTest(AsyncTestCase):
         self.io_loop.call_later(0.01, get_and_discard)
         self.io_loop.call_later(0.02, get_and_discard)
         futures = [q.put(0), q.put(1)]
-        self.assertFalse(any(f.done() for f in futures))
+        assert not any(f.done() for f in futures)
         yield futures
 
     @gen_test
@@ -229,12 +229,12 @@ class QueuePutTest(AsyncTestCase):
         q.put_nowait(0)  # Now it's full.
         put_timeout = q.put(1, timeout=timedelta(seconds=0.01))
         put = q.put(2)
-        with self.assertRaises(TimeoutError):
+        with pytest.raises(TimeoutError):
             yield put_timeout
 
-        self.assertEqual(0, q.get_nowait())
+        assert q.get_nowait() == 0
         # 1 was never put in the queue.
-        self.assertEqual(2, (yield q.get()))
+        assert (yield q.get()) == 2
 
         # Final get() unblocked this putter.
         yield put
@@ -254,30 +254,28 @@ class QueuePutTest(AsyncTestCase):
         # First putter succeeds, remainder block.
         putters = [q.put(i, timedelta(seconds=0.01)) for i in range(10)]
         put = q.put(10)
-        self.assertEqual(10, len(q._putters))
+        assert len(q._putters) == 10
         yield gen.sleep(0.02)
-        self.assertEqual(10, len(q._putters))
-        self.assertFalse(put.done())  # Final waiter is still active.
+        assert len(q._putters) == 10
+        assert not put.done()  # Final waiter is still active.
         q.put(11)  # put() clears the waiters.
-        self.assertEqual(2, len(q._putters))
+        assert len(q._putters) == 2
         for putter in putters[1:]:
             self.assertRaises(TimeoutError, putter.result)
 
     @gen_test
     def test_put_clears_timed_out_getters(self):
         q = queues.Queue()  # type: queues.Queue[int]
-        getters = [
-            asyncio.ensure_future(q.get(timedelta(seconds=0.01))) for _ in range(10)
-        ]
+        getters = [asyncio.ensure_future(q.get(timedelta(seconds=0.01))) for _ in range(10)]
         get = asyncio.ensure_future(q.get())
         q.get()
-        self.assertEqual(12, len(q._getters))
+        assert len(q._getters) == 12
         yield gen.sleep(0.02)
-        self.assertEqual(12, len(q._getters))
-        self.assertFalse(get.done())  # Final waiters still active.
+        assert len(q._getters) == 12
+        assert not get.done()  # Final waiters still active.
         q.put(0)  # put() clears the waiters.
-        self.assertEqual(1, len(q._getters))
-        self.assertEqual(0, (yield get))
+        assert len(q._getters) == 1
+        assert (yield get) == 0
         for getter in getters:
             self.assertRaises(TimeoutError, getter.result)
 
@@ -288,23 +286,23 @@ class QueuePutTest(AsyncTestCase):
         # It happens to be rounded up.
         # http://bugs.python.org/issue21723
         q = queues.Queue(maxsize=1.3)  # type: ignore
-        self.assertTrue(q.empty())
-        self.assertFalse(q.full())
+        assert q.empty()
+        assert not q.full()
         q.put_nowait(0)
         q.put_nowait(1)
-        self.assertFalse(q.empty())
-        self.assertTrue(q.full())
+        assert not q.empty()
+        assert q.full()
         self.assertRaises(queues.QueueFull, q.put_nowait, 2)
-        self.assertEqual(0, q.get_nowait())
-        self.assertFalse(q.empty())
-        self.assertFalse(q.full())
+        assert q.get_nowait() == 0
+        assert not q.empty()
+        assert not q.full()
 
         yield q.put(2)
         put = q.put(3)
-        self.assertFalse(put.done())
-        self.assertEqual(1, (yield q.get()))
+        assert not put.done()
+        assert (yield q.get()) == 1
         yield put
-        self.assertTrue(q.full())
+        assert q.full()
 
 
 class QueueJoinTest(AsyncTestCase):
@@ -334,7 +332,7 @@ class QueueJoinTest(AsyncTestCase):
         worker()
         worker()
         yield q.join()
-        self.assertEqual(sum(range(100)), self.accumulator)
+        assert sum(range(100)) == self.accumulator
 
     @gen_test
     def test_task_done_delay(self):
@@ -342,13 +340,13 @@ class QueueJoinTest(AsyncTestCase):
         q = self.queue_class()  # type: queues.Queue
         q.put_nowait(0)
         join = asyncio.ensure_future(q.join())
-        self.assertFalse(join.done())
+        assert not join.done()
         yield q.get()
-        self.assertFalse(join.done())
+        assert not join.done()
         yield gen.moment
-        self.assertFalse(join.done())
+        assert not join.done()
         q.task_done()
-        self.assertTrue(join.done())
+        assert join.done()
 
     @gen_test
     def test_join_empty_queue(self):
@@ -360,7 +358,7 @@ class QueueJoinTest(AsyncTestCase):
     def test_join_timeout(self):
         q = self.queue_class()  # type: queues.Queue
         q.put(0)
-        with self.assertRaises(TimeoutError):
+        with pytest.raises(TimeoutError):
             yield q.join(timeout=timedelta(seconds=0.01))
 
 
@@ -372,14 +370,14 @@ class PriorityQueueJoinTest(QueueJoinTest):
         q = self.queue_class(maxsize=2)
         q.put_nowait((1, "a"))
         q.put_nowait((0, "b"))
-        self.assertTrue(q.full())
+        assert q.full()
         q.put((3, "c"))
         q.put((2, "d"))
-        self.assertEqual((0, "b"), q.get_nowait())
-        self.assertEqual((1, "a"), (yield q.get()))
-        self.assertEqual((2, "d"), q.get_nowait())
-        self.assertEqual((3, "c"), (yield q.get()))
-        self.assertTrue(q.empty())
+        assert q.get_nowait() == (0, "b")
+        assert (yield q.get()) == (1, "a")
+        assert q.get_nowait() == (2, "d")
+        assert (yield q.get()) == (3, "c")
+        assert q.empty()
 
 
 class LifoQueueJoinTest(QueueJoinTest):
@@ -390,14 +388,14 @@ class LifoQueueJoinTest(QueueJoinTest):
         q = self.queue_class(maxsize=2)
         q.put_nowait(1)
         q.put_nowait(0)
-        self.assertTrue(q.full())
+        assert q.full()
         q.put(3)
         q.put(2)
-        self.assertEqual(3, q.get_nowait())
-        self.assertEqual(2, (yield q.get()))
-        self.assertEqual(0, q.get_nowait())
-        self.assertEqual(1, (yield q.get()))
-        self.assertTrue(q.empty())
+        assert q.get_nowait() == 3
+        assert (yield q.get()) == 2
+        assert q.get_nowait() == 0
+        assert (yield q.get()) == 1
+        assert q.empty()
 
 
 class ProducerConsumerTest(AsyncTestCase):
@@ -424,7 +422,7 @@ class ProducerConsumerTest(AsyncTestCase):
         consumer()
         yield producer()
         yield q.join()
-        self.assertEqual(list(range(10)), history)
+        assert list(range(10)) == history
 
 
 if __name__ == "__main__":

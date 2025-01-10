@@ -1,8 +1,6 @@
-"""
-Miscellaneous utils.
-"""
+"""Miscellaneous utils."""
 from numpy._core import asarray
-from numpy._core.numeric import normalize_axis_tuple, normalize_axis_index
+from numpy._core.numeric import normalize_axis_index, normalize_axis_tuple
 from numpy._utils import set_module
 
 __all__ = ["byte_bounds", "normalize_axis_tuple", "normalize_axis_index"]
@@ -10,8 +8,7 @@ __all__ = ["byte_bounds", "normalize_axis_tuple", "normalize_axis_index"]
 
 @set_module("numpy.lib.array_utils")
 def byte_bounds(a):
-    """
-    Returns pointers to the end-points of an array.
+    """Returns pointers to the end-points of an array.
 
     Parameters
     ----------
@@ -43,9 +40,9 @@ def byte_bounds(a):
 
     """
     ai = a.__array_interface__
-    a_data = ai['data'][0]
-    astrides = ai['strides']
-    ashape = ai['shape']
+    a_data = ai["data"][0]
+    astrides = ai["strides"]
+    ashape = ai["shape"]
     bytes_a = asarray(a).dtype.itemsize
 
     a_low = a_high = a_data
@@ -55,8 +52,8 @@ def byte_bounds(a):
     else:
         for shape, stride in zip(ashape, astrides):
             if stride < 0:
-                a_low += (shape-1)*stride
+                a_low += (shape - 1) * stride
             else:
-                a_high += (shape-1)*stride
+                a_high += (shape - 1) * stride
         a_high += bytes_a
     return a_low, a_high

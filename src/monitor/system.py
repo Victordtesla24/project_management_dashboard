@@ -1,4 +1,5 @@
 """System monitoring module."""
+import contextlib
 import json
 import logging
 import time
@@ -8,15 +9,15 @@ import psutil  # type: ignore
 
 logger = logging.getLogger(__name__)
 
+
 def monitor_system():
     """Monitor system resources and processes."""
     processes = []
     for proc in psutil.process_iter():
-        try:
+        with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
             processes.append(proc.info)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
     return {"processes": processes, "timestamp": time.time()}
+
 
 def main():
     """Main function to run system monitoring."""
@@ -33,6 +34,7 @@ def main():
         except Exception as e:
             logger.error(f"Error monitoring system: {e}")
             time.sleep(5)
+
 
 if __name__ == "__main__":
     main()

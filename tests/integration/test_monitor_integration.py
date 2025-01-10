@@ -1,121 +1,74 @@
-"""\1"""
-import json
-import os
-import time
+"""Integration tests for monitoring system."""
 
 import pytest
+from pathlib import Path
+import json
 
-from src.monitor import MetricsMonitor
+def test_monitor_initialization():
+    """Test monitor system initialization."""
+    from src.monitor import system
+    
+    # Initialize monitor
+    monitor = system.initialize_monitor()
+    
+    # Verify monitor state
+    assert monitor is not None
+    assert hasattr(monitor, 'collect_metrics')
+    assert hasattr(monitor, 'process_data')
 
+def test_monitor_data_collection():
+    """Test monitor data collection."""
+    from src.monitor import system
+    
+    # Initialize and collect data
+    monitor = system.initialize_monitor()
+    data = monitor.collect_metrics()
+    
+    # Verify collected data structure
+    assert isinstance(data, dict)
+    assert 'timestamp' in data
+    assert 'metrics' in data
+    assert isinstance(data['metrics'], dict)
 
-@pytest.fixture
-def monitor(test_data_dir):
-"""\1"""
-# Create config directory
-config_dir = os.path.join(test_data_dir, "metrics")
-os.makedirs(config_dir, exist_ok=True)
+def test_monitor_data_processing():
+    """Test monitor data processing."""
+    from src.monitor import system
+    
+    # Sample data
+    test_data = {
+        'timestamp': '2024-01-01T00:00:00Z',
+        'metrics': {
+            'cpu': 45.2,
+            'memory': 68.7,
+            'disk': 72.1
+        }
+    }
+    
+    # Process data
+    monitor = system.initialize_monitor()
+    processed = monitor.process_data(test_data)
+    
+    # Verify processing
+    assert isinstance(processed, dict)
+    assert 'processed_timestamp' in processed
+    assert 'metrics' in processed
+    assert processed['metrics'] == test_data['metrics']
 
-# Create config files
-process_config = {
-"processes": [
-{
-"name": "python",
-"pattern": "python",
-"metrics": ["cpu", "memory", "threads"],
-},
-],
-}
-system_config = {
-"metrics": {
-"cpu": True,
-"memory": True,
-"disk": True,
-"network": True,
-"load": True,
-},
-}
-
-with open(os.path.join(config_dir, "process_metrics.json"), "w") as f:
-json.dump(process_config, f)
-with open(os.path.join(config_dir, "system_metrics.json"), "w") as f:
-json.dump(system_config, f)
-
-return MetricsMonitor(config_dir=config_dir)
-
-def test_monitor_collects_metrics(monitor, test_data_dir):
-"""\1"""
-# Create data directory in test location
-data_dir = os.path.join(test_data_dir, "metrics", "data")
-os.makedirs(data_dir, exist_ok=True)
-
-# Collect metrics
-monitor._collect_metrics()
-
-# Check that metrics file was created
-files = os.listdir(data_dir)
-assert len(files) > 0
-
-# Verify metrics file content
-with open(os.path.join(data_dir, files[0])) as f:
-metrics = json.load(f)
-
-assert "timestamp" in metrics
-assert "system" in metrics
-assert "processes" in metrics
-
-def test_monitor_respects_collection_interval(monitor, test_data_dir):
-"""\1"""
-# Create data directory in test location
-data_dir = os.path.join(test_data_dir, "metrics", "data")
-os.makedirs(data_dir, exist_ok=True)
-
-# Clear any existing files
-for file in os.listdir(data_dir):
-os.remove(os.path.join(data_dir, file))
-
-# Collect metrics twice with short interval
-monitor._collect_metrics()
-time.sleep(1)
-monitor._collect_metrics()
-
-# Check number of files created
-files = sorted(os.listdir(data_dir))
-assert len(files) == 2
-
-# Verify timestamps are different
-timestamps = []
-for file in files:
-with open(os.path.join(data_dir, file)) as f:
-metrics = json.load(f)
-timestamps.append(metrics["timestamp"])
-
-assert timestamps[1] > timestamps[0]
-
-def test_monitor_handles_missing_processes(monitor, test_data_dir):
-"""\1"""
-# Create data directory in test location
-data_dir = os.path.join(test_data_dir, "metrics", "data")
-os.makedirs(data_dir, exist_ok=True)
-
-# Add non-existent process to monitor
-monitor.process_config["processes"].append(
-{
-"name": "nonexistent",
-"pattern": "this_process_does_not_exist",
-"metrics": ["cpu", "memory"],
-},
-)
-
-# Collect metrics
-monitor._collect_metrics()
-
-# Verify metrics were collected without error
-files = os.listdir(data_dir)
-assert len(files) > 0
-
-# Verify metrics file content
-with open(os.path.join(data_dir, files[0])) as f:
-metrics = json.load(f)
-
-assert "processes" in metrics
-assert "nonexistent" not in metrics["processes"]
+def test_monitor_integration_flow():
+    """Test complete monitoring flow."""
+    from src.monitor import system
+    
+    # Initialize monitor
+    monitor = system.initialize_monitor()
+    
+    # Collect data
+    data = monitor.collect_metrics()
+    assert data is not None
+    
+    # Process data
+    processed = monitor.process_data(data)
+    assert processed is not None
+    
+    # Store data (if applicable)
+    if hasattr(monitor, 'store_data'):
+        monitor.store_data(processed)

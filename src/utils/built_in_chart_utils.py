@@ -31,8 +31,6 @@ from typing import (
     cast,
 )
 
-from typing_extensions import TypeAlias
-
 from streamlit import dataframe_util, type_util
 from streamlit.elements.lib.color_util import (
     Color,
@@ -46,8 +44,8 @@ from streamlit.errors import Error, StreamlitAPIException
 if TYPE_CHECKING:
     import altair as alt
     import pandas as pd
-
     from streamlit.dataframe_util import Data
+    from typing_extensions import TypeAlias
 
 VegaLiteType: TypeAlias = Literal["quantitative", "ordinal", "temporal", "nominal"]
 ChartStackType: TypeAlias = Literal["normalize", "center", "layered"]
@@ -117,13 +115,15 @@ _NON_EXISTENT_COLUMN_NAME: Final = "DOES_NOT_EXIST" + _PROTECTION_SUFFIX
 
 
 def maybe_raise_stack_warning(
-    stack: bool | ChartStackType | None, command: str | None, docs_link: str
+    stack: bool | ChartStackType | None,
+    command: str | None,
+    docs_link: str,
 ):
     # Check that the stack parameter is valid, raise more informative error message if not
     if stack not in (None, True, False, "normalize", "center", "layered"):
+        msg = f'Invalid value for stack parameter: {stack}. Stack must be one of True, False, "normalize", "center", "layered" or None. See documentation for `{command}` [here]({docs_link}) for more information.'
         raise StreamlitAPIException(
-            f'Invalid value for stack parameter: {stack}. Stack must be one of True, False, "normalize", "center", "layered" or None. '
-            f"See documentation for `{command}` [here]({docs_link}) for more information."
+            msg,
         )
 
 
@@ -178,7 +178,11 @@ def generate_chart(
     # columns that are guaranteed to exist.
 
     df, x_column, y_column, color_column, size_column = _prep_data(
-        df, x_column, y_column_list, color_column, size_column
+        df,
+        x_column,
+        y_column_list,
+        color_column,
+        size_column,
     )
 
     # At this point, x_column is only None if user did not provide one AND df is empty.
@@ -221,9 +225,7 @@ def generate_chart(
         chart = chart.encode(opacity=opacity_enc)
 
     # Set up color encoding.
-    color_enc = _get_color_encoding(
-        df, color_value, color_column, y_column_list, color_from_user
-    )
+    color_enc = _get_color_encoding(df, color_value, color_column, y_column_list, color_from_user)
     if color_enc is not None:
         chart = chart.encode(color=color_enc)
 
@@ -241,7 +243,7 @@ def generate_chart(
                 size_column,
                 color_column,
                 color_enc,
-            )
+            ),
         )
 
     if (
@@ -250,18 +252,21 @@ def generate_chart(
         # This is using the new selection API that was added in Altair 5.0.0
         and is_altair_version_5_or_greater
     ):
-        return _add_improved_hover_tooltips(
-            chart, x_column, width, height
-        ).interactive(), add_rows_metadata
+        return (
+            _add_improved_hover_tooltips(chart, x_column, width, height).interactive(),
+            add_rows_metadata,
+        )
 
     return chart.interactive(), add_rows_metadata
 
 
 def _add_improved_hover_tooltips(
-    chart: alt.Chart, x_column: str, width: int | None, height: int | None
+    chart: alt.Chart,
+    x_column: str,
+    width: int | None,
+    height: int | None,
 ) -> alt.LayerChart:
     """Adds improved hover tooltips to an existing line chart."""
-
     import altair as alt
 
     # Create a selection that chooses the nearest point & selects based on x-value
@@ -315,7 +320,8 @@ def prep_chart_data_for_add_rows(
         old_stop = _get_pandas_index_attr(df, "stop")
 
         if old_step is None or old_stop is None:
-            raise StreamlitAPIException("'RangeIndex' object has no attribute 'step'")
+            msg = "'RangeIndex' object has no attribute 'step'"
+            raise StreamlitAPIException(msg)
 
         start = add_rows_metadata.last_index + old_step
         stop = add_rows_metadata.last_index + old_step + old_stop
@@ -331,9 +337,8 @@ def prep_chart_data_for_add_rows(
 def _infer_vegalite_type(
     data: pd.Series[Any],
 ) -> VegaLiteType:
-    """
-    From an array-like input, infer the correct vega typecode
-    ('ordinal', 'nominal', 'quantitative', or 'temporal')
+    """From an array-like input, infer the correct vega typecode
+    ('ordinal', 'nominal', 'quantitative', or 'temporal').
 
     Parameters
     ----------
@@ -407,15 +412,12 @@ def _prep_data(
     Returns the prepared dataframe and the new names of the x column (taking the index reset into
     consideration) and y, color, and size columns.
     """
-
     # If y is provided, but x is not, we'll use the index as x.
     # So we need to pull the index into its own column.
     x_column = _maybe_reset_index_in_place(df, x_column, y_column_list)
 
     # Drop columns we're not using.
-    selected_data = _drop_unused_columns(
-        df, x_column, color_column, size_column, *y_column_list
-    )
+    selected_data = _drop_unused_columns(df, x_column, color_column, size_column, *y_column_list)
 
     # Maybe convert color to Vega colors.
     _maybe_convert_color_column_in_place(selected_data, color_column)
@@ -427,12 +429,20 @@ def _prep_data(
         color_column,
         size_column,
     ) = _convert_col_names_to_str_in_place(
-        selected_data, x_column, y_column_list, color_column, size_column
+        selected_data,
+        x_column,
+        y_column_list,
+        color_column,
+        size_column,
     )
 
     # Maybe melt data from wide format into long format.
     melted_data, y_column, color_column = _maybe_melt(
-        selected_data, x_column, y_column_list, color_column, size_column
+        selected_data,
+        x_column,
+        y_column_list,
+        color_column,
+        size_column,
     )
 
     # Return the data, but also the new names to use for x, y, and color.
@@ -505,7 +515,6 @@ def _melt_data(
 
     Examples
     --------
-
     >>> import pandas as pd
     >>> df = pd.DataFrame(
     ...     {
@@ -539,13 +548,14 @@ def _melt_data(
         and "mixed" in infer_dtype(y_series)
         and len(y_series.unique()) > 100
     ):
+        msg = "The columns used for rendering the chart contain too many values with mixed types. Please select the columns manually via the y parameter."
         raise StreamlitAPIException(
-            "The columns used for rendering the chart contain too many values with mixed types. Please select the columns manually via the y parameter."
+            msg,
         )
 
     # Arrow has problems with object types after melting two different dtypes
     # pyarrow.lib.ArrowTypeError: "Expected a <TYPE> object, got a object"
-    fixed_df = dataframe_util.fix_arrow_incompatible_column_types(
+    return dataframe_util.fix_arrow_incompatible_column_types(
         melted_df,
         selected_columns=[
             *columns_to_leave_alone,
@@ -554,11 +564,11 @@ def _melt_data(
         ],
     )
 
-    return fixed_df
-
 
 def _maybe_reset_index_in_place(
-    df: pd.DataFrame, x_column: str | None, y_column_list: list[str]
+    df: pd.DataFrame,
+    x_column: str | None,
+    y_column_list: list[str],
 ) -> str | None:
     if x_column is None and len(y_column_list) > 0:
         if df.index.name is None:
@@ -569,14 +579,13 @@ def _maybe_reset_index_in_place(
             x_column = df.index.name
 
         df.index.name = x_column
-        df.reset_index(inplace=True)
+        df = df.reset_index()
 
     return x_column
 
 
 def _drop_unused_columns(df: pd.DataFrame, *column_names: str | None) -> pd.DataFrame:
     """Returns a subset of df, selecting only column_names that aren't None."""
-
     # We can't just call set(col_names) because sets don't have stable ordering,
     # which means tests that depend on ordering will fail.
     # Performance-wise, it's not a problem, though, since this function is only ever
@@ -636,9 +645,7 @@ def _convert_col_names_to_str_in_place(
     )
 
 
-def _parse_generic_column(
-    df: pd.DataFrame, column_or_value: Any
-) -> tuple[str | None, Any]:
+def _parse_generic_column(df: pd.DataFrame, column_or_value: Any) -> tuple[str | None, Any]:
     if isinstance(column_or_value, str) and column_or_value in df.columns:
         column_name = column_or_value
         value = None
@@ -660,10 +667,9 @@ def _parse_x_column(df: pd.DataFrame, x_from_user: str | None) -> str | None:
         return x_from_user
 
     else:
+        msg = f"x parameter should be a column name (str) or None to use the  dataframe's index. Value given: {x_from_user} (type {type(x_from_user)})"
         raise StreamlitAPIException(
-            "x parameter should be a column name (str) or None to use the "
-            f" dataframe's index. Value given: {x_from_user} "
-            f"(type {type(x_from_user)})"
+            msg,
         )
 
 
@@ -681,9 +687,7 @@ def _parse_y_columns(
         y_column_list = [y_from_user]
 
     else:
-        y_column_list = [
-            str(col) for col in dataframe_util.convert_anything_to_list(y_from_user)
-        ]
+        y_column_list = [str(col) for col in dataframe_util.convert_anything_to_list(y_from_user)]
 
     for col in y_column_list:
         if col not in df.columns:
@@ -796,20 +800,12 @@ def _get_axis_encodings(
     stack_encoding: alt.X | alt.Y
     if chart_type == ChartType.HORIZONTAL_BAR:
         # Handle horizontal bar chart - switches x and y data:
-        x_encoding = _get_x_encoding(
-            df, y_column, y_from_user, x_axis_label, chart_type
-        )
-        y_encoding = _get_y_encoding(
-            df, x_column, x_from_user, y_axis_label, chart_type
-        )
+        x_encoding = _get_x_encoding(df, y_column, y_from_user, x_axis_label, chart_type)
+        y_encoding = _get_y_encoding(df, x_column, x_from_user, y_axis_label, chart_type)
         stack_encoding = x_encoding
     else:
-        x_encoding = _get_x_encoding(
-            df, x_column, x_from_user, x_axis_label, chart_type
-        )
-        y_encoding = _get_y_encoding(
-            df, y_column, y_from_user, y_axis_label, chart_type
-        )
+        x_encoding = _get_x_encoding(df, x_column, x_from_user, x_axis_label, chart_type)
+        y_encoding = _get_y_encoding(df, y_column, y_from_user, y_axis_label, chart_type)
         stack_encoding = y_encoding
 
     # Handle stacking - only relevant for bar & area charts
@@ -845,17 +841,14 @@ def _get_x_encoding(
         # Only show a label in the x axis if the user passed a column explicitly. We
         # could go either way here, but I'm keeping this to avoid breaking the existing
         # behavior.
-        if x_from_user is None:
-            x_title = ""
-        else:
-            x_title = x_column
+        x_title = "" if x_from_user is None else x_column
 
     # User specified x-axis label takes precedence
     if x_axis_label is not None:
         x_title = x_axis_label
 
     # grid lines on x axis for horizontal bar charts only
-    grid = True if chart_type == ChartType.HORIZONTAL_BAR else False
+    grid = chart_type == ChartType.HORIZONTAL_BAR
 
     return alt.X(
         x_field,
@@ -893,17 +886,14 @@ def _get_y_encoding(
         # Only show a label in the y axis if the user passed a column explicitly. We
         # could go either way here, but I'm keeping this to avoid breaking the existing
         # behavior.
-        if y_from_user is None:
-            y_title = ""
-        else:
-            y_title = y_column
+        y_title = "" if y_from_user is None else y_column
 
     # User specified y-axis label takes precedence
     if y_axis_label is not None:
         y_title = y_axis_label
 
     # grid lines on y axis for all charts except horizontal bar charts
-    grid = False if chart_type == ChartType.HORIZONTAL_BAR else True
+    grid = chart_type != ChartType.HORIZONTAL_BAR
 
     return alt.Y(
         field=y_field,
@@ -919,7 +909,7 @@ def _update_encoding_with_stack(
     encoding: alt.X | alt.Y,
 ) -> None:
     if stack is None:
-        return None
+        return
     # Our layered option maps to vega's stack=False option
     elif stack == "layered":
         stack = False
@@ -959,9 +949,7 @@ def _get_color_encoding(
                 return alt.ColorValue(to_css_color(cast(Any, color_value[0])))
             else:
                 return alt.Color(
-                    field=color_column
-                    if color_column is not None
-                    else alt.utils.Undefined,
+                    field=color_column if color_column is not None else alt.utils.Undefined,
                     scale=alt.Scale(range=[to_css_color(c) for c in color_values]),
                     legend=_COLOR_LEGEND_SETTINGS,
                     type="nominal",
@@ -978,9 +966,7 @@ def _get_color_encoding(
         else:
             column_type = _infer_vegalite_type(df[color_column])
 
-        color_enc = alt.Color(
-            field=color_column, legend=_COLOR_LEGEND_SETTINGS, type=column_type
-        )
+        color_enc = alt.Color(field=color_column, legend=_COLOR_LEGEND_SETTINGS, type=column_type)
 
         # Fix title if DF was melted
         if color_column == _MELTED_COLOR_COLUMN_NAME:
@@ -1028,14 +1014,13 @@ def _get_size_encoding(
         elif size_value is None:
             return alt.SizeValue(100)
         else:
-            raise StreamlitAPIException(
-                f"This does not look like a valid size: {repr(size_value)}"
-            )
+            msg = f"This does not look like a valid size: {size_value!r}"
+            raise StreamlitAPIException(msg)
 
     elif size_column is not None or size_value is not None:
+        msg = f"Chart type {chart_type.name} does not support size argument. This should never happen!"
         raise Error(
-            f"Chart type {chart_type.name} does not support size argument. "
-            "This should never happen!"
+            msg,
         )
 
     return None
@@ -1067,7 +1052,7 @@ def _get_tooltip_encoding(
                 y_column,
                 title=_MELTED_Y_COLUMN_TITLE,
                 type="quantitative",  # Just picked something random. Doesn't really matter!
-            )
+            ),
         )
     else:
         tooltip.append(alt.Tooltip(y_column))
@@ -1083,7 +1068,7 @@ def _get_tooltip_encoding(
                     color_column,
                     title=_MELTED_COLOR_COLUMN_TITLE,
                     type="nominal",
-                )
+                ),
             )
         else:
             tooltip.append(alt.Tooltip(color_column))
@@ -1095,7 +1080,9 @@ def _get_tooltip_encoding(
 
 
 def _get_x_encoding_type(
-    df: pd.DataFrame, chart_type: ChartType, x_column: str | None
+    df: pd.DataFrame,
+    chart_type: ChartType,
+    x_column: str | None,
 ) -> VegaLiteType:
     if x_column is None:
         return "quantitative"  # Anything. If None, Vega-Lite may hide the axis.
@@ -1109,7 +1096,9 @@ def _get_x_encoding_type(
 
 
 def _get_y_encoding_type(
-    df: pd.DataFrame, chart_type: ChartType, y_column: str | None
+    df: pd.DataFrame,
+    chart_type: ChartType,
+    y_column: str | None,
 ) -> VegaLiteType:
     # Horizontal bar charts should have a discrete (ordinal) y-axis, UNLESS type is date/time
     if chart_type == ChartType.HORIZONTAL_BAR and not _is_date_column(df, y_column):
@@ -1122,7 +1111,7 @@ def _get_y_encoding_type(
 
 
 class StreamlitColumnNotFoundError(StreamlitAPIException):
-    def __init__(self, df, col_name, *args):
+    def __init__(self, df, col_name, *args) -> None:
         available_columns = ", ".join(str(c) for c in list(df.columns))
         message = (
             f'Data does not have a column named `"{col_name}"`. '
@@ -1132,7 +1121,7 @@ class StreamlitColumnNotFoundError(StreamlitAPIException):
 
 
 class StreamlitInvalidColorError(StreamlitAPIException):
-    def __init__(self, df, color_from_user, *args):
+    def __init__(self, df, color_from_user, *args) -> None:
         ", ".join(str(c) for c in list(df.columns))
         message = f"""
 This does not look like a valid color argument: `{color_from_user}`.
@@ -1150,7 +1139,7 @@ The color argument can be:
 
 
 class StreamlitColorLengthError(StreamlitAPIException):
-    def __init__(self, color_values, y_column_list, *args):
+    def __init__(self, color_values, y_column_list, *args) -> None:
         message = (
             f"The list of colors `{color_values}` must have the same "
             "length as the list of columns to be colored "

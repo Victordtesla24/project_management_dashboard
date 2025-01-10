@@ -41,7 +41,6 @@ class MarshallComponentException(StreamlitAPIException):
     """Class for exceptions generated during custom component marshalling."""
 
 
-
 class CustomComponent(BaseCustomComponent):
     """A Custom Component declaration."""
 
@@ -97,27 +96,23 @@ class CustomComponent(BaseCustomComponent):
 
         """
         if len(args) > 0:
-            raise MarshallComponentException(f"Argument '{args[0]}' needs a label")
+            msg = f"Argument '{args[0]}' needs a label"
+            raise MarshallComponentException(msg)
 
         try:
-            import pyarrow  # noqa: F401
-
+            import pyarrow as pa  # noqa: F401
             from streamlit.components.v1 import component_arrow
         except ImportError:
+            msg = 'To use Custom Components in Streamlit, you need to install\nPyArrow. To do so locally:\n\n`pip install pyarrow`\n\nAnd if you\'re using Streamlit Cloud, add "pyarrow" to your requirements.txt.'
             raise StreamlitAPIException(
-                """To use Custom Components in Streamlit, you need to install
-PyArrow. To do so locally:
-
-`pip install pyarrow`
-
-And if you're using Streamlit Cloud, add "pyarrow" to your requirements.txt."""
+                msg,
             )
 
         check_cache_replay_rules()
         # In addition to the custom kwargs passed to the component, we also
         # send the special 'default' and 'key' params to the component
         # frontend.
-        all_args = dict(kwargs, **{"default": default, "key": key})
+        all_args = dict(kwargs, default=default, key=key)
 
         json_args = {}
         special_args = []
@@ -138,9 +133,8 @@ And if you're using Streamlit Cloud, add "pyarrow" to your requirements.txt."""
         try:
             serialized_json_args = json.dumps(json_args)
         except Exception as ex:
-            raise MarshallComponentException(
-                "Could not convert component args to JSON", ex
-            )
+            msg = "Could not convert component args to JSON"
+            raise MarshallComponentException(msg, ex)
 
         def marshall_component(dg: DeltaGenerator, element: Element) -> Any:
             element.component_instance.component_name = self.name
@@ -233,7 +227,6 @@ And if you're using Streamlit Cloud, add "pyarrow" to your requirements.txt."""
 
     def __ne__(self, other) -> bool:
         """Inequality operator."""
-
         # we have to use "not X == Y"" here because if we use "X != Y"
         # we call __ne__ again and end up in recursion
         return not self == other

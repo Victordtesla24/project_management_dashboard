@@ -2,29 +2,22 @@
 #
 # This module is part of GitDB and is released under
 # the New BSD License: https://opensource.org/license/bsd-3-clause/
-"""Test for object db"""
-from gitdb.test.lib import (
-    TestBase,
-    DummyStream,
-    DeriveTest,
-)
-
+"""Test for object db."""
 from gitdb import (
+    IStream,
+    ODeltaPackInfo,
+    ODeltaPackStream,
     OInfo,
     OPackInfo,
-    ODeltaPackInfo,
-    OStream,
     OPackStream,
-    ODeltaPackStream,
-    IStream,
+    OStream,
 )
-from gitdb.util import NULL_BIN_SHA
-
+from gitdb.test.lib import DeriveTest, DummyStream, TestBase
 from gitdb.typ import str_blob_type
+from gitdb.util import NULL_BIN_SHA
 
 
 class TestBaseTypes(TestBase):
-
     def test_streams(self):
         # test info
         sha = NULL_BIN_SHA
@@ -52,7 +45,7 @@ class TestBaseTypes(TestBase):
 
         # test ostream
         stream = DummyStream()
-        ostream = OStream(*(info + (stream,)))
+        ostream = OStream(*((*info, stream)))
         assert ostream.stream is stream
         ostream.read(15)
         stream._assert()
@@ -61,14 +54,14 @@ class TestBaseTypes(TestBase):
         assert stream.bytes == 20
 
         # test packstream
-        postream = OPackStream(*(pinfo + (stream,)))
+        postream = OPackStream(*((*pinfo, stream)))
         assert postream.stream is stream
         postream.read(10)
         stream._assert()
         assert stream.bytes == 10
 
         # test deltapackstream
-        dpostream = ODeltaPackStream(*(dpinfo + (stream,)))
+        dpostream = ODeltaPackStream(*((*dpinfo, stream)))
         assert dpostream.stream is stream
         dpostream.read(5)
         stream._assert()
@@ -79,7 +72,7 @@ class TestBaseTypes(TestBase):
 
         # test istream
         istream = IStream(str_blob_type, s, stream)
-        assert istream.binsha == None
+        assert istream.binsha is None
         istream.binsha = sha
         assert istream.binsha == sha
 

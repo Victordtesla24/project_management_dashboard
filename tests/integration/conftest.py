@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_data():
     """Test data fixture."""
     return {
@@ -15,7 +15,7 @@ def test_data():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def temp_test_dir(tmp_path):
     """Temporary test directory fixture."""
     test_dir = tmp_path / "test_dir"

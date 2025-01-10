@@ -11,10 +11,12 @@ import json
 import logging
 import unittest
 from pathlib import Path
-from typing import Any
-from unittest.mock import Mock
+from typing import TYPE_CHECKING, Any
 
 from pylint.lint import Run
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 # We use Any in this typing because the configuration contains real objects and constants
 # that could be a lot of things.

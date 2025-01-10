@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 class MetricsCollector:
     """Collect and manage system metrics."""
-    def __init__(self, config=None):
+
+    def __init__(self, config=None) -> None:
         self.config = config or {}
         self.metrics = {
             "system": {"cpu": 0.0, "memory": 0.0, "disk": 0.0},
@@ -42,13 +43,17 @@ class MetricsCollector:
                             "name": pinfo["name"],
                             "cpu_percent": pinfo["cpu_percent"] or 0.0,
                             "memory_percent": pinfo["memory_percent"] or 0.0,
-                        }
+                        },
                     )
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
             self.metrics["processes"] = sorted(
-                processes, key=lambda x: (x["cpu_percent"], x["memory_percent"]), reverse=True,
-            )[:10]  # Keep only top 10 processes
+                processes,
+                key=lambda x: (x["cpu_percent"], x["memory_percent"]),
+                reverse=True,
+            )[
+                :10
+            ]  # Keep only top 10 processes
         except Exception as e:
             logger.error(f"Error collecting process metrics: {e}")
 
@@ -78,3 +83,18 @@ class MetricsCollector:
                 logger.warning(f"Metrics file not found: {filepath}")
         except Exception as e:
             logger.error(f"Error loading metrics from {filepath}: {e}")
+
+
+def collect_metrics(config=None):
+    """Collect system and process metrics.
+
+    Args:
+    ----
+        config: Optional configuration dictionary
+
+    Returns:
+    -------
+        dict: Collected metrics including system and process information
+    """
+    collector = MetricsCollector(config)
+    return collector.get_metrics()

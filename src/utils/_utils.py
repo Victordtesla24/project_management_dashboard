@@ -1,27 +1,22 @@
 from __future__ import annotations
 
-from typing import (
-    TYPE_CHECKING,
-    Any,
-)
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-
 from pandas._libs import lib
-from pandas.errors import LossySetitemError
-
 from pandas.core.dtypes.cast import np_can_hold_element
 from pandas.core.dtypes.common import is_numeric_dtype
+from pandas.errors import LossySetitemError
 
 if TYPE_CHECKING:
-    from pandas._typing import (
-        ArrayLike,
-        npt,
-    )
+    from pandas._typing import ArrayLike, npt
 
 
 def to_numpy_dtype_inference(
-    arr: ArrayLike, dtype: npt.DTypeLike | None, na_value, hasna: bool
+    arr: ArrayLike,
+    dtype: npt.DTypeLike | None,
+    na_value,
+    hasna: bool,
 ) -> tuple[npt.DTypeLike, Any]:
     if dtype is None and is_numeric_dtype(arr.dtype):
         dtype_given = False

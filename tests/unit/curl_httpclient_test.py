@@ -1,11 +1,10 @@
-from hashlib import md5
 import unittest
+from hashlib import md5
 
 from tornado.escape import utf8
-from tornado.testing import AsyncHTTPTestCase
 from tornado.test import httpclient_test
+from tornado.testing import AsyncHTTPTestCase
 from tornado.web import Application, RequestHandler
-
 
 try:
     import pycurl
@@ -19,9 +18,9 @@ if pycurl is not None:
 @unittest.skipIf(pycurl is None, "pycurl module not present")
 class CurlHTTPClientCommonTestCase(httpclient_test.HTTPClientCommonTestCase):
     def get_http_client(self):
-        client = CurlAsyncHTTPClient(defaults=dict(allow_ipv6=False))
+        client = CurlAsyncHTTPClient(defaults={"allow_ipv6": False})
         # make sure AsyncHTTPClient magic doesn't give us the wrong class
-        self.assertTrue(isinstance(client, CurlAsyncHTTPClient))
+        assert isinstance(client, CurlAsyncHTTPClient)
         return client
 
 
@@ -51,13 +50,9 @@ class DigestAuthHandler(RequestHandler):
             assert param_dict["nonce"] == nonce
             assert param_dict["username"] == self.username
             assert param_dict["uri"] == self.request.path
-            h1 = md5(
-                utf8("%s:%s:%s" % (self.username, realm, self.password))
-            ).hexdigest()
-            h2 = md5(
-                utf8("%s:%s" % (self.request.method, self.request.path))
-            ).hexdigest()
-            digest = md5(utf8("%s:%s:%s" % (h1, nonce, h2))).hexdigest()
+            h1 = md5(utf8(f"{self.username}:{realm}:{self.password}")).hexdigest()
+            h2 = md5(utf8(f"{self.request.method}:{self.request.path}")).hexdigest()
+            digest = md5(utf8(f"{h1}:{nonce}:{h2}")).hexdigest()
             if digest == param_dict["response"]:
                 self.write("ok")
             else:
@@ -66,7 +61,7 @@ class DigestAuthHandler(RequestHandler):
             self.set_status(401)
             self.set_header(
                 "WWW-Authenticate",
-                'Digest realm="%s", nonce="%s", opaque="%s"' % (realm, nonce, opaque),
+                f'Digest realm="{realm}", nonce="{nonce}", opaque="{opaque}"',
             )
 
 
@@ -97,27 +92,28 @@ class CurlHTTPClientTestCase(AsyncHTTPTestCase):
                 ),
                 ("/custom_reason", CustomReasonHandler),
                 ("/custom_fail_reason", CustomFailReasonHandler),
-            ]
+            ],
         )
 
     def create_client(self, **kwargs):
-        return CurlAsyncHTTPClient(
-            force_instance=True, defaults=dict(allow_ipv6=False), **kwargs
-        )
+        return CurlAsyncHTTPClient(force_instance=True, defaults={"allow_ipv6": False}, **kwargs)
 
     def test_digest_auth(self):
         response = self.fetch(
-            "/digest", auth_mode="digest", auth_username="foo", auth_password="bar"
+            "/digest",
+            auth_mode="digest",
+            auth_username="foo",
+            auth_password="bar",
         )
-        self.assertEqual(response.body, b"ok")
+        assert response.body == b"ok"
 
     def test_custom_reason(self):
         response = self.fetch("/custom_reason")
-        self.assertEqual(response.reason, "Custom reason")
+        assert response.reason == "Custom reason"
 
     def test_fail_custom_reason(self):
         response = self.fetch("/custom_fail_reason")
-        self.assertEqual(str(response.error), "HTTP 400: Custom reason")
+        assert str(response.error) == "HTTP 400: Custom reason"
 
     def test_digest_auth_non_ascii(self):
         response = self.fetch(
@@ -126,4 +122,4 @@ class CurlHTTPClientTestCase(AsyncHTTPTestCase):
             auth_username="foo",
             auth_password="barユ£",
         )
-        self.assertEqual(response.body, b"ok")
+        assert response.body == b"ok"

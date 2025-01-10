@@ -1,83 +1,118 @@
-#
-# Copyright 2014 Hewlett-Packard Development Company, L.P.
-#
-# SPDX-License-Identifier: Apache-2.0
+"""Test module for properties decorators."""
 import logging
+from unittest.mock import Mock, patch
 
-from bandit.core import utils
+import pytest
 
-LOG = logging.getLogger(__name__)
-
-
-def checks(*args):
-    """Decorator function to set checks to be run."""
-
-    def wrapper(func):
-        if not hasattr(func, "_checks"):
-            func._checks = []
-        for arg in args:
-            if arg == "File":
-                func._checks.append("File")
-            else:
-                func._checks.append(utils.check_ast_node(arg))
-
-        LOG.debug("checks() decorator executed")
-        LOG.debug("  func._checks: %s", func._checks)
-        return func
-
-    return wrapper
+from dashboard.core.properties import (
+    accepts_baseline,
+    checks,
+    set_test_id,
+    takes_config,
+)
 
 
-def takes_config(*args):
-    """Test function takes config
-
-    Use of this delegate before a test function indicates that it should be
-    passed data from the config file. Passing a name parameter allows
-    aliasing tests and thus sharing config options.
-    """
-    name = ""
-
-    def _takes_config(func):
-        if not hasattr(func, "_takes_config"):
-            func._takes_config = name
-        return func
-
-    if len(args) == 1 and callable(args[0]):
-        name = args[0].__name__
-        return _takes_config(args[0])
-    else:
-        name = args[0]
-        return _takes_config
+@pytest.fixture()
+def mock_utils():
+    """Mock utils module."""
+    with patch("dashboard.core.properties.utils") as mock:
+        mock.check_ast_node = Mock(return_value="AST_NODE")
+        yield mock
 
 
-def test_id(id_val):
-    """Test function identifier
+def test_checks_decorator(mock_utils):
+    """Test checks decorator."""
 
-    Use this decorator before a test function indicates its simple ID
-    """
+    # Define a test function with the checks decorator
+    @checks("File", "Call")
+    def test_func():
+        pass
 
-    def _has_id(func):
-        if not hasattr(func, "_test_id"):
-            func._test_id = id_val
-        return func
-
-    return _has_id
+    # Verify checks were added
+    assert hasattr(test_func, "_checks")
+    assert "File" in test_func._checks
+    assert "AST_NODE" in test_func._checks
 
 
-def accepts_baseline(*args):
-    """Decorator to indicate formatter accepts baseline results
+def test_takes_config_decorator_with_name():
+    """Test takes_config decorator with explicit name."""
 
-    Use of this decorator before a formatter indicates that it is able to deal
-    with baseline results.  Specifically this means it has a way to display
-    candidate results and know when it should do so.
-    """
+    # Define a test function with the takes_config decorator
+    @takes_config("test_name")
+    def test_func():
+        pass
 
-    def wrapper(func):
-        if not hasattr(func, "_accepts_baseline"):
-            func._accepts_baseline = True
+    # Verify config name was set
+    assert hasattr(test_func, "_takes_config")
+    assert test_func._takes_config == "test_name"
 
-        LOG.debug("accepts_baseline() decorator executed on %s", func.__name__)
 
-        return func
+def test_takes_config_decorator_without_name():
+    """Test takes_config decorator without name."""
 
-    return wrapper(args[0])
+    # Define a test function with the takes_config decorator
+    @takes_config
+    def test_func():
+        pass
+
+    # Verify config name defaults to function name
+    assert hasattr(test_func, "_takes_config")
+    assert test_func._takes_config == "test_func"
+
+
+def test_set_test_id_decorator():
+    """Test set_test_id decorator."""
+
+    # Define a test function with the set_test_id decorator
+    @set_test_id("B101")
+    def test_func():
+        pass
+
+    # Verify test ID was set
+    assert hasattr(test_func, "_test_id")
+    assert test_func._test_id == "B101"
+
+
+def test_accepts_baseline_decorator():
+    """Test accepts_baseline decorator."""
+
+    # Define a test function with the accepts_baseline decorator
+    @accepts_baseline
+    def test_func():
+        pass
+
+    # Verify accepts_baseline flag was set
+    assert hasattr(test_func, "_accepts_baseline")
+    assert test_func._accepts_baseline is True
+
+
+def test_multiple_decorators(mock_utils):
+    """Test using multiple decorators together."""
+
+    # Define a test function with multiple decorators
+    @checks("File")
+    @set_test_id("B102")
+    @takes_config("test_config")
+    def test_func():
+        pass
+
+    # Verify all attributes were set
+    assert hasattr(test_func, "_checks")
+    assert "File" in test_func._checks
+    assert hasattr(test_func, "_test_id")
+    assert test_func._test_id == "B102"
+    assert hasattr(test_func, "_takes_config")
+    assert test_func._takes_config == "test_config"
+
+
+def test_decorator_logging(caplog):
+    """Test decorator logging."""
+    caplog.set_level(logging.DEBUG)
+
+    # Define a test function with the accepts_baseline decorator
+    @accepts_baseline
+    def test_func():
+        pass
+
+    # Verify log messages
+    assert "accepts_baseline() decorator executed on test_func" in caplog.text

@@ -1,8 +1,3 @@
-from tornado import gen, ioloop
-from tornado.httpserver import HTTPServer
-from tornado.locks import Event
-from tornado.testing import AsyncHTTPTestCase, AsyncTestCase, bind_unused_port, gen_test
-from tornado.web import Application
 import asyncio
 import contextlib
 import gc
@@ -12,6 +7,13 @@ import sys
 import traceback
 import unittest
 import warnings
+
+import pytest
+from tornado import gen, ioloop
+from tornado.httpserver import HTTPServer
+from tornado.locks import Event
+from tornado.testing import AsyncHTTPTestCase, AsyncTestCase, bind_unused_port, gen_test
+from tornado.web import Application
 
 
 @contextlib.contextmanager
@@ -38,18 +40,17 @@ class AsyncTestCaseTest(AsyncTestCase):
 
         # Timeout passed to wait()
         self.io_loop.add_timeout(time() + 1, self.stop)
-        with self.assertRaises(self.failureException):
+        with pytest.raises(self.failureException):
             self.wait(timeout=0.01)
 
         # Timeout set with environment variable
         self.io_loop.add_timeout(time() + 1, self.stop)
         with set_environ("ASYNC_TEST_TIMEOUT", "0.01"):
-            with self.assertRaises(self.failureException):
+            with pytest.raises(self.failureException):
                 self.wait()
 
     def test_subsequent_wait_calls(self):
-        """
-        This test makes sure that a second call to wait()
+        """This test makes sure that a second call to wait()
         clears the first timeout.
         """
         # The first wait ends with time left on the clock
@@ -75,10 +76,8 @@ class LeakTest(AsyncTestCase):
         event = Event()
 
         async def callback():
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await event.wait()
-            except asyncio.CancelledError:
-                pass
 
         self.io_loop.add_callback(callback)
         self.io_loop.add_callback(self.stop)
@@ -102,7 +101,7 @@ class AsyncHTTPTestCaseTest(AsyncHTTPTestCase):
     def test_fetch_segment(self):
         path = "/path"
         response = self.fetch(path)
-        self.assertEqual(response.request.url, self.get_url(path))
+        assert response.request.url == self.get_url(path)
 
     def test_fetch_full_http_url(self):
         # Ensure that self.fetch() recognizes absolute urls and does
@@ -110,7 +109,7 @@ class AsyncHTTPTestCaseTest(AsyncHTTPTestCase):
         path = "http://127.0.0.1:%d/path" % self.second_port
 
         response = self.fetch(path)
-        self.assertEqual(response.request.url, path)
+        assert response.request.url == path
 
     def tearDown(self):
         self.second_server.stop()
@@ -130,8 +129,8 @@ class AsyncTestCaseReturnAssertionsTest(unittest.TestCase):
         test = Test("test_gen")
         result = unittest.TestResult()
         test.run(result)
-        self.assertEqual(len(result.errors), 1)
-        self.assertIn("should be decorated", result.errors[0][1])
+        assert len(result.errors) == 1
+        assert "should be decorated" in result.errors[0][1]
 
     @unittest.skipIf(
         platform.python_implementation() == "PyPy",
@@ -156,8 +155,8 @@ class AsyncTestCaseReturnAssertionsTest(unittest.TestCase):
             warnings.simplefilter("ignore")
             test.run(result)
 
-        self.assertEqual(len(result.errors), 1)
-        self.assertIn("should be decorated", result.errors[0][1])
+        assert len(result.errors) == 1
+        assert "should be decorated" in result.errors[0][1]
 
     def test_undecorated_generator_with_skip(self):
         class Test(AsyncTestCase):
@@ -168,8 +167,8 @@ class AsyncTestCaseReturnAssertionsTest(unittest.TestCase):
         test = Test("test_gen")
         result = unittest.TestResult()
         test.run(result)
-        self.assertEqual(len(result.errors), 0)
-        self.assertEqual(len(result.skipped), 1)
+        assert len(result.errors) == 0
+        assert len(result.skipped) == 1
 
     def test_other_return(self):
         class Test(AsyncTestCase):
@@ -179,14 +178,13 @@ class AsyncTestCaseReturnAssertionsTest(unittest.TestCase):
         test = Test("test_other_return")
         result = unittest.TestResult()
         test.run(result)
-        self.assertEqual(len(result.errors), 1)
-        self.assertIn("Return value from test method ignored", result.errors[0][1])
+        assert len(result.errors) == 1
+        assert "Return value from test method ignored" in result.errors[0][1]
 
 
 class SetUpTearDownTest(unittest.TestCase):
     def test_set_up_tear_down(self):
-        """
-        This test makes sure that AsyncTestCase calls super methods for
+        """This test makes sure that AsyncTestCase calls super methods for
         setUp and tearDown.
 
         InheritBoth is a subclass of both AsyncTestCase and
@@ -209,7 +207,7 @@ class SetUpTearDownTest(unittest.TestCase):
 
         InheritBoth("test").run(result)
         expected = ["setUp", "test", "tearDown"]
-        self.assertEqual(expected, events)
+        assert expected == events
 
 
 class AsyncHTTPTestCaseSetUpTearDownTest(unittest.TestCase):
@@ -221,13 +219,13 @@ class AsyncHTTPTestCaseSetUpTearDownTest(unittest.TestCase):
                 return Application()
 
             def test(self):
-                self.assertTrue(hasattr(self, "_app"))
-                self.assertTrue(hasattr(self, "http_server"))
+                assert hasattr(self, "_app")
+                assert hasattr(self, "http_server")
 
         test = SetUpTearDown("test")
         test.run(result)
-        self.assertFalse(hasattr(test, "_app"))
-        self.assertFalse(hasattr(test, "http_server"))
+        assert not hasattr(test, "_app")
+        assert not hasattr(test, "http_server")
 
 
 class GenTest(AsyncTestCase):
@@ -236,7 +234,7 @@ class GenTest(AsyncTestCase):
         self.finished = False
 
     def tearDown(self):
-        self.assertTrue(self.finished)
+        assert self.finished
         super().tearDown()
 
     @gen_test
@@ -262,7 +260,7 @@ class GenTest(AsyncTestCase):
         except ioloop.TimeoutError:
             # The stack trace should blame the add_timeout line, not just
             # unrelated IOLoop/testing internals.
-            self.assertIn("gen.sleep(1)", traceback.format_exc())
+            assert "gen.sleep(1)" in traceback.format_exc()
 
         self.finished = True
 
@@ -293,7 +291,7 @@ class GenTest(AsyncTestCase):
 
         # Uses environment-variable timeout of 0.1, times out.
         with set_environ("ASYNC_TEST_TIMEOUT", "0.1"):
-            with self.assertRaises(ioloop.TimeoutError):
+            with pytest.raises(ioloop.TimeoutError):
                 test_short_timeout(self)
 
         self.finished = True
@@ -301,7 +299,7 @@ class GenTest(AsyncTestCase):
     def test_with_method_args(self):
         @gen_test
         def test_with_args(self, *args):
-            self.assertEqual(args, ("test",))
+            assert args == ("test",)
             yield gen.moment
 
         test_with_args(self, "test")

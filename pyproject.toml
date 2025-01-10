@@ -4,55 +4,50 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "project_management_dashboard"
-version = "1.0.0"
-authors = [
-    { name = "Dashboard Team" }
-]
-description = "Project Management Dashboard"
-requires-python = ">=3.9"
+version = "0.1.0"
+description = "A project management dashboard"
+requires-python = ">=3.11"
 dependencies = [
-    "streamlit",
-    "influxdb-client",
-    "prometheus-client",
-    "websockets",
-    "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "black",
-    "isort",
-    "flake8",
-    "mypy",
-    "plotly",
-    "psutil",
-    "pandas",
-    "urllib3<2.0.0",
-    "flask",
-    "flask-cors"
-]
-
-[project.scripts]
-dashboard = "dashboard.main:main"
-monitor = "monitor.main:main"
-
-[project.optional-dependencies]
-dev = [
-    "pytest-asyncio>=0.15.0",
-    "pytest-timeout>=2.0.0",
-    "pytest-cov>=2.12.0",
-    "black>=21.6b0",
-    "flake8>=3.9.0",
-    "mypy>=0.910"
-]
-test = [
-    "pytest>=6.2.0",
-    "pytest-cov>=2.12.0",
-    "pytest-mock>=3.6.0"
-]
-docs = [
-    "sphinx>=4.0.0",
-    "sphinx-rtd-theme>=0.5.0",
-    "sphinx-autodoc-typehints>=1.12.0"
+    "Flask>=3.0.0",
+    "Flask-Login>=0.6.3",
+    "Flask-SQLAlchemy>=3.1.1",
+    "SQLAlchemy>=2.0.23",
+    "psutil>=5.9.7",
+    "pytest>=8.2.0",
+    "pytest-playwright>=0.6.2",
+    "radon>=6.0.1",
+    "bandit>=1.8.0",
+    "autoflake>=2.3.1",
+    "mypy>=1.8.0"
 ]
 
 [tool.setuptools]
-packages = ["core_scripts", "dashboard"]
+packages = ["project_management_dashboard"]
+package-dir = {"" = "src"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 100

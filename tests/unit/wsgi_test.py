@@ -1,7 +1,6 @@
 import asyncio
 import concurrent.futures
 import threading
-
 from wsgiref.validate import validator
 
 from tornado.routing import RuleRouter
@@ -12,7 +11,7 @@ from tornado.wsgi import WSGIContainer
 class WSGIAppMixin:
     # TODO: Now that WSGIAdapter is gone, this is a pretty weak test.
     def get_executor(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_app(self):
         executor = self.get_executor()
@@ -28,7 +27,7 @@ class WSGIAppMixin:
                 ("/simple", make_container(self.simple_wsgi_app)),
                 ("/barrier", make_container(self.barrier_wsgi_app)),
                 ("/streaming_barrier", make_container(self.streaming_barrier_wsgi_app)),
-            ]
+            ],
         )
 
     def respond_plain(self, start_response):
@@ -66,7 +65,7 @@ class WSGIContainerDummyExecutorTest(WSGIAppMixin, AsyncHTTPTestCase):
 
     def test_simple(self):
         response = self.fetch("/simple")
-        self.assertEqual(response.body, b"Hello world!")
+        assert response.body == b"Hello world!"
 
     @gen_test
     async def test_concurrent_barrier(self):
@@ -76,7 +75,7 @@ class WSGIContainerDummyExecutorTest(WSGIAppMixin, AsyncHTTPTestCase):
             self.http_client.fetch(self.get_url("/barrier")),
         )
         for resp in resps:
-            self.assertEqual(resp.body, b"broken barrier")
+            assert resp.body == b"broken barrier"
 
     @gen_test
     async def test_concurrent_streaming_barrier(self):
@@ -86,7 +85,7 @@ class WSGIContainerDummyExecutorTest(WSGIAppMixin, AsyncHTTPTestCase):
             self.http_client.fetch(self.get_url("/streaming_barrier")),
         )
         for resp in resps:
-            self.assertEqual(resp.body, b"ok broken barrier")
+            assert resp.body == b"ok broken barrier"
 
 
 class WSGIContainerThreadPoolTest(WSGIAppMixin, AsyncHTTPTestCase):
@@ -95,7 +94,7 @@ class WSGIContainerThreadPoolTest(WSGIAppMixin, AsyncHTTPTestCase):
 
     def test_simple(self):
         response = self.fetch("/simple")
-        self.assertEqual(response.body, b"Hello world!")
+        assert response.body == b"Hello world!"
 
     @gen_test
     async def test_concurrent_barrier(self):
@@ -104,7 +103,7 @@ class WSGIContainerThreadPoolTest(WSGIAppMixin, AsyncHTTPTestCase):
             self.http_client.fetch(self.get_url("/barrier")),
             self.http_client.fetch(self.get_url("/barrier")),
         )
-        self.assertEqual([b"ok 0", b"ok 1"], sorted([resp.body for resp in resps]))
+        assert [b"ok 0", b"ok 1"] == sorted([resp.body for resp in resps])
 
     @gen_test
     async def test_concurrent_streaming_barrier(self):
@@ -113,4 +112,4 @@ class WSGIContainerThreadPoolTest(WSGIAppMixin, AsyncHTTPTestCase):
             self.http_client.fetch(self.get_url("/streaming_barrier")),
             self.http_client.fetch(self.get_url("/streaming_barrier")),
         )
-        self.assertEqual([b"ok 0", b"ok 1"], sorted([resp.body for resp in resps]))
+        assert [b"ok 0", b"ok 1"] == sorted([resp.body for resp in resps])

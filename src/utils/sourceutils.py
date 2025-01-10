@@ -33,7 +33,7 @@ def indent_lines(source_code, amount):
 
 
 def fix_indentation(code: str, new_indents: int) -> str:
-    """Change the indentation of `code` to `new_indents`"""
+    """Change the indentation of `code` to `new_indents`."""
     min_indents = find_minimum_indents(code)
     return indent_lines(code, new_indents - min_indents)
 
@@ -48,8 +48,7 @@ def add_methods(pymodule, class_scope, methods_sources):
     methods = "\n\n" + "\n\n".join(methods_sources)
     indented_methods = fix_indentation(
         methods,
-        get_indents(lines, class_scope.get_start())
-        + get_indent(pymodule.pycore.project),
+        get_indents(lines, class_scope.get_start()) + get_indent(pymodule.pycore.project),
     )
     result = []
     result.append(source_code[:insertion_offset])
@@ -59,7 +58,7 @@ def add_methods(pymodule, class_scope, methods_sources):
 
 
 def get_body(pyfunction):
-    """Return unindented function body"""
+    """Return unindented function body."""
     # FIXME scope = pyfunction.get_scope()
     pymodule = pyfunction.get_module()
     start, end = get_body_region(pyfunction)
@@ -67,7 +66,7 @@ def get_body(pyfunction):
 
 
 def get_body_region(defined):
-    """Return the start and end offsets of function body"""
+    """Return the start and end offsets of function body."""
     scope = defined.get_scope()
     pymodule = defined.get_module()
     lines = pymodule.lines

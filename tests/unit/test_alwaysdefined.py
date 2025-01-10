@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import os.path
+from typing import TYPE_CHECKING
 
 from mypy.errors import CompileError
 from mypy.test.config import test_temp_dir
-from mypy.test.data import DataDrivenTestCase
 from mypyc.test.testutil import (
     ICODE_GEN_BUILTINS,
     MypycDataSuite,
@@ -15,6 +15,9 @@ from mypyc.test.testutil import (
     infer_ir_build_options_from_test_name,
     use_custom_builtins,
 )
+
+if TYPE_CHECKING:
+    from mypy.test.data import DataDrivenTestCase
 
 files = ["alwaysdefined.test"]
 
@@ -40,7 +43,7 @@ class TestAlwaysDefined(MypycDataSuite):
                     if cl.name.startswith("_"):
                         continue
                     actual.append(
-                        "{}: [{}]".format(cl.name, ", ".join(sorted(cl._always_initialized_attrs)))
+                        "{}: [{}]".format(cl.name, ", ".join(sorted(cl._always_initialized_attrs))),
                     )
 
             assert_test_output(testcase, actual, "Invalid test output", testcase.output)

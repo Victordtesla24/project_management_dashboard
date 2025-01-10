@@ -1,35 +1,64 @@
-import json
-import logging
+"""Metrics collection module."""
+
 import time
-from pathlib import Path
+from datetime import datetime
+from typing import Dict
 
 import psutil
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("metrics_collector")
-def collect_metrics():
-metrics = {
-"cpu": psutil.cpu_percent(interval=1),
-"memory": psutil.virtual_memory().percent,
-"disk": psutil.disk_usage("/").percent,
-"network": {
-"bytes_sent": psutil.net_io_counters().bytes_sent,
-"bytes_recv": psutil.net_io_counters().bytes_recv,
-    },
-    }
-return metrics
-def main():
-metrics_dir = Path("metrics")
-metrics_dir.mkdir(exist_ok=True)
-metrics_file = metrics_dir / "system_metrics.json"
-logger.info("Starting metrics collection")
-while True:
-try:
-metrics = collect_metrics()
-metrics_file.write_text(json.dumps(metrics))
-time.sleep(1)
-except Exception as e:
-logger.error(f"Error collecting metrics: {e}")
-time.sleep(5)
-if __name__ == "__main__":
-main()
+
+class MetricsCollector:
+    """Collector for system and application metrics."""
+
+    def __init__(self) -> None:
+        """Initialize metrics collector."""
+        self.last_collection = None
+        self.collection_interval = 60  # seconds
+
+    def collect_system_metrics(self) -> Dict:
+        """Collect system-level metrics."""
+        return {
+            "cpu_usage": psutil.cpu_percent(interval=1),
+            "memory_usage": psutil.virtual_memory().percent,
+            "disk_usage": psutil.disk_usage("/").percent,
+            "network": self._get_network_stats(),
+        }
+
+    def _get_network_stats(self) -> Dict:
+        """Get network statistics."""
+        net_io = psutil.net_io_counters()
+        return {
+            "bytes_sent": net_io.bytes_sent,
+            "bytes_recv": net_io.bytes_recv,
+            "packets_sent": net_io.packets_sent,
+            "packets_recv": net_io.packets_recv,
+        }
+
+    def collect_application_metrics(self) -> Dict:
+        """Collect application-specific metrics."""
+        return {
+            "process_count": len(psutil.Process().children()),
+            "thread_count": psutil.Process().num_threads(),
+            "open_files": len(psutil.Process().open_files()),
+            "connections": len(psutil.Process().connections()),
+        }
+
+    def collect_all_metrics(self) -> Dict:
+        """Collect all metrics."""
+        current_time = time.time()
+
+        # Check collection interval
+        if self.last_collection and current_time - self.last_collection < self.collection_interval:
+            return {}
+
+        self.last_collection = current_time
+
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "system": self.collect_system_metrics(),
+            "application": self.collect_application_metrics(),
+        }
+
+
+# Create singleton instance
+collector = MetricsCollector()

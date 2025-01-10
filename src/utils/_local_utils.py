@@ -21,9 +21,7 @@ from playwright._impl._helper import HarLookupResult, locals_to_params
 
 
 class LocalUtils(ChannelOwner):
-    def __init__(
-        self, parent: ChannelOwner, type: str, guid: str, initializer: Dict
-    ) -> None:
+    def __init__(self, parent: ChannelOwner, type: str, guid: str, initializer: Dict) -> None:
         super().__init__(parent, type, guid, initializer)
         self._channel.mark_as_internal_type()
         self.devices = {
@@ -77,7 +75,7 @@ class LocalUtils(ChannelOwner):
                 "callData": {
                     "stack": frames,
                     "id": id,
-                }
+                },
             },
         )
 

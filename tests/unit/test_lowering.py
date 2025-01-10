@@ -1,56 +1,84 @@
-"""Runner for lowering transform tests."""
+"""Unit tests for string lowering utilities."""
 
-from __future__ import annotations
+import pytest
 
-import os.path
-
-from mypy.errors import CompileError
-from mypy.test.config import test_temp_dir
-from mypy.test.data import DataDrivenTestCase
-from mypyc.common import TOP_LEVEL_NAME
-from mypyc.ir.pprint import format_func
-from mypyc.options import CompilerOptions
-from mypyc.test.testutil import (
-    ICODE_GEN_BUILTINS,
-    MypycDataSuite,
-    assert_test_output,
-    build_ir_for_single_file,
-    remove_comment_lines,
-    replace_word_size,
-    use_custom_builtins,
+from src.utils.lowering import (
+    to_lower,
+    to_lower_dict_keys,
+    to_lower_list,
+    to_lower_safe,
 )
-from mypyc.transform.exceptions import insert_exception_handling
-from mypyc.transform.flag_elimination import do_flag_elimination
-from mypyc.transform.lower import lower_ir
-from mypyc.transform.refcount import insert_ref_count_opcodes
-from mypyc.transform.uninit import insert_uninit_checks
 
 
-class TestLowering(MypycDataSuite):
-    files = ["lowering-int.test", "lowering-list.test"]
-    base_path = test_temp_dir
+def test_to_lower():
+    """Test basic string lowering."""
+    assert to_lower("Hello") == "hello"
+    assert to_lower("WORLD") == "world"
+    assert to_lower("MiXeD") == "mixed"
+    assert to_lower("already_lower") == "already_lower"
 
-    def run_case(self, testcase: DataDrivenTestCase) -> None:
-        with use_custom_builtins(os.path.join(self.data_prefix, ICODE_GEN_BUILTINS), testcase):
-            expected_output = remove_comment_lines(testcase.output)
-            expected_output = replace_word_size(expected_output)
-            try:
-                ir = build_ir_for_single_file(testcase.input)
-            except CompileError as e:
-                actual = e.messages
-            else:
-                actual = []
-                for fn in ir:
-                    if fn.name == TOP_LEVEL_NAME and not testcase.name.endswith("_toplevel"):
-                        continue
-                    options = CompilerOptions()
-                    # Lowering happens after exception handling and ref count opcodes have
-                    # been added. Any changes must maintain reference counting semantics.
-                    insert_uninit_checks(fn)
-                    insert_exception_handling(fn)
-                    insert_ref_count_opcodes(fn)
-                    lower_ir(fn, options)
-                    do_flag_elimination(fn, options)
-                    actual.extend(format_func(fn))
 
-            assert_test_output(testcase, actual, "Invalid source code output", expected_output)
+def test_to_lower_error():
+    """Test error handling in to_lower."""
+    with pytest.raises(TypeError):
+        to_lower(None)
+    with pytest.raises(TypeError):
+        to_lower(123)
+    with pytest.raises(TypeError):
+        to_lower(["not", "a", "string"])
+
+
+def test_to_lower_safe():
+    """Test safe string lowering."""
+    assert to_lower_safe("Hello") == "hello"
+    assert to_lower_safe(None) == ""
+    assert to_lower_safe(123) == ""
+    assert to_lower_safe(None, default="N/A") == "N/A"
+
+
+def test_to_lower_list():
+    """Test list lowering."""
+    input_list = ["Hello", "WORLD", "MiXeD", "already_lower"]
+    expected = ["hello", "world", "mixed", "already_lower"]
+    assert to_lower_list(input_list) == expected
+
+
+def test_to_lower_list_with_non_strings():
+    """Test list lowering with non-string elements."""
+    input_list = ["Hello", 123, None, "WORLD"]
+    expected = ["hello", "", "", "world"]
+    assert to_lower_list(input_list) == expected
+
+
+def test_to_lower_list_error():
+    """Test error handling in list lowering."""
+    with pytest.raises(TypeError):
+        to_lower_list("not_a_list")
+    with pytest.raises(TypeError):
+        to_lower_list(123)
+    with pytest.raises(TypeError):
+        to_lower_list(None)
+
+
+def test_to_lower_dict_keys():
+    """Test dictionary key lowering."""
+    input_dict = {"Hello": 1, "WORLD": 2, "MiXeD": 3, "already_lower": 4}
+    expected = {"hello": 1, "world": 2, "mixed": 3, "already_lower": 4}
+    assert to_lower_dict_keys(input_dict) == expected
+
+
+def test_to_lower_dict_keys_with_non_string_keys():
+    """Test dictionary key lowering with non-string keys."""
+    input_dict = {"Hello": 1, 123: 2, None: 3, "WORLD": 4}
+    expected = {"hello": 1, "": 2, "": 3, "world": 4}
+    assert to_lower_dict_keys(input_dict) == expected
+
+
+def test_to_lower_dict_keys_error():
+    """Test error handling in dictionary key lowering."""
+    with pytest.raises(TypeError):
+        to_lower_dict_keys("not_a_dict")
+    with pytest.raises(TypeError):
+        to_lower_dict_keys(123)
+    with pytest.raises(TypeError):
+        to_lower_dict_keys(None)

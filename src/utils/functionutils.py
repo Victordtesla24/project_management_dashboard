@@ -4,8 +4,13 @@ from rope.base.builtins import Lambda
 
 class DefinitionInfo:
     def __init__(
-        self, function_name, is_method, args_with_defaults, args_arg, keywords_arg,
-    ):
+        self,
+        function_name,
+        is_method,
+        args_with_defaults,
+        args_arg,
+        keywords_arg,
+    ) -> None:
         self.function_name = function_name
         self.is_method = is_method
         self.args_with_defaults = args_with_defaults
@@ -76,7 +81,7 @@ class CallInfo:
         keywords_arg,
         implicit_arg,
         constructor,
-    ):
+    ) -> None:
         self.function_name = function_name
         self.args = args
         self.keywords = keywords
@@ -156,7 +161,7 @@ class CallInfo:
 
 
 class ArgumentMapping:
-    def __init__(self, definition_info, call_info):
+    def __init__(self, definition_info, call_info) -> None:
         self.call_info = call_info
         self.param_dict = {}
         self.keyword_args = []
@@ -203,7 +208,7 @@ class ArgumentMapping:
 
 
 class _FunctionParser:
-    def __init__(self, call, implicit_arg, is_lambda=False):
+    def __init__(self, call, implicit_arg, is_lambda=False) -> None:
         self.call = call
         self.implicit_arg = implicit_arg
         self.word_finder = worder.Worder(self.call)
@@ -215,7 +220,8 @@ class _FunctionParser:
 
     def get_parameters(self):
         args, keywords = self.word_finder.get_parameters(
-            self.first_parens, self.last_parens,
+            self.first_parens,
+            self.last_parens,
         )
         if self.is_called_as_a_method():
             instance = self.call[: self.call.rindex(".", 0, self.first_parens)]

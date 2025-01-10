@@ -1,36 +1,36 @@
 import base64
 import binascii
-from contextlib import closing
 import copy
-import gzip
-import threading
 import datetime
-from io import BytesIO
+import gzip
 import subprocess
 import sys
+import threading
 import time
 import typing  # noqa: F401
 import unicodedata
 import unittest
+from contextlib import closing
+from io import BytesIO
 
-from tornado.escape import utf8, native_str, to_unicode
-from tornado import gen
+import pytest
+from tornado import gen, netutil
+from tornado.escape import native_str, to_unicode, utf8
 from tornado.httpclient import (
+    HTTPClient,
+    HTTPError,
     HTTPRequest,
     HTTPResponse,
     _RequestProxy,
-    HTTPError,
-    HTTPClient,
 )
 from tornado.httpserver import HTTPServer
+from tornado.httputil import HTTPHeaders, format_timestamp
 from tornado.ioloop import IOLoop
 from tornado.iostream import IOStream
-from tornado.log import gen_log, app_log
-from tornado import netutil
-from tornado.testing import AsyncHTTPTestCase, bind_unused_port, gen_test, ExpectLog
-from tornado.test.util import skipOnTravis, ignore_deprecation
+from tornado.log import app_log, gen_log
+from tornado.test.util import ignore_deprecation, skipOnTravis
+from tornado.testing import AsyncHTTPTestCase, ExpectLog, bind_unused_port, gen_test
 from tornado.web import Application, RequestHandler, url
-from tornado.httputil import format_timestamp, HTTPHeaders
 
 
 class HelloWorldHandler(RequestHandler):
@@ -43,8 +43,7 @@ class HelloWorldHandler(RequestHandler):
 class PostHandler(RequestHandler):
     def post(self):
         self.finish(
-            "Post arg1: %s, arg2: %s"
-            % (self.get_argument("arg1"), self.get_argument("arg2"))
+            "Post arg1: {}, arg2: {}".format(self.get_argument("arg1"), self.get_argument("arg2")),
         )
 
 
@@ -57,9 +56,7 @@ class PutHandler(RequestHandler):
 class RedirectHandler(RequestHandler):
     def prepare(self):
         self.write("redirects can have bodies too")
-        self.redirect(
-            self.get_argument("url"), status=int(self.get_argument("status", "302"))
-        )
+        self.redirect(self.get_argument("url"), status=int(self.get_argument("status", "302")))
 
 
 class RedirectWithoutLocationHandler(RequestHandler):
@@ -116,7 +113,7 @@ class ContentLength304Handler(RequestHandler):
 
 class PatchHandler(RequestHandler):
     def patch(self):
-        "Return the request payload - so we can check it is being kept"
+        "Return the request payload - so we can check it is being kept."
         self.write(self.request.body)
 
 
@@ -146,7 +143,7 @@ class InvalidGzipHandler(RequestHandler):
         # Triggering the potential bug seems to depend on input length.
         # This length is taken from the bad-response example reported in
         # https://github.com/tornadoweb/tornado/pull/2875 (uncompressed).
-        text = "".join("Hello World {}\n".format(i) for i in range(9000))[:149051]
+        text = "".join(f"Hello World {i}\n" for i in range(9000))[:149051]
         body = gzip.compress(text.encode(), compresslevel=6) + b"\00"
         self.write(body)
 
@@ -188,42 +185,42 @@ class HTTPClientCommonTestCase(AsyncHTTPTestCase):
     def test_patch_receives_payload(self):
         body = b"some patch data"
         response = self.fetch("/patch", method="PATCH", body=body)
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.body, body)
+        assert response.code == 200
+        assert response.body == body
 
     @skipOnTravis
     def test_hello_world(self):
         response = self.fetch("/hello")
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers["Content-Type"], "text/plain")
-        self.assertEqual(response.body, b"Hello world!")
+        assert response.code == 200
+        assert response.headers["Content-Type"] == "text/plain"
+        assert response.body == b"Hello world!"
         assert response.request_time is not None
-        self.assertEqual(int(response.request_time), 0)
+        assert int(response.request_time) == 0
 
         response = self.fetch("/hello?name=Ben")
-        self.assertEqual(response.body, b"Hello Ben!")
+        assert response.body == b"Hello Ben!"
 
     def test_streaming_callback(self):
         # streaming_callback is also tested in test_chunked
         chunks = []  # type: typing.List[bytes]
         response = self.fetch("/hello", streaming_callback=chunks.append)
         # with streaming_callback, data goes to the callback and not response.body
-        self.assertEqual(chunks, [b"Hello world!"])
-        self.assertFalse(response.body)
+        assert chunks == [b"Hello world!"]
+        assert not response.body
 
     def test_post(self):
         response = self.fetch("/post", method="POST", body="arg1=foo&arg2=bar")
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.body, b"Post arg1: foo, arg2: bar")
+        assert response.code == 200
+        assert response.body == b"Post arg1: foo, arg2: bar"
 
     def test_chunked(self):
         response = self.fetch("/chunk")
-        self.assertEqual(response.body, b"asdfqwer")
+        assert response.body == b"asdfqwer"
 
         chunks = []  # type: typing.List[bytes]
         response = self.fetch("/chunk", streaming_callback=chunks.append)
-        self.assertEqual(chunks, [b"asdf", b"qwer"])
-        self.assertFalse(response.body)
+        assert chunks == [b"asdf", b"qwer"]
+        assert not response.body
 
     def test_chunked_close(self):
         # test case in which chunks spread read-callback processing
@@ -251,50 +248,49 @@ Transfer-Encoding: chunked
 0
 
 """.replace(
-                        b"\n", b"\r\n"
-                    )
+                        b"\n",
+                        b"\r\n",
+                    ),
                 )
                 stream.close()
 
             netutil.add_accept_handler(sock, accept_callback)  # type: ignore
             resp = self.fetch("http://127.0.0.1:%d/" % port)
             resp.rethrow()
-            self.assertEqual(resp.body, b"12")
+            assert resp.body == b"12"
             self.io_loop.remove_handler(sock.fileno())
 
     def test_basic_auth(self):
         # This test data appears in section 2 of RFC 7617.
-        self.assertEqual(
-            self.fetch(
-                "/auth", auth_username="Aladdin", auth_password="open sesame"
-            ).body,
-            b"Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==",
+        assert (
+            self.fetch("/auth", auth_username="Aladdin", auth_password="open sesame").body
+            == b"Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
         )
 
     def test_basic_auth_explicit_mode(self):
-        self.assertEqual(
+        assert (
             self.fetch(
                 "/auth",
                 auth_username="Aladdin",
                 auth_password="open sesame",
                 auth_mode="basic",
-            ).body,
-            b"Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==",
+            ).body
+            == b"Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
         )
 
     def test_basic_auth_unicode(self):
         # This test data appears in section 2.1 of RFC 7617.
-        self.assertEqual(
-            self.fetch("/auth", auth_username="test", auth_password="123£").body,
-            b"Basic dGVzdDoxMjPCow==",
+        assert (
+            self.fetch("/auth", auth_username="test", auth_password="123£").body
+            == b"Basic dGVzdDoxMjPCow=="
         )
 
         # The standard mandates NFC. Give it a decomposed username
         # and ensure it is normalized to composed form.
         username = unicodedata.normalize("NFD", "josé")
-        self.assertEqual(
-            self.fetch("/auth", auth_username=username, auth_password="səcrət").body,
-            b"Basic am9zw6k6c8mZY3LJmXQ=",
+        assert (
+            self.fetch("/auth", auth_username=username, auth_password="səcrət").body
+            == b"Basic am9zw6k6c8mZY3LJmXQ="
         )
 
     def test_unsupported_auth_mode(self):
@@ -302,7 +298,7 @@ Transfer-Encoding: chunked
         # important thing is that they don't fall back to basic auth
         # on an unknown mode.
         with ExpectLog(gen_log, "uncaught exception", required=False):
-            with self.assertRaises((ValueError, HTTPError)):  # type: ignore
+            with pytest.raises((ValueError, HTTPError)):  # type: ignore
                 self.fetch(
                     "/auth",
                     auth_username="Aladdin",
@@ -313,13 +309,13 @@ Transfer-Encoding: chunked
 
     def test_follow_redirect(self):
         response = self.fetch("/countdown/2", follow_redirects=False)
-        self.assertEqual(302, response.code)
-        self.assertTrue(response.headers["Location"].endswith("/countdown/1"))
+        assert response.code == 302
+        assert response.headers["Location"].endswith("/countdown/1")
 
         response = self.fetch("/countdown/2")
-        self.assertEqual(200, response.code)
-        self.assertTrue(response.effective_url.endswith("/countdown/0"))
-        self.assertEqual(b"Zero", response.body)
+        assert response.code == 200
+        assert response.effective_url.endswith("/countdown/0")
+        assert response.body == b"Zero"
 
     def test_redirect_without_location(self):
         response = self.fetch("/redirect_without_location", follow_redirects=True)
@@ -327,13 +323,11 @@ Transfer-Encoding: chunked
         # just be returned as-is. (This should arguably raise an
         # error, but libcurl doesn't treat this as an error, so we
         # don't either).
-        self.assertEqual(301, response.code)
+        assert response.code == 301
 
     def test_redirect_put_with_body(self):
-        response = self.fetch(
-            "/redirect?url=/put&status=307", method="PUT", body="hello"
-        )
-        self.assertEqual(response.body, b"Put body: hello")
+        response = self.fetch("/redirect?url=/put&status=307", method="PUT", body="hello")
+        assert response.body == b"Put body: hello"
 
     def test_redirect_put_without_body(self):
         # This "without body" edge case is similar to what happens with body_producer.
@@ -342,42 +336,42 @@ Transfer-Encoding: chunked
             method="PUT",
             allow_nonstandard_methods=True,
         )
-        self.assertEqual(response.body, b"Put body: ")
+        assert response.body == b"Put body: "
 
     def test_method_after_redirect(self):
         # Legacy redirect codes (301, 302) convert POST requests to GET.
         for status in [301, 302, 303]:
             url = "/redirect?url=/all_methods&status=%d" % status
             resp = self.fetch(url, method="POST", body=b"")
-            self.assertEqual(b"GET", resp.body)
+            assert resp.body == b"GET"
 
             # Other methods are left alone, except for 303 redirect, depending on client
             for method in ["GET", "OPTIONS", "PUT", "DELETE"]:
                 resp = self.fetch(url, method=method, allow_nonstandard_methods=True)
                 if status in [301, 302]:
-                    self.assertEqual(utf8(method), resp.body)
+                    assert utf8(method) == resp.body
                 else:
-                    self.assertIn(resp.body, [utf8(method), b"GET"])
+                    assert resp.body in [utf8(method), b"GET"]
 
             # HEAD is different so check it separately.
             resp = self.fetch(url, method="HEAD")
-            self.assertEqual(200, resp.code)
-            self.assertEqual(b"", resp.body)
+            assert resp.code == 200
+            assert resp.body == b""
 
         # Newer redirects always preserve the original method.
         for status in [307, 308]:
             url = "/redirect?url=/all_methods&status=307"
             for method in ["GET", "OPTIONS", "POST", "PUT", "DELETE"]:
                 resp = self.fetch(url, method=method, allow_nonstandard_methods=True)
-                self.assertEqual(method, to_unicode(resp.body))
+                assert method == to_unicode(resp.body)
             resp = self.fetch(url, method="HEAD")
-            self.assertEqual(200, resp.code)
-            self.assertEqual(b"", resp.body)
+            assert resp.code == 200
+            assert resp.body == b""
 
     def test_credentials_in_url(self):
         url = self.get_url("/auth").replace("http://", "http://me:secret@")
         response = self.fetch(url)
-        self.assertEqual(b"Basic " + base64.b64encode(b"me:secret"), response.body)
+        assert b"Basic " + base64.b64encode(b"me:secret") == response.body
 
     def test_body_encoding(self):
         unicode_body = "\xe9"
@@ -390,8 +384,8 @@ Transfer-Encoding: chunked
             body=unicode_body,
             headers={"Content-Type": "application/blah"},
         )
-        self.assertEqual(response.headers["Content-Length"], "2")
-        self.assertEqual(response.body, utf8(unicode_body))
+        assert response.headers["Content-Length"] == "2"
+        assert response.body == utf8(unicode_body)
 
         # byte strings pass through directly
         response = self.fetch(
@@ -400,8 +394,8 @@ Transfer-Encoding: chunked
             body=byte_body,
             headers={"Content-Type": "application/blah"},
         )
-        self.assertEqual(response.headers["Content-Length"], "1")
-        self.assertEqual(response.body, byte_body)
+        assert response.headers["Content-Length"] == "1"
+        assert response.body == byte_body
 
         # Mixing unicode in headers and byte string bodies shouldn't
         # break anything
@@ -412,15 +406,15 @@ Transfer-Encoding: chunked
             headers={"Content-Type": "application/blah"},
             user_agent="foo",
         )
-        self.assertEqual(response.headers["Content-Length"], "1")
-        self.assertEqual(response.body, byte_body)
+        assert response.headers["Content-Length"] == "1"
+        assert response.body == byte_body
 
     def test_types(self):
         response = self.fetch("/hello")
-        self.assertEqual(type(response.body), bytes)
-        self.assertEqual(type(response.headers["Content-Type"]), str)
-        self.assertEqual(type(response.code), int)
-        self.assertEqual(type(response.effective_url), str)
+        assert type(response.body) == bytes
+        assert type(response.headers["Content-Type"]) == str
+        assert type(response.code) == int
+        assert type(response.effective_url) == str
 
     def test_gzip(self):
         # All the tests in this file should be using gzip, but this test
@@ -429,26 +423,26 @@ Transfer-Encoding: chunked
         # Setting Accept-Encoding manually bypasses the client's
         # decompression so we can see the raw data.
         response = self.fetch(
-            "/chunk", decompress_response=False, headers={"Accept-Encoding": "gzip"}
+            "/chunk",
+            decompress_response=False,
+            headers={"Accept-Encoding": "gzip"},
         )
-        self.assertEqual(response.headers["Content-Encoding"], "gzip")
-        self.assertNotEqual(response.body, b"asdfqwer")
+        assert response.headers["Content-Encoding"] == "gzip"
+        assert response.body != b"asdfqwer"
         # Our test data gets bigger when gzipped.  Oops.  :)
         # Chunked encoding bypasses the MIN_LENGTH check.
-        self.assertEqual(len(response.body), 34)
+        assert len(response.body) == 34
         f = gzip.GzipFile(mode="r", fileobj=response.buffer)
-        self.assertEqual(f.read(), b"asdfqwer")
+        assert f.read() == b"asdfqwer"
 
     def test_invalid_gzip(self):
         # test if client hangs on tricky invalid gzip
         # curl/simple httpclient have different behavior (exception, logging)
-        with ExpectLog(
-            app_log, "(Uncaught exception|Exception in callback)", required=False
-        ):
+        with ExpectLog(app_log, "(Uncaught exception|Exception in callback)", required=False):
             try:
                 response = self.fetch("/invalid_gzip")
-                self.assertEqual(response.code, 200)
-                self.assertEqual(response.body[:14], b"Hello World 0\n")
+                assert response.code == 200
+                assert response.body[:14] == b"Hello World 0\n"
             except HTTPError:
                 pass  # acceptable
 
@@ -471,7 +465,7 @@ Transfer-Encoding: chunked
             # All header callbacks are run before any streaming callbacks,
             # so the header data is available to process the data as it
             # comes in.
-            self.assertEqual(headers["content-type"], "text/html; charset=UTF-8")
+            assert headers["content-type"] == "text/html; charset=UTF-8"
             chunks.append(chunk)
 
         self.fetch(
@@ -479,18 +473,18 @@ Transfer-Encoding: chunked
             header_callback=header_callback,
             streaming_callback=streaming_callback,
         )
-        self.assertEqual(len(first_line), 1, first_line)
-        self.assertRegex(first_line[0], "HTTP/[0-9]\\.[0-9] 200.*\r\n")
-        self.assertEqual(chunks, [b"asdf", b"qwer"])
+        assert len(first_line) == 1, first_line
+        assert re.search("HTTP/[0-9]\\.[0-9] 200.*\r\n", first_line[0])
+        assert chunks == [b"asdf", b"qwer"]
 
     @gen_test
     def test_configure_defaults(self):
-        defaults = dict(user_agent="TestDefaultUserAgent", allow_ipv6=False)
+        defaults = {"user_agent": "TestDefaultUserAgent", "allow_ipv6": False}
         # Construct a new instance of the configured client class
         client = self.http_client.__class__(force_instance=True, defaults=defaults)
         try:
             response = yield client.fetch(self.get_url("/user_agent"))
-            self.assertEqual(response.body, b"TestDefaultUserAgent")
+            assert response.body == b"TestDefaultUserAgent"
         finally:
             client.close()
 
@@ -504,12 +498,9 @@ Transfer-Encoding: chunked
                 headers = container()
                 headers["User-Agent"] = value
                 resp = self.fetch("/user_agent", headers=headers)
-                self.assertEqual(
-                    resp.body,
-                    b"MyUserAgent",
-                    "response=%r, value=%r, container=%r"
-                    % (resp.body, value, container),
-                )
+                assert (
+                    resp.body == b"MyUserAgent"
+                ), f"response={resp.body!r}, value={value!r}, container={container!r}"
 
     def test_multi_line_headers(self):
         # Multi-line http headers are rare but rfc-allowed
@@ -530,8 +521,9 @@ X-XSS-Protection: 1;
 \tmode=block
 
 """.replace(
-                        b"\n", b"\r\n"
-                    )
+                        b"\n",
+                        b"\r\n",
+                    ),
                 )
                 stream.close()
 
@@ -539,7 +531,7 @@ X-XSS-Protection: 1;
             try:
                 resp = self.fetch("http://127.0.0.1:%d/" % port)
                 resp.rethrow()
-                self.assertEqual(resp.headers["X-XSS-Protection"], "1; mode=block")
+                assert resp.headers["X-XSS-Protection"] == "1; mode=block"
             finally:
                 self.io_loop.remove_handler(sock.fileno())
 
@@ -551,7 +543,7 @@ X-XSS-Protection: 1;
                 "Foo": "b\xe4r",
             },
         )
-        self.assertEqual(response.body, "b\xe4r".encode("ISO8859-1"))
+        assert response.body == "bär".encode("ISO8859-1")
 
     def test_304_with_content_length(self):
         # According to the spec 304 responses SHOULD NOT include
@@ -559,29 +551,27 @@ X-XSS-Protection: 1;
         # anyway.
         # http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3.5
         response = self.fetch("/304_with_content_length")
-        self.assertEqual(response.code, 304)
-        self.assertEqual(response.headers["Content-Length"], "42")
+        assert response.code == 304
+        assert response.headers["Content-Length"] == "42"
 
     @gen_test
     def test_future_interface(self):
         response = yield self.http_client.fetch(self.get_url("/hello"))
-        self.assertEqual(response.body, b"Hello world!")
+        assert response.body == b"Hello world!"
 
     @gen_test
     def test_future_http_error(self):
-        with self.assertRaises(HTTPError) as context:
+        with pytest.raises(HTTPError) as context:
             yield self.http_client.fetch(self.get_url("/notfound"))
         assert context.exception is not None
         assert context.exception.response is not None
-        self.assertEqual(context.exception.code, 404)
-        self.assertEqual(context.exception.response.code, 404)
+        assert context.exception.code == 404
+        assert context.exception.response.code == 404
 
     @gen_test
     def test_future_http_error_no_raise(self):
-        response = yield self.http_client.fetch(
-            self.get_url("/notfound"), raise_error=False
-        )
-        self.assertEqual(response.code, 404)
+        response = yield self.http_client.fetch(self.get_url("/notfound"), raise_error=False)
+        assert response.code == 404
 
     @gen_test
     def test_reuse_request_from_response(self):
@@ -591,56 +581,50 @@ X-XSS-Protection: 1;
         # self.get_url on the input unconditionally.
         url = self.get_url("/hello")
         response = yield self.http_client.fetch(url)
-        self.assertEqual(response.request.url, url)
-        self.assertTrue(isinstance(response.request, HTTPRequest))
+        assert response.request.url == url
+        assert isinstance(response.request, HTTPRequest)
         response2 = yield self.http_client.fetch(response.request)
-        self.assertEqual(response2.body, b"Hello world!")
+        assert response2.body == b"Hello world!"
 
     @gen_test
     def test_bind_source_ip(self):
         url = self.get_url("/hello")
         request = HTTPRequest(url, network_interface="127.0.0.1")
         response = yield self.http_client.fetch(request)
-        self.assertEqual(response.code, 200)
+        assert response.code == 200
 
-        with self.assertRaises((ValueError, HTTPError)) as context:  # type: ignore
+        with pytest.raises((ValueError, HTTPError)) as context:  # type: ignore
             request = HTTPRequest(url, network_interface="not-interface-or-ip")
             yield self.http_client.fetch(request)
-        self.assertIn("not-interface-or-ip", str(context.exception))
+        assert "not-interface-or-ip" in str(context.exception)
 
     def test_all_methods(self):
         for method in ["GET", "DELETE", "OPTIONS"]:
             response = self.fetch("/all_methods", method=method)
-            self.assertEqual(response.body, utf8(method))
+            assert response.body == utf8(method)
         for method in ["POST", "PUT", "PATCH"]:
             response = self.fetch("/all_methods", method=method, body=b"")
-            self.assertEqual(response.body, utf8(method))
+            assert response.body == utf8(method)
         response = self.fetch("/all_methods", method="HEAD")
-        self.assertEqual(response.body, b"")
-        response = self.fetch(
-            "/all_methods", method="OTHER", allow_nonstandard_methods=True
-        )
-        self.assertEqual(response.body, b"OTHER")
+        assert response.body == b""
+        response = self.fetch("/all_methods", method="OTHER", allow_nonstandard_methods=True)
+        assert response.body == b"OTHER"
 
     def test_body_sanity_checks(self):
         # These methods require a body.
         for method in ("POST", "PUT", "PATCH"):
-            with self.assertRaises(ValueError) as context:
+            with pytest.raises(ValueError) as context:
                 self.fetch("/all_methods", method=method, raise_error=True)
-            self.assertIn("must not be None", str(context.exception))
+            assert "must not be None" in str(context.exception)
 
-            resp = self.fetch(
-                "/all_methods", method=method, allow_nonstandard_methods=True
-            )
-            self.assertEqual(resp.code, 200)
+            resp = self.fetch("/all_methods", method=method, allow_nonstandard_methods=True)
+            assert resp.code == 200
 
         # These methods don't allow a body.
         for method in ("GET", "DELETE", "OPTIONS"):
-            with self.assertRaises(ValueError) as context:
-                self.fetch(
-                    "/all_methods", method=method, body=b"asdf", raise_error=True
-                )
-            self.assertIn("must be None", str(context.exception))
+            with pytest.raises(ValueError) as context:
+                self.fetch("/all_methods", method=method, body=b"asdf", raise_error=True)
+            assert "must be None" in str(context.exception)
 
             # In most cases this can be overridden, but curl_httpclient
             # does not allow body with a GET at all.
@@ -652,7 +636,7 @@ X-XSS-Protection: 1;
                     allow_nonstandard_methods=True,
                     raise_error=True,
                 )
-                self.assertEqual(resp.code, 200)
+                assert resp.code == 200
 
     # This test causes odd failures with the combination of
     # curl_httpclient (at least with the version of libcurl available
@@ -671,17 +655,15 @@ X-XSS-Protection: 1;
     #    self.assertEqual(response.body, b"Post arg1: foo, arg2: bar")
 
     def test_put_307(self):
-        response = self.fetch(
-            "/redirect?status=307&url=/put", method="PUT", body=b"hello"
-        )
+        response = self.fetch("/redirect?status=307&url=/put", method="PUT", body=b"hello")
         response.rethrow()
-        self.assertEqual(response.body, b"Put body: hello")
+        assert response.body == b"Put body: hello"
 
     def test_non_ascii_header(self):
         # Non-ascii headers are sent as latin1.
         response = self.fetch("/set_header?k=foo&v=%E9")
         response.rethrow()
-        self.assertEqual(response.headers["Foo"], native_str("\u00e9"))
+        assert response.headers["Foo"] == native_str("é")
 
     def test_response_times(self):
         # A few simple sanity checks of the response time fields to
@@ -691,36 +673,36 @@ X-XSS-Protection: 1;
         response = self.fetch("/hello")
         response.rethrow()
         assert response.request_time is not None
-        self.assertGreaterEqual(response.request_time, 0)
-        self.assertLess(response.request_time, 1.0)
+        assert response.request_time >= 0
+        assert response.request_time < 1.0
         # A very crude check to make sure that start_time is based on
         # wall time and not the monotonic clock.
         assert response.start_time is not None
-        self.assertLess(abs(response.start_time - start_time), 1.0)
+        assert abs(response.start_time - start_time) < 1.0
 
         for k, v in response.time_info.items():
-            self.assertTrue(0 <= v < 1.0, "time_info[%s] out of bounds: %s" % (k, v))
+            assert 0 <= v < 1.0, f"time_info[{k}] out of bounds: {v}"
 
     def test_zero_timeout(self):
         response = self.fetch("/hello", connect_timeout=0)
-        self.assertEqual(response.code, 200)
+        assert response.code == 200
 
         response = self.fetch("/hello", request_timeout=0)
-        self.assertEqual(response.code, 200)
+        assert response.code == 200
 
         response = self.fetch("/hello", connect_timeout=0, request_timeout=0)
-        self.assertEqual(response.code, 200)
+        assert response.code == 200
 
     @gen_test
     def test_error_after_cancel(self):
         fut = self.http_client.fetch(self.get_url("/404"))
-        self.assertTrue(fut.cancel())
+        assert fut.cancel()
         with ExpectLog(app_log, "Exception after Future was cancelled") as el:
             # We can't wait on the cancelled Future any more, so just
             # let the IOLoop run until the exception gets logged (or
             # not, in which case we exit the loop and ExpectLog will
             # raise).
-            for i in range(100):
+            for _i in range(100):
                 yield gen.sleep(0.01)
                 if el.logged_stack:
                     break
@@ -735,54 +717,53 @@ X-XSS-Protection: 1;
             ("foo\r\nbar:", "crlf"),
         ]:
             with self.subTest(name=name, position="value"):
-                with self.assertRaises(ValueError):
+                with pytest.raises(ValueError):
                     self.fetch("/hello", headers={"foo": header})
             with self.subTest(name=name, position="key"):
-                with self.assertRaises(ValueError):
+                with pytest.raises(ValueError):
                     self.fetch("/hello", headers={header: "foo"})
 
 
 class RequestProxyTest(unittest.TestCase):
     def test_request_set(self):
-        proxy = _RequestProxy(
-            HTTPRequest("http://example.com/", user_agent="foo"), dict()
-        )
-        self.assertEqual(proxy.user_agent, "foo")
+        proxy = _RequestProxy(HTTPRequest("http://example.com/", user_agent="foo"), {})
+        assert proxy.user_agent == "foo"
 
     def test_default_set(self):
-        proxy = _RequestProxy(
-            HTTPRequest("http://example.com/"), dict(network_interface="foo")
-        )
-        self.assertEqual(proxy.network_interface, "foo")
+        proxy = _RequestProxy(HTTPRequest("http://example.com/"), {"network_interface": "foo"})
+        assert proxy.network_interface == "foo"
 
     def test_both_set(self):
         proxy = _RequestProxy(
-            HTTPRequest("http://example.com/", proxy_host="foo"), dict(proxy_host="bar")
+            HTTPRequest("http://example.com/", proxy_host="foo"),
+            {"proxy_host": "bar"},
         )
-        self.assertEqual(proxy.proxy_host, "foo")
+        assert proxy.proxy_host == "foo"
 
     def test_neither_set(self):
-        proxy = _RequestProxy(HTTPRequest("http://example.com/"), dict())
-        self.assertIs(proxy.auth_username, None)
+        proxy = _RequestProxy(HTTPRequest("http://example.com/"), {})
+        assert proxy.auth_username is None
 
     def test_bad_attribute(self):
-        proxy = _RequestProxy(HTTPRequest("http://example.com/"), dict())
-        with self.assertRaises(AttributeError):
+        proxy = _RequestProxy(HTTPRequest("http://example.com/"), {})
+        with pytest.raises(AttributeError):
             proxy.foo
 
     def test_defaults_none(self):
         proxy = _RequestProxy(HTTPRequest("http://example.com/"), None)
-        self.assertIs(proxy.auth_username, None)
+        assert proxy.auth_username is None
 
 
 class HTTPResponseTestCase(unittest.TestCase):
     def test_str(self):
         response = HTTPResponse(  # type: ignore
-            HTTPRequest("http://example.com"), 200, buffer=BytesIO()
+            HTTPRequest("http://example.com"),
+            200,
+            buffer=BytesIO(),
         )
         s = str(response)
-        self.assertTrue(s.startswith("HTTPResponse("))
-        self.assertIn("code=200", s)
+        assert s.startswith("HTTPResponse(")
+        assert "code=200" in s
 
 
 class SyncHTTPClientTest(unittest.TestCase):
@@ -822,7 +803,7 @@ class SyncHTTPClientTest(unittest.TestCase):
                 yield self.server.close_all_connections()
                 # The number of iterations is difficult to predict. Typically,
                 # one is sufficient, although sometimes it needs more.
-                for i in range(5):
+                for _i in range(5):
                     yield
                 self.server_ioloop.stop()
 
@@ -838,14 +819,14 @@ class SyncHTTPClientTest(unittest.TestCase):
 
     def test_sync_client(self):
         response = self.http_client.fetch(self.get_url("/"))
-        self.assertEqual(b"Hello world!", response.body)
+        assert response.body == b"Hello world!"
 
     def test_sync_client_error(self):
         # Synchronous HTTPClient raises errors directly; no need for
         # response.rethrow()
-        with self.assertRaises(HTTPError) as assertion:
+        with pytest.raises(HTTPError) as assertion:
             self.http_client.fetch(self.get_url("/notfound"))
-        self.assertEqual(assertion.exception.code, 404)
+        assert assertion.exception.code == 404
 
 
 class SyncHTTPClientSubprocessTest(unittest.TestCase):
@@ -881,59 +862,55 @@ class SyncHTTPClientSubprocessTest(unittest.TestCase):
 class HTTPRequestTestCase(unittest.TestCase):
     def test_headers(self):
         request = HTTPRequest("http://example.com", headers={"foo": "bar"})
-        self.assertEqual(request.headers, {"foo": "bar"})
+        assert request.headers == {"foo": "bar"}
 
     def test_headers_setter(self):
         request = HTTPRequest("http://example.com")
         request.headers = {"bar": "baz"}  # type: ignore
-        self.assertEqual(request.headers, {"bar": "baz"})
+        assert request.headers == {"bar": "baz"}
 
     def test_null_headers_setter(self):
         request = HTTPRequest("http://example.com")
         request.headers = None  # type: ignore
-        self.assertEqual(request.headers, {})
+        assert request.headers == {}
 
     def test_body(self):
         request = HTTPRequest("http://example.com", body="foo")
-        self.assertEqual(request.body, utf8("foo"))
+        assert request.body == utf8("foo")
 
     def test_body_setter(self):
         request = HTTPRequest("http://example.com")
         request.body = "foo"  # type: ignore
-        self.assertEqual(request.body, utf8("foo"))
+        assert request.body == utf8("foo")
 
     def test_if_modified_since(self):
         http_date = datetime.datetime.now(datetime.timezone.utc)
         request = HTTPRequest("http://example.com", if_modified_since=http_date)
-        self.assertEqual(
-            request.headers, {"If-Modified-Since": format_timestamp(http_date)}
-        )
+        assert request.headers == {"If-Modified-Since": format_timestamp(http_date)}
 
     def test_if_modified_since_naive_deprecated(self):
         with ignore_deprecation():
             http_date = datetime.datetime.utcnow()
         request = HTTPRequest("http://example.com", if_modified_since=http_date)
-        self.assertEqual(
-            request.headers, {"If-Modified-Since": format_timestamp(http_date)}
-        )
+        assert request.headers == {"If-Modified-Since": format_timestamp(http_date)}
 
 
 class HTTPErrorTestCase(unittest.TestCase):
     def test_copy(self):
         e = HTTPError(403)
         e2 = copy.copy(e)
-        self.assertIsNot(e, e2)
-        self.assertEqual(e.code, e2.code)
+        assert e is not e2
+        assert e.code == e2.code
 
     def test_plain_error(self):
         e = HTTPError(403)
-        self.assertEqual(str(e), "HTTP 403: Forbidden")
-        self.assertEqual(repr(e), "HTTP 403: Forbidden")
+        assert str(e) == "HTTP 403: Forbidden"
+        assert repr(e) == "HTTP 403: Forbidden"
 
     def test_error_with_response(self):
         resp = HTTPResponse(HTTPRequest("http://example.com/"), 403)
-        with self.assertRaises(HTTPError) as cm:
+        with pytest.raises(HTTPError) as cm:
             resp.rethrow()
         e = cm.exception
-        self.assertEqual(str(e), "HTTP 403: Forbidden")
-        self.assertEqual(repr(e), "HTTP 403: Forbidden")
+        assert str(e) == "HTTP 403: Forbidden"
+        assert repr(e) == "HTTP 403: Forbidden"

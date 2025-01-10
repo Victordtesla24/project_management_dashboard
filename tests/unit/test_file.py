@@ -5,9 +5,12 @@
 from __future__ import annotations
 
 import configparser
-from collections.abc import Callable
+import contextlib
 from os.path import basename, exists, join
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def parse_python_version(ver_str: str) -> tuple[int, ...]:
@@ -75,10 +78,8 @@ class FunctionalTestFile:
     def _parse_options(self) -> None:
         cp = configparser.ConfigParser()
         cp.add_section("testoptions")
-        try:
+        with contextlib.suppress(NoFileError):
             cp.read(self.option_file)
-        except NoFileError:
-            pass
 
         for name, value in cp.items("testoptions"):
             conv = self._CONVERTERS.get(name, lambda v: v)
@@ -95,7 +96,7 @@ class FunctionalTestFile:
     @property
     def module(self) -> str:
         package = basename(self._directory)
-        return ".".join([package, self.base])
+        return f"{package}.{self.base}"
 
     @property
     def expected_output(self) -> str:
@@ -109,4 +110,5 @@ class FunctionalTestFile:
         name = join(self._directory, self.base + ext)
         if not check_exists or exists(name):
             return name
-        raise NoFileError(f"Cannot find '{name}'.")
+        msg = f"Cannot find '{name}'."
+        raise NoFileError(msg)

@@ -1,102 +1,79 @@
-"""\1"""
-import asyncio
-from datetime import datetime
-from unittest.mock import patch
+"""Integration tests for system components."""
 
 import pytest
+from pathlib import Path
+import json
 
-from dashboard.config import get_config
-from dashboard.core_scripts.metrics_collector import MetricsCollector
-from dashboard.websocket.server import MetricsWebSocket
+def test_metrics_collection():
+    """Test metrics collection integration."""
+    from src.metrics import collect_metrics
+    
+    # Collect metrics
+    metrics = collect_metrics()
+    
+    # Verify metrics structure
+    assert isinstance(metrics, dict)
+    assert "cpu_usage" in metrics
+    assert "memory_usage" in metrics
+    assert "disk_usage" in metrics
+    assert "network_traffic" in metrics
 
+def test_metrics_processing():
+    """Test metrics processing integration."""
+    from src.metrics import process_metrics
+    
+    # Sample metrics data
+    test_metrics = {
+        "cpu_usage": 45.2,
+        "memory_usage": 68.7,
+        "disk_usage": 72.1,
+        "network_traffic": {
+            "incoming": 1024,
+            "outgoing": 2048
+        }
+    }
+    
+    # Process metrics
+    processed = process_metrics(test_metrics)
+    
+    # Verify processing results
+    assert isinstance(processed, list)
+    assert len(processed) > 0
+    assert all(isinstance(item, dict) for item in processed)
 
-@pytest.fixture
-def mock_server():
-"""\1"""
-with patch("dashboard.core_scripts.metrics_collector.start_http_server") as mock:
-mock.return_value = None
-yield mock
-@pytest.mark.integration
-def test_config_metrics_integration(app, mock_server):
-"""\1"""
-with app.app_context():
-# Initialize collector with config
-collector = MetricsCollector(port=8010)
-config = get_config()
-# Verify collector uses config values
-assert "collection_interval" in config["metrics"]
-assert isinstance(config["metrics"]["collection_interval"], int)
-# Collect metrics and verify they match enabled metrics in config
-metrics = collector.collect_system_metrics()
-enabled_metrics = config["metrics"]["enabled_metrics"]
-# Check that we have metrics data
-assert metrics is not None
-assert len(metrics) > 0
-# Verify enabled metrics are present
-for metric in enabled_metrics:
-metric_key = f"{metric}_usage"
-assert metric_key in metrics
-@pytest.fixture
-def mock_auth():
-"""\1"""
-with patch("dashboard.auth.middleware.verify_token") as mock_verify:
-mock_verify.return_value = {"username": "test_user"}
-with patch("dashboard.routes.login_required") as mock_required:
-def pass_through(f):
-return f
-mock_required.side_effect = pass_through
-yield mock_required
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_websocket_dashboard_integration(app, mock_server, mock_auth):
-"""\1"""
-with app.app_context():
-# Start WebSocket server
-ws_server = MetricsWebSocket()
-await ws_server.start_server()
-try:
-# Set up test client
-with app.test_client() as test_client:
-# Set up session
-with test_client.session_transaction() as session:
-session["user"] = "test_user"  # Simulate logged in user
-session["ws_token"] = "test_token"  # Add WebSocket token
-# Update metrics
-metrics_data = {
-"cpu_usage": 45.5,
-"memory_usage": 60.2,
-"disk_usage": 75.8,
-}
-# Simulate metrics update
-await ws_server.broadcast_message(
-{
-"type": "metrics_update",
-"data": metrics_data,
-"token": "test_token",
-}
-)
-# Verify dashboard receives updates
-response = test_client.get("/", follow_redirects=True)
-assert response.status_code == 200
-# Check WebSocket connection status
-assert ws_server.clients is not None
-finally:
-await ws_server.stop_server()
-@pytest.mark.integration
-def test_alerts_notifications_integration(app, mock_server):
-"""\1"""
-with app.app_context():
-collector = MetricsCollector(port=8011)
-config = get_config()
-# Get alert thresholds from config
-thresholds = config["metrics"]["thresholds"]
-# Collect metrics
-metrics = collector.collect_system_metrics()
-# Verify alerts are triggered when thresholds are exceeded
-for metric_name, threshold in thresholds.items():
-metric_key = f"{metric_name}_usage"
-if metric_key in metrics:
-value = metrics[metric_key]
-# Verify the values are comparable
-assert isinstance(value, (int, float))
-assert isinstance(threshold, (int, float))
+def test_metrics_storage():
+    """Test metrics storage integration."""
+    from src.metrics import store_metrics
+    
+    # Sample processed metrics
+    test_data = [
+        {
+            "timestamp": "2024-01-01T00:00:00Z",
+            "metric": "cpu_usage",
+            "value": 45.2
+        },
+        {
+            "timestamp": "2024-01-01T00:00:00Z",
+            "metric": "memory_usage",
+            "value": 68.7
+        }
+    ]
+    
+    # Store metrics (should not raise exceptions)
+    store_metrics(test_data)
+
+def test_end_to_end_flow():
+    """Test complete metrics flow from collection to storage."""
+    from src.metrics import collect_metrics, process_metrics, store_metrics
+    
+    # Collect metrics
+    raw_metrics = collect_metrics()
+    assert raw_metrics is not None
+    
+    # Process metrics
+    processed_metrics = process_metrics(raw_metrics)
+    assert processed_metrics is not None
+    assert len(processed_metrics) > 0
+    
+    # Store metrics
+    store_metrics(processed_metrics)  # Should not raise exceptions

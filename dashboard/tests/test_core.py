@@ -12,7 +12,7 @@ class TestWebSocketServer:
 """\1"""
 @pytest.mark.asyncio
 async def test_websocket_authentication(
-self, websocket_server, test_client, auth_token, invalid_token
+self, websocket_server, test_client, auth_token, invalid_token,
     ):
 """\1"""
 # Test valid token

@@ -11,13 +11,14 @@
 # under the License.
 
 import asyncio
-from datetime import timedelta
 import typing  # noqa: F401
 import unittest
+from datetime import timedelta
 
+import pytest
 from tornado import gen, locks
 from tornado.gen import TimeoutError
-from tornado.testing import gen_test, AsyncTestCase
+from tornado.testing import AsyncTestCase, gen_test
 
 
 class ConditionTest(AsyncTestCase):
@@ -49,10 +50,10 @@ class ConditionTest(AsyncTestCase):
 
     def test_repr(self):
         c = locks.Condition()
-        self.assertIn("Condition", repr(c))
-        self.assertNotIn("waiters", repr(c))
+        assert "Condition" in repr(c)
+        assert "waiters" not in repr(c)
         c.wait()
-        self.assertIn("waiters", repr(c))
+        assert "waiters" in repr(c)
 
     @gen_test
     def test_notify(self):
@@ -70,7 +71,7 @@ class ConditionTest(AsyncTestCase):
         c.notify(1)
         self.loop_briefly()
         self.history.append("notify2")
-        self.assertEqual(["wait1", "notify1", "wait2", "notify2"], self.history)
+        assert ["wait1", "notify1", "wait2", "notify2"] == self.history
 
     def test_notify_n(self):
         c = locks.Condition()
@@ -81,13 +82,13 @@ class ConditionTest(AsyncTestCase):
         self.loop_briefly()
 
         # Callbacks execute in the order they were registered.
-        self.assertEqual(list(range(3)), self.history)
+        assert list(range(3)) == self.history
         c.notify(1)
         self.loop_briefly()
-        self.assertEqual(list(range(4)), self.history)
+        assert list(range(4)) == self.history
         c.notify(2)
         self.loop_briefly()
-        self.assertEqual(list(range(6)), self.history)
+        assert list(range(6)) == self.history
 
     def test_notify_all(self):
         c = locks.Condition()
@@ -99,7 +100,7 @@ class ConditionTest(AsyncTestCase):
         self.history.append("notify_all")
 
         # Callbacks execute in the order they were registered.
-        self.assertEqual(list(range(4)) + ["notify_all"], self.history)  # type: ignore
+        assert [*list(range(4)), "notify_all"] == self.history  # type: ignore
 
     @gen_test
     def test_wait_timeout(self):
@@ -107,7 +108,7 @@ class ConditionTest(AsyncTestCase):
         wait = c.wait(timedelta(seconds=0.01))
         self.io_loop.call_later(0.02, c.notify)  # Too late.
         yield gen.sleep(0.03)
-        self.assertFalse((yield wait))
+        assert not (yield wait)
 
     @gen_test
     def test_wait_timeout_preempted(self):
@@ -133,15 +134,15 @@ class ConditionTest(AsyncTestCase):
 
         # Wait for callback 1 to time out.
         yield gen.sleep(0.02)
-        self.assertEqual(["timeout"], self.history)
+        assert ["timeout"] == self.history
 
         c.notify(2)
         yield gen.sleep(0.01)
-        self.assertEqual(["timeout", 0, 2], self.history)
-        self.assertEqual(["timeout", 0, 2], self.history)
+        assert ["timeout", 0, 2] == self.history
+        assert ["timeout", 0, 2] == self.history
         c.notify()
         yield
-        self.assertEqual(["timeout", 0, 2, 3], self.history)
+        assert ["timeout", 0, 2, 3] == self.history
 
     @gen_test
     def test_notify_all_with_timeout(self):
@@ -152,11 +153,11 @@ class ConditionTest(AsyncTestCase):
 
         # Wait for callback 1 to time out.
         yield gen.sleep(0.02)
-        self.assertEqual(["timeout"], self.history)
+        assert ["timeout"] == self.history
 
         c.notify_all()
         yield
-        self.assertEqual(["timeout", 0, 2], self.history)
+        assert ["timeout", 0, 2] == self.history
 
     @gen_test
     def test_nested_notify(self):
@@ -172,7 +173,7 @@ class ConditionTest(AsyncTestCase):
         futures[1].add_done_callback(lambda _: c.notify())
         c.notify(2)
         yield
-        self.assertTrue(all(f.done() for f in futures))
+        assert all(f.done() for f in futures)
 
     @gen_test
     def test_garbage_collection(self):
@@ -182,26 +183,26 @@ class ConditionTest(AsyncTestCase):
             c.wait(timedelta(seconds=0.01))
 
         future = asyncio.ensure_future(c.wait())
-        self.assertEqual(102, len(c._waiters))
+        assert len(c._waiters) == 102
 
         # Let first 101 waiters time out, triggering a collection.
         yield gen.sleep(0.02)
-        self.assertEqual(1, len(c._waiters))
+        assert len(c._waiters) == 1
 
         # Final waiter is still active.
-        self.assertFalse(future.done())
+        assert not future.done()
         c.notify()
-        self.assertTrue(future.done())
+        assert future.done()
 
 
 class EventTest(AsyncTestCase):
     def test_repr(self):
         event = locks.Event()
-        self.assertTrue("clear" in str(event))
-        self.assertFalse("set" in str(event))
+        assert "clear" in str(event)
+        assert "set" not in str(event)
         event.set()
-        self.assertFalse("clear" in str(event))
-        self.assertTrue("set" in str(event))
+        assert "clear" not in str(event)
+        assert "set" in str(event)
 
     def test_event(self):
         e = locks.Event()
@@ -211,14 +212,14 @@ class EventTest(AsyncTestCase):
         e.clear()
         future_2 = asyncio.ensure_future(e.wait())
 
-        self.assertTrue(future_0.done())
-        self.assertTrue(future_1.done())
-        self.assertFalse(future_2.done())
+        assert future_0.done()
+        assert future_1.done()
+        assert not future_2.done()
 
     @gen_test
     def test_event_timeout(self):
         e = locks.Event()
-        with self.assertRaises(TimeoutError):
+        with pytest.raises(TimeoutError):
             yield e.wait(timedelta(seconds=0.01))
 
         # After a timed-out waiter, normal operation works.
@@ -229,7 +230,7 @@ class EventTest(AsyncTestCase):
         e = locks.Event()
         e.set()
         e.set()
-        self.assertTrue(e.is_set())
+        assert e.is_set()
 
     def test_event_wait_clear(self):
         e = locks.Event()
@@ -237,8 +238,8 @@ class EventTest(AsyncTestCase):
         e.clear()
         f1 = asyncio.ensure_future(e.wait())
         e.set()
-        self.assertTrue(f0.done())
-        self.assertTrue(f1.done())
+        assert f0.done()
+        assert f1.done()
 
 
 class SemaphoreTest(AsyncTestCase):
@@ -247,33 +248,33 @@ class SemaphoreTest(AsyncTestCase):
 
     def test_repr(self):
         sem = locks.Semaphore()
-        self.assertIn("Semaphore", repr(sem))
-        self.assertIn("unlocked,value:1", repr(sem))
+        assert "Semaphore" in repr(sem)
+        assert "unlocked,value:1" in repr(sem)
         sem.acquire()
-        self.assertIn("locked", repr(sem))
-        self.assertNotIn("waiters", repr(sem))
+        assert "locked" in repr(sem)
+        assert "waiters" not in repr(sem)
         sem.acquire()
-        self.assertIn("waiters", repr(sem))
+        assert "waiters" in repr(sem)
 
     def test_acquire(self):
         sem = locks.Semaphore()
         f0 = asyncio.ensure_future(sem.acquire())
-        self.assertTrue(f0.done())
+        assert f0.done()
 
         # Wait for release().
         f1 = asyncio.ensure_future(sem.acquire())
-        self.assertFalse(f1.done())
+        assert not f1.done()
         f2 = asyncio.ensure_future(sem.acquire())
         sem.release()
-        self.assertTrue(f1.done())
-        self.assertFalse(f2.done())
+        assert f1.done()
+        assert not f2.done()
         sem.release()
-        self.assertTrue(f2.done())
+        assert f2.done()
 
         sem.release()
         # Now acquire() is instant.
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
-        self.assertEqual(0, len(sem._waiters))
+        assert asyncio.ensure_future(sem.acquire()).done()
+        assert len(sem._waiters) == 0
 
     @gen_test
     def test_acquire_timeout(self):
@@ -283,14 +284,14 @@ class SemaphoreTest(AsyncTestCase):
         acquire = sem.acquire(timedelta(seconds=0.01))
         self.io_loop.call_later(0.02, sem.release)  # Too late.
         yield gen.sleep(0.3)
-        with self.assertRaises(gen.TimeoutError):
+        with pytest.raises(gen.TimeoutError):
             yield acquire
 
         sem.acquire()
         f = asyncio.ensure_future(sem.acquire())
-        self.assertFalse(f.done())
+        assert not f.done()
         sem.release()
-        self.assertTrue(f.done())
+        assert f.done()
 
     @gen_test
     def test_acquire_timeout_preempted(self):
@@ -310,31 +311,28 @@ class SemaphoreTest(AsyncTestCase):
         sem.release()
 
         # Now the counter is 3. We can acquire three times before blocking.
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
-        self.assertFalse(asyncio.ensure_future(sem.acquire()).done())
+        assert asyncio.ensure_future(sem.acquire()).done()
+        assert asyncio.ensure_future(sem.acquire()).done()
+        assert asyncio.ensure_future(sem.acquire()).done()
+        assert not asyncio.ensure_future(sem.acquire()).done()
 
     @gen_test
     def test_garbage_collection(self):
         # Test that timed-out waiters are occasionally cleaned from the queue.
         sem = locks.Semaphore(value=0)
-        futures = [
-            asyncio.ensure_future(sem.acquire(timedelta(seconds=0.01)))
-            for _ in range(101)
-        ]
+        futures = [asyncio.ensure_future(sem.acquire(timedelta(seconds=0.01))) for _ in range(101)]
 
         future = asyncio.ensure_future(sem.acquire())
-        self.assertEqual(102, len(sem._waiters))
+        assert len(sem._waiters) == 102
 
         # Let first 101 waiters time out, triggering a collection.
         yield gen.sleep(0.02)
-        self.assertEqual(1, len(sem._waiters))
+        assert len(sem._waiters) == 1
 
         # Final waiter is still active.
-        self.assertFalse(future.done())
+        assert not future.done()
         sem.release()
-        self.assertTrue(future.done())
+        assert future.done()
 
         # Prevent "Future exception was never retrieved" messages.
         for future in futures:
@@ -346,10 +344,10 @@ class SemaphoreContextManagerTest(AsyncTestCase):
     def test_context_manager(self):
         sem = locks.Semaphore()
         with (yield sem.acquire()) as yielded:
-            self.assertTrue(yielded is None)
+            assert yielded is None
 
         # Semaphore was released and can be acquired again.
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
+        assert asyncio.ensure_future(sem.acquire()).done()
 
     @gen_test
     def test_context_manager_async_await(self):
@@ -358,22 +356,21 @@ class SemaphoreContextManagerTest(AsyncTestCase):
 
         async def f():
             async with sem as yielded:
-                self.assertTrue(yielded is None)
+                assert yielded is None
 
         yield f()
 
         # Semaphore was released and can be acquired again.
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
+        assert asyncio.ensure_future(sem.acquire()).done()
 
     @gen_test
     def test_context_manager_exception(self):
         sem = locks.Semaphore()
-        with self.assertRaises(ZeroDivisionError):
-            with (yield sem.acquire()):
-                1 / 0
+        with pytest.raises(ZeroDivisionError), (yield sem.acquire()):
+            1 / 0
 
         # Semaphore was released and can be acquired again.
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
+        assert asyncio.ensure_future(sem.acquire()).done()
 
     @gen_test
     def test_context_manager_timeout(self):
@@ -382,17 +379,17 @@ class SemaphoreContextManagerTest(AsyncTestCase):
             pass
 
         # Semaphore was released and can be acquired again.
-        self.assertTrue(asyncio.ensure_future(sem.acquire()).done())
+        assert asyncio.ensure_future(sem.acquire()).done()
 
     @gen_test
     def test_context_manager_timeout_error(self):
         sem = locks.Semaphore(value=0)
-        with self.assertRaises(gen.TimeoutError):
+        with pytest.raises(gen.TimeoutError):
             with (yield sem.acquire(timedelta(seconds=0.01))):
                 pass
 
         # Counter is still 0.
-        self.assertFalse(asyncio.ensure_future(sem.acquire()).done())
+        assert not asyncio.ensure_future(sem.acquire()).done()
 
     @gen_test
     def test_context_manager_contended(self):
@@ -412,22 +409,20 @@ class SemaphoreContextManagerTest(AsyncTestCase):
         for i in range(2):
             expected_history.extend(["acquired %d" % i, "release %d" % i])
 
-        self.assertEqual(expected_history, history)
+        assert expected_history == history
 
     @gen_test
     def test_yield_sem(self):
         # Ensure we catch a "with (yield sem)", which should be
         # "with (yield sem.acquire())".
-        with self.assertRaises(gen.BadYieldError):
-            with (yield locks.Semaphore()):
-                pass
+        with pytest.raises(gen.BadYieldError), (yield locks.Semaphore()):
+            pass
 
     def test_context_manager_misuse(self):
         # Ensure we catch a "with sem", which should be
         # "with (yield sem.acquire())".
-        with self.assertRaises(RuntimeError):
-            with locks.Semaphore():
-                pass
+        with pytest.raises(RuntimeError), locks.Semaphore():
+            pass
 
 
 class BoundedSemaphoreTest(AsyncTestCase):
@@ -438,9 +433,9 @@ class BoundedSemaphoreTest(AsyncTestCase):
         sem.acquire()
         # Block on acquire().
         future = asyncio.ensure_future(sem.acquire())
-        self.assertFalse(future.done())
+        assert not future.done()
         sem.release()
-        self.assertTrue(future.done())
+        assert future.done()
         # Value is 1.
         sem.release()
         self.assertRaises(ValueError, sem.release)
@@ -456,16 +451,16 @@ class LockTests(AsyncTestCase):
 
     def test_acquire_release(self):
         lock = locks.Lock()
-        self.assertTrue(asyncio.ensure_future(lock.acquire()).done())
+        assert asyncio.ensure_future(lock.acquire()).done()
         future = asyncio.ensure_future(lock.acquire())
-        self.assertFalse(future.done())
+        assert not future.done()
         lock.release()
-        self.assertTrue(future.done())
+        assert future.done()
 
     @gen_test
     def test_acquire_fifo(self):
         lock = locks.Lock()
-        self.assertTrue(asyncio.ensure_future(lock.acquire()).done())
+        assert asyncio.ensure_future(lock.acquire()).done()
         N = 5
         history = []
 
@@ -475,17 +470,17 @@ class LockTests(AsyncTestCase):
                 history.append(idx)
 
         futures = [f(i) for i in range(N)]
-        self.assertFalse(any(future.done() for future in futures))
+        assert not any(future.done() for future in futures)
         lock.release()
         yield futures
-        self.assertEqual(list(range(N)), history)
+        assert list(range(N)) == history
 
     @gen_test
     def test_acquire_fifo_async_with(self):
         # Repeat the above test using `async with lock:`
         # instead of `with (yield lock.acquire()):`.
         lock = locks.Lock()
-        self.assertTrue(asyncio.ensure_future(lock.acquire()).done())
+        assert asyncio.ensure_future(lock.acquire()).done()
         N = 5
         history = []
 
@@ -496,17 +491,17 @@ class LockTests(AsyncTestCase):
         futures = [f(i) for i in range(N)]
         lock.release()
         yield futures
-        self.assertEqual(list(range(N)), history)
+        assert list(range(N)) == history
 
     @gen_test
     def test_acquire_timeout(self):
         lock = locks.Lock()
         lock.acquire()
-        with self.assertRaises(gen.TimeoutError):
+        with pytest.raises(gen.TimeoutError):
             yield lock.acquire(timeout=timedelta(seconds=0.01))
 
         # Still locked.
-        self.assertFalse(asyncio.ensure_future(lock.acquire()).done())
+        assert not asyncio.ensure_future(lock.acquire()).done()
 
     def test_multi_release(self):
         lock = locks.Lock()
@@ -519,16 +514,14 @@ class LockTests(AsyncTestCase):
     def test_yield_lock(self):
         # Ensure we catch a "with (yield lock)", which should be
         # "with (yield lock.acquire())".
-        with self.assertRaises(gen.BadYieldError):
-            with (yield locks.Lock()):
-                pass
+        with pytest.raises(gen.BadYieldError), (yield locks.Lock()):
+            pass
 
     def test_context_manager_misuse(self):
         # Ensure we catch a "with lock", which should be
         # "with (yield lock.acquire())".
-        with self.assertRaises(RuntimeError):
-            with locks.Lock():
-                pass
+        with pytest.raises(RuntimeError), locks.Lock():
+            pass
 
 
 if __name__ == "__main__":

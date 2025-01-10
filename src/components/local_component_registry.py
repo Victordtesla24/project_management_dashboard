@@ -45,11 +45,11 @@ class LocalComponentRegistry(BaseComponentRegistry):
         component : BaseCustomComponent
             The component to register.
         """
-
         # Validate the component's path
         abspath = component.abspath
         if abspath is not None and not os.path.isdir(abspath):
-            raise StreamlitAPIException(f"No such component directory: '{abspath}'")
+            msg = f"No such component directory: '{abspath}'"
+            raise StreamlitAPIException(msg)
 
         with self._lock:
             existing = self._components.get(component.name)

@@ -1,27 +1,13 @@
-# testing/suite/test_results.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
-# <see AUTHORS file>
-#
-# This module is part of SQLAlchemy and is released under
-# the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
 import datetime
 
-from .. import engines
-from .. import fixtures
-from ..assertions import eq_
-from ..config import requirements
-from ..schema import Column
-from ..schema import Table
-from ... import DateTime
-from ... import func
-from ... import Integer
-from ... import select
-from ... import sql
-from ... import String
-from ... import testing
-from ... import text
+from sqlalchemy import DateTime, Integer, String, func, select, sql, testing, text
+
+from tests import engines, fixtures
+from tests.assertions import eq_
+from tests.config import requirements
+from tests.schema import Column, Table
 
 
 class RowFetchTest(fixtures.TablesTest):
@@ -60,7 +46,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_attr(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
         ).first()
 
         eq_(row.id, 1)
@@ -68,7 +54,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_string(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
         ).first()
 
         eq_(row._mapping["id"], 1)
@@ -76,7 +62,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_int(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
         ).first()
 
         eq_(row[0], 1)
@@ -84,7 +70,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_col_object(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
         ).first()
 
         eq_(row._mapping[self.tables.plain_pk.c.id], 1)
@@ -96,14 +82,14 @@ class RowFetchTest(fixtures.TablesTest):
             select(
                 self.tables.plain_pk.c.data,
                 self.tables.plain_pk.c.data.label("data"),
-            ).order_by(self.tables.plain_pk.c.id)
+            ).order_by(self.tables.plain_pk.c.id),
         )
         row = result.first()
         eq_(result.keys(), ["data", "data"])
         eq_(row, ("d1", "d1"))
 
     def test_row_w_scalar_select(self, connection):
-        """test that a scalar select as a column is returned as such
+        """Test that a scalar select as a column is returned as such
         and that type conversion works OK.
 
         (this is half a SQLAlchemy Core test and half to catch database
@@ -157,9 +143,7 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
 
     def test_executemany_roundtrip(self, connection):
         percent_table = self.tables.percent_table
-        connection.execute(
-            percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12}
-        )
+        connection.execute(percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12})
         connection.execute(
             percent_table.insert(),
             [
@@ -173,9 +157,7 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
     @requirements.insert_executemany_returning
     def test_executemany_returning_roundtrip(self, connection):
         percent_table = self.tables.percent_table
-        connection.execute(
-            percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12}
-        )
+        connection.execute(percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12})
         result = connection.execute(
             percent_table.insert().returning(
                 percent_table.c["percent%"],
@@ -210,8 +192,8 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
                     conn.execute(
                         table.select()
                         .where(table.c["spaces % more spaces"].in_([9, 10]))
-                        .order_by(table.c["percent%"])
-                    )
+                        .order_by(table.c["percent%"]),
+                    ),
                 ),
                 [(9, 10), (11, 9)],
             )
@@ -223,16 +205,10 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
             eq_(row._mapping[table.c["percent%"]], 5)
             eq_(row._mapping[table.c["spaces % more spaces"]], 12)
 
-        conn.execute(
-            percent_table.update().values({percent_table.c["spaces % more spaces"]: 15})
-        )
+        conn.execute(percent_table.update().values({percent_table.c["spaces % more spaces"]: 15}))
 
         eq_(
-            list(
-                conn.execute(
-                    percent_table.select().order_by(percent_table.c["percent%"])
-                )
-            ),
+            list(conn.execute(percent_table.select().order_by(percent_table.c["percent%"]))),
             [(5, 15), (7, 15), (9, 15), (11, 15)],
         )
 
@@ -272,14 +248,14 @@ class ServerSideCursorsTest(fixtures.TestBase, testing.AssertsExecutionResults):
                 "The create_engine.server_side_cursors parameter is "
                 "deprecated and will be removed in a future release.  "
                 "Please use the Connection.execution_options.stream_results "
-                "parameter."
+                "parameter.",
             ):
                 self.engine = engines.testing_engine(
-                    options={"server_side_cursors": server_side_cursors}
+                    options={"server_side_cursors": server_side_cursors},
                 )
         else:
             self.engine = engines.testing_engine(
-                options={"server_side_cursors": server_side_cursors}
+                options={"server_side_cursors": server_side_cursors},
             )
         return self.engine
 
@@ -334,9 +310,7 @@ class ServerSideCursorsTest(fixtures.TestBase, testing.AssertsExecutionResults):
 
         with engine.connect() as conn:
             # should be enabled for this one
-            result = conn.execution_options(stream_results=True).exec_driver_sql(
-                "select 1"
-            )
+            result = conn.execution_options(stream_results=True).exec_driver_sql("select 1")
             assert self._is_server_side(result.cursor)
 
             # the connection has autobegun, which means at the end of the
@@ -396,23 +370,19 @@ class ServerSideCursorsTest(fixtures.TestBase, testing.AssertsExecutionResults):
 
         with engine.begin() as connection:
             test_table.create(connection, checkfirst=True)
-            connection.execute(test_table.insert(), dict(data="data1"))
-            connection.execute(test_table.insert(), dict(data="data2"))
+            connection.execute(test_table.insert(), {"data": "data1"})
+            connection.execute(test_table.insert(), {"data": "data2"})
             eq_(
-                connection.execute(
-                    test_table.select().order_by(test_table.c.id)
-                ).fetchall(),
+                connection.execute(test_table.select().order_by(test_table.c.id)).fetchall(),
                 [(1, "data1"), (2, "data2")],
             )
             connection.execute(
                 test_table.update()
                 .where(test_table.c.id == 2)
-                .values(data=test_table.c.data + " updated")
+                .values(data=test_table.c.data + " updated"),
             )
             eq_(
-                connection.execute(
-                    test_table.select().order_by(test_table.c.id)
-                ).fetchall(),
+                connection.execute(test_table.select().order_by(test_table.c.id)).fetchall(),
                 [(1, "data1"), (2, "data2 updated")],
             )
             connection.execute(test_table.delete())
@@ -436,7 +406,7 @@ class ServerSideCursorsTest(fixtures.TestBase, testing.AssertsExecutionResults):
             test_table.create(connection, checkfirst=True)
             connection.execute(
                 test_table.insert(),
-                [dict(data="data%d" % i) for i in range(1, 20)],
+                [{"data": "data%d" % i} for i in range(1, 20)],
             )
 
             result = connection.execute(test_table.select().order_by(test_table.c.id))

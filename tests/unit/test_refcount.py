@@ -7,10 +7,10 @@ operations to IR.
 from __future__ import annotations
 
 import os.path
+from typing import TYPE_CHECKING
 
 from mypy.errors import CompileError
 from mypy.test.config import test_temp_dir
-from mypy.test.data import DataDrivenTestCase
 from mypyc.common import TOP_LEVEL_NAME
 from mypyc.ir.pprint import format_func
 from mypyc.test.testutil import (
@@ -25,6 +25,9 @@ from mypyc.test.testutil import (
 )
 from mypyc.transform.refcount import insert_ref_count_opcodes
 from mypyc.transform.uninit import insert_uninit_checks
+
+if TYPE_CHECKING:
+    from mypy.test.data import DataDrivenTestCase
 
 files = ["refcount.test"]
 

@@ -13,7 +13,7 @@ if authenticate(username, password):
 token = create_token({"username": username})
 session["user"] = username
 response = redirect(
-request.args.get("next") if request.args.get("next") else url_for("dashboard.index")
+request.args.get("next") if request.args.get("next") else url_for("dashboard.index"),
     )
 response.set_cookie("auth_token", token)
 return response

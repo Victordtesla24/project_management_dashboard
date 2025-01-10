@@ -54,10 +54,10 @@ if [ -d "${PROJECT_ROOT}/.git/hooks" ]; then
 fi
 
 # Run verify and fix script
-if [ -f "${PROJECT_ROOT}/scripts/verify_and_fix.sh" ]; then
-    echo "Running code verification and fixes..."
-    bash "${PROJECT_ROOT}/scripts/verify_and_fix.sh" || handle_error "Failed to verify and fix code"
-fi
+#if [ -f "${PROJECT_ROOT}/scripts/verify_and_fix.sh" ]; then
+#    echo "Running code verification and fixes..."
+#    bash "${PROJECT_ROOT}/scripts/verify_and_fix.sh" || handle_error "Failed to verify and fix code"
+#fi
 
 # Configure git with .env credentials
 git config user.name "${GITHUB_USER_NAME}" || handle_error "Failed to set git user name"

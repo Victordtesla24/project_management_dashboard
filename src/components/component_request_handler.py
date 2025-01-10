@@ -16,19 +16,20 @@ from __future__ import annotations
 
 import mimetypes
 import os
-from typing import Final
-
-import tornado.web
+from typing import TYPE_CHECKING, Final
 
 import streamlit.web.server.routes
-from streamlit.components.v1.components import ComponentRegistry
+import tornado.web
 from streamlit.logger import get_logger
+
+if TYPE_CHECKING:
+    from streamlit.components.types.base_component_registry import BaseComponentRegistry
 
 _LOGGER: Final = get_logger(__name__)
 
 
 class ComponentRequestHandler(tornado.web.RequestHandler):
-    def initialize(self, registry: ComponentRegistry):
+    def initialize(self, registry: BaseComponentRegistry):
         self._registry = registry
 
     def get(self, path: str) -> None:
@@ -43,7 +44,7 @@ class ComponentRequestHandler(tornado.web.RequestHandler):
         # follow symlinks to get an accurate normalized path
         component_root = os.path.realpath(component_root)
         filename = "/".join(parts[1:])
-        abspath = os.path.realpath(os.path.join(component_root, filename))
+        abspath = os.path.normpath(os.path.join(component_root, filename))
 
         # Do NOT expose anything outside of the component root.
         if os.path.commonpath([component_root, abspath]) != component_root:
@@ -54,9 +55,7 @@ class ComponentRequestHandler(tornado.web.RequestHandler):
             with open(abspath, "rb") as file:
                 contents = file.read()
         except OSError as e:
-            _LOGGER.error(
-                "ComponentRequestHandler: GET %s read error", abspath, exc_info=e
-            )
+            _LOGGER.error("ComponentRequestHandler: GET %s read error", abspath, exc_info=e)
             self.write("read error")
             self.set_status(404)
             return

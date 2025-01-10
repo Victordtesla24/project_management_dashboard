@@ -7,6 +7,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+
 def load_metrics(filepath):
     """Load metrics from a JSON file."""
     try:
@@ -22,15 +23,17 @@ def load_metrics(filepath):
         logger.error(f"IO error reading metrics file {filepath}: {e}")
         return {}
 
+
 def save_metrics(metrics, filepath):
     """Save metrics to a JSON file."""
     try:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(metrics, f, indent=4)
         logger.info(f"Metrics saved to {filepath}")
     except OSError as e:
         logger.error(f"Error saving metrics to {filepath}: {e}")
+
 
 def track_implementation_progress(metrics):
     """Track implementation progress by saving metrics to a file."""
@@ -61,6 +64,7 @@ def track_implementation_progress(metrics):
     except Exception as e:
         logger.error(f"Error tracking implementation progress: {e}")
         return False
+
 
 def get_implementation_status():
     """Get the current implementation status."""

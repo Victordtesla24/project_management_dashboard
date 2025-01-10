@@ -21,8 +21,6 @@ from enum import IntEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, Sequence, Union, cast
 
-from typing_extensions import TypeAlias
-
 from streamlit import runtime, url_util
 from streamlit.errors import StreamlitAPIException
 from streamlit.runtime import caching
@@ -33,15 +31,11 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
     from PIL import GifImagePlugin, Image, ImageFile
-
     from streamlit.proto.Image_pb2 import ImageList as ImageListProto
+    from typing_extensions import TypeAlias
 
-PILImage: TypeAlias = Union[
-    "ImageFile.ImageFile", "Image.Image", "GifImagePlugin.GifImageFile"
-]
-AtomicImage: TypeAlias = Union[
-    PILImage, "npt.NDArray[Any]", io.BytesIO, str, Path, bytes
-]
+PILImage: TypeAlias = Union["ImageFile.ImageFile", "Image.Image", "GifImagePlugin.GifImageFile"]
+AtomicImage: TypeAlias = Union[PILImage, "npt.NDArray[Any]", io.BytesIO, str, Path, bytes]
 
 Channels: TypeAlias = Literal["RGB", "BGR"]
 ImageFormat: TypeAlias = Literal["JPEG", "PNG", "GIF"]
@@ -58,8 +52,7 @@ MAXIMUM_CONTENT_WIDTH: Final[int] = 2 * 730
 # @see Image.proto
 # @see WidthBehavior on the frontend
 class WidthBehavior(IntEnum):
-    """
-    Special values that are recognized by the frontend and allow us to change the
+    """Special values that are recognized by the frontend and allow us to change the
     behavior of the displayed image.
     """
 
@@ -71,9 +64,7 @@ class WidthBehavior(IntEnum):
 
 
 WidthBehavior.ORIGINAL.__doc__ = """Display the image at its original width"""
-WidthBehavior.COLUMN.__doc__ = (
-    """Display the image at the width of the column it's in."""
-)
+WidthBehavior.COLUMN.__doc__ = """Display the image at the width of the column it's in."""
 WidthBehavior.AUTO.__doc__ = """Display the image at its original width, unless it
 would exceed the width of its column in which case clamp it to
 its column width"""
@@ -87,9 +78,7 @@ def _image_is_gif(image: PILImage) -> bool:
     return image.format == "GIF"
 
 
-def _validate_image_format_string(
-    image_data: bytes | PILImage, format: str
-) -> ImageFormat:
+def _validate_image_format_string(image_data: bytes | PILImage, format: str) -> ImageFormat:
     """Return either "JPEG", "PNG", or "GIF", based on the input `format` string.
     - If `format` is "JPEG" or "JPG" (or any capitalization thereof), return "JPEG"
     - If `format` is "PNG" (or any capitalization thereof), return "PNG"
@@ -156,11 +145,11 @@ def _np_array_to_bytes(array: npt.NDArray[Any], output_format: str = "JPEG") -> 
 def _verify_np_shape(array: npt.NDArray[Any]) -> npt.NDArray[Any]:
     shape: NumpyShape = array.shape
     if len(shape) not in (2, 3):
-        raise StreamlitAPIException("Numpy shape has to be of length 2 or 3.")
+        msg = "Numpy shape has to be of length 2 or 3."
+        raise StreamlitAPIException(msg)
     if len(shape) == 3 and shape[-1] not in (1, 3, 4):
         raise StreamlitAPIException(
-            "Channel can only be 1, 3, or 4 got %d. Shape is %s"
-            % (shape[-1], str(shape))
+            "Channel can only be 1, 3, or 4 got %d. Shape is %s" % (shape[-1], str(shape)),
         )
 
     # If there's only one channel, convert is to x, y
@@ -176,7 +165,9 @@ def _get_image_format_mimetype(image_format: ImageFormat) -> str:
 
 
 def _ensure_image_size_and_format(
-    image_data: bytes, width: int, image_format: ImageFormat
+    image_data: bytes,
+    width: int,
+    image_format: ImageFormat,
 ) -> bytes:
     """Resize an image if it exceeds the given width, or if exceeds
     MAXIMUM_CONTENT_WIDTH. Ensure the image's format corresponds to the given
@@ -217,14 +208,16 @@ def _clip_image(image: npt.NDArray[Any], clamp: bool) -> npt.NDArray[Any]:
             data = np.clip(image, 0, 1.0)
         else:
             if np.amin(image) < 0.0 or np.amax(image) > 1.0:
-                raise RuntimeError("Data is outside [0.0, 1.0] and clamp is not set.")
+                msg = "Data is outside [0.0, 1.0] and clamp is not set."
+                raise RuntimeError(msg)
         data = data * 255
     else:
         if clamp:
             data = np.clip(image, 0, 255)
         else:
             if np.amin(image) < 0 or np.amax(image) > 255:
-                raise RuntimeError("Data is outside [0, 255] and clamp is not set.")
+                msg = "Data is outside [0, 255] and clamp is not set."
+                raise RuntimeError(msg)
     return data
 
 
@@ -240,7 +233,7 @@ def image_to_url(
     If `image` is already a URL, return it unmodified.
     Otherwise, add the image to the MediaFileManager and return the URL.
     (When running in "raw" mode, we won't actually load data into the
-    MediaFileManager, and we'll return an empty URL.)
+    MediaFileManager, and we'll return an empty URL.).
     """
     import numpy as np
     from PIL import Image, ImageFile
@@ -254,7 +247,8 @@ def image_to_url(
     # Strings
     if isinstance(image, str):
         if not os.path.isfile(image) and url_util.is_url(
-            image, allowed_schemas=("http", "https", "data")
+            image,
+            allowed_schemas=("http", "https", "data"),
         ):
             # If it's a url, return it directly.
             return image
@@ -270,9 +264,7 @@ def image_to_url(
             if "xmlns" not in image:
                 # The xmlns attribute is required for SVGs to render in an img tag.
                 # If it's not present, we add to the first SVG tag:
-                image = image.replace(
-                    "<svg", '<svg xmlns="http://www.w3.org/2000/svg" ', 1
-                )
+                image = image.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg" ', 1)
             # Convert to base64 to prevent issues with encoding:
             import base64
 
@@ -317,9 +309,9 @@ def image_to_url(
             if len(cast(NumpyShape, image.shape)) == 3:
                 image = image[:, :, [2, 1, 0]]
             else:
+                msg = 'When using `channels="BGR"`, the input image should have exactly 3 color channels'
                 raise StreamlitAPIException(
-                    'When using `channels="BGR"`, the input image should '
-                    "have exactly 3 color channels"
+                    msg,
                 )
 
         image_data = _np_array_to_bytes(array=image, output_format=output_format)
@@ -343,7 +335,7 @@ def image_to_url(
 
 
 def _4d_to_list_3d(array: npt.NDArray[Any]) -> list[npt.NDArray[Any]]:
-    return [array[i, :, :, :] for i in range(0, array.shape[0])]
+    return [array[i, :, :, :] for i in range(array.shape[0])]
 
 
 def marshall_images(
@@ -358,6 +350,7 @@ def marshall_images(
 ) -> None:
     """Fill an ImageListProto with a list of images and their captions.
     The images will be resized and reformatted as necessary.
+
     Parameters
     ----------
     coordinates
@@ -416,9 +409,7 @@ def marshall_images(
     else:
         captions = [str(caption)]
 
-    assert isinstance(
-        captions, list
-    ), "If image is a list then caption should be as well"
+    assert isinstance(captions, list), "If image is a list then caption should be as well"
     assert len(captions) == len(images), "Cannot pair %d captions with %d images." % (
         len(captions),
         len(images),
@@ -435,6 +426,4 @@ def marshall_images(
         # MediaFileManager. For this, we just add the index to the image's "coordinates".
         image_id = "%s-%i" % (coordinates, coord_suffix)
 
-        proto_img.url = image_to_url(
-            image, width, clamp, channels, output_format, image_id
-        )
+        proto_img.url = image_to_url(image, width, clamp, channels, output_format, image_id)

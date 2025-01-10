@@ -17,8 +17,9 @@ import types
 import typing
 import unittest
 
+import pytest
 import tornado
-from tornado import web, gen, httpclient
+from tornado import gen, httpclient, web
 from tornado.test.util import skipNotCPython
 
 
@@ -87,11 +88,11 @@ def assert_no_cycle_garbage():
         for circular in find_circular_references(garbage):
             f.write("\n==========\n Circular \n==========")
             for item in circular:
-                f.write(f"\n    {repr(item)}")
+                f.write(f"\n    {item!r}")
             for item in circular:
                 if isinstance(item, types.FrameType):
                     f.write(f"\nLocals: {item.f_locals}")
-                    f.write(f"\nTraceback: {repr(item)}")
+                    f.write(f"\nTraceback: {item!r}")
                     traceback.print_stack(item)
         del garbage
         raise AssertionError(f.getvalue())
@@ -105,43 +106,42 @@ def assert_no_cycle_garbage():
 class CircleRefsTest(unittest.TestCase):
     def test_known_leak(self):
         # Construct a known leak scenario to make sure the test harness works.
-        class C(object):
-            def __init__(self, name):
+        class C:
+            def __init__(self, name) -> None:
                 self.name = name
                 self.a: typing.Optional[C] = None
                 self.b: typing.Optional[C] = None
                 self.c: typing.Optional[C] = None
 
-            def __repr__(self):
+            def __repr__(self) -> str:
                 return f"name={self.name}"
 
-        with self.assertRaises(AssertionError) as cm:
-            with assert_no_cycle_garbage():
-                # a and b form a reference cycle. c is not part of the cycle,
-                # but it cannot be GC'd while a and b are alive.
-                a = C("a")
-                b = C("b")
-                c = C("c")
-                a.b = b
-                a.c = c
-                b.a = a
-                b.c = c
-                del a, b
-        self.assertIn("Circular", str(cm.exception))
+        with pytest.raises(AssertionError) as cm, assert_no_cycle_garbage():
+            # a and b form a reference cycle. c is not part of the cycle,
+            # but it cannot be GC'd while a and b are alive.
+            a = C("a")
+            b = C("b")
+            c = C("c")
+            a.b = b
+            a.c = c
+            b.a = a
+            b.c = c
+            del a, b
+        assert "Circular" in str(cm.exception)
         # Leading spaces ensure we only catch these at the beginning of a line, meaning they are a
         # cycle participant and not simply the contents of a locals dict or similar container. (This
         # depends on the formatting above which isn't ideal but this test evolved from a
         # command-line script) Note that the behavior here changed in python 3.11; in newer pythons
         # locals are handled a bit differently and the test passes without the spaces.
-        self.assertIn("    name=a", str(cm.exception))
-        self.assertIn("    name=b", str(cm.exception))
-        self.assertNotIn("    name=c", str(cm.exception))
+        assert "    name=a" in str(cm.exception)
+        assert "    name=b" in str(cm.exception)
+        assert "    name=c" not in str(cm.exception)
 
     async def run_handler(self, handler_class):
         app = web.Application(
             [
                 (r"/", handler_class),
-            ]
+            ],
         )
         socket, port = tornado.testing.bind_unused_port()
         server = tornado.httpserver.HTTPServer(app)
@@ -169,7 +169,8 @@ class CircleRefsTest(unittest.TestCase):
     def test_finish_exception_handler(self):
         class Handler(web.RequestHandler):
             def get(self):
-                raise web.Finish("ok\n")
+                msg = "ok\n"
+                raise web.Finish(msg)
 
         asyncio.run(self.run_handler(Handler))
 
@@ -199,7 +200,7 @@ class CircleRefsTest(unittest.TestCase):
 
         with concurrent.futures.ThreadPoolExecutor(1) as thread_pool:
 
-            class Factory(object):
+            class Factory:
                 executor = thread_pool
 
                 @tornado.concurrent.run_on_executor
@@ -210,7 +211,7 @@ class CircleRefsTest(unittest.TestCase):
 
             async def main():
                 # The cycle is not reported on the first call. It's not clear why.
-                for i in range(2):
+                for _i in range(2):
                     await factory.run()
 
             with assert_no_cycle_garbage():

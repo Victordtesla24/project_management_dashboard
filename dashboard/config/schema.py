@@ -5,9 +5,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class ValidationResult:
     """Validation result class."""
+
     is_valid: bool
     errors: list[str] = field(default_factory=list)
 
@@ -26,7 +28,8 @@ class ValidationError(Exception):
 
 class ConfigManager:
     """Configuration manager class."""
-    def __init__(self, config: dict[str, Any]):
+
+    def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.required_fields = {
             "metrics": {
@@ -51,33 +54,39 @@ class ConfigManager:
 
     def _validate_type(self, value: Any, expected_type: type, path: str) -> None:
         """Validate type of a value.
-        
+
         Args:
+        ----
             value: Value to validate.
             expected_type: Expected type.
             path: Path to the value in config.
-        
+
         Raises:
+        ------
             ValidationError: If type is invalid.
         """
         if not isinstance(value, expected_type):
+            msg = f"Invalid type for {path}: expected {expected_type.__name__}, got {type(value).__name__}"
             raise ValidationError(
-                f"Invalid type for {path}: expected {expected_type.__name__}, got {type(value).__name__}",
+                msg,
             )
 
     def _validate_metrics_section(self, metrics: dict[str, Any]) -> None:
         """Validate metrics section of config.
-        
+
         Args:
+        ----
             metrics: Metrics configuration section.
-            
+
         Raises:
+        ------
             ValidationError: If validation fails.
         """
         required_metrics = {"collection_interval", "enabled_metrics", "thresholds"}
         missing = required_metrics - set(metrics.keys())
         if missing:
-            raise ValidationError(f"Missing required metrics fields: {missing}")
+            msg = f"Missing required metrics fields: {missing}"
+            raise ValidationError(msg)
 
         self._validate_type(metrics["collection_interval"], int, "metrics.collection_interval")
         self._validate_type(metrics["enabled_metrics"], list, "metrics.enabled_metrics")
@@ -87,88 +96,107 @@ class ConfigManager:
         required_thresholds = {"cpu", "memory", "disk"}
         missing = required_thresholds - set(metrics["thresholds"].keys())
         if missing:
-            raise ValidationError(f"Missing required threshold fields: {missing}")
+            msg = f"Missing required threshold fields: {missing}"
+            raise ValidationError(msg)
 
         for key, value in metrics["thresholds"].items():
             if not isinstance(value, (int, float)) or value < 0 or value > 100:
-                raise ValidationError(f"Invalid threshold value for {key}: must be between 0 and 100")
+                msg = f"Invalid threshold value for {key}: must be between 0 and 100"
+                raise ValidationError(
+                    msg,
+                )
 
     def _validate_websocket_section(self, websocket: dict[str, Any]) -> None:
         """Validate websocket section of config.
-        
+
         Args:
+        ----
             websocket: Websocket configuration section.
-            
+
         Raises:
+        ------
             ValidationError: If validation fails.
         """
         required_fields = {"host", "port"}
         missing = required_fields - set(websocket.keys())
         if missing:
-            raise ValidationError(f"Missing required websocket fields: {missing}")
+            msg = f"Missing required websocket fields: {missing}"
+            raise ValidationError(msg)
 
         self._validate_type(websocket["host"], str, "websocket.host")
         self._validate_type(websocket["port"], int, "websocket.port")
 
         if not 1 <= websocket["port"] <= 65535:
-            raise ValidationError("Websocket port must be between 1 and 65535")
+            msg = "Websocket port must be between 1 and 65535"
+            raise ValidationError(msg)
 
     def _validate_database_section(self, database: dict[str, Any]) -> None:
         """Validate database section of config.
-        
+
         Args:
+        ----
             database: Database configuration section.
-            
+
         Raises:
+        ------
             ValidationError: If validation fails.
         """
         required_fields = {"host", "port", "name"}
         missing = required_fields - set(database.keys())
         if missing:
-            raise ValidationError(f"Missing required database fields: {missing}")
+            msg = f"Missing required database fields: {missing}"
+            raise ValidationError(msg)
 
         self._validate_type(database["host"], str, "database.host")
         self._validate_type(database["port"], int, "database.port")
         self._validate_type(database["name"], str, "database.name")
 
         if not 1 <= database["port"] <= 65535:
-            raise ValidationError("Database port must be between 1 and 65535")
+            msg = "Database port must be between 1 and 65535"
+            raise ValidationError(msg)
 
     def _validate_logging_section(self, logging_config: dict[str, Any]) -> None:
         """Validate logging section of config.
-        
+
         Args:
+        ----
             logging_config: Logging configuration section.
-            
+
         Raises:
+        ------
             ValidationError: If validation fails.
         """
         required_fields = {"level", "file"}
         missing = required_fields - set(logging_config.keys())
         if missing:
-            raise ValidationError(f"Missing required logging fields: {missing}")
+            msg = f"Missing required logging fields: {missing}"
+            raise ValidationError(msg)
 
         self._validate_type(logging_config["level"], str, "logging.level")
         self._validate_type(logging_config["file"], str, "logging.file")
 
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if logging_config["level"].upper() not in valid_levels:
-            raise ValidationError(f"Invalid logging level. Must be one of: {valid_levels}")
+            msg = f"Invalid logging level. Must be one of: {valid_levels}"
+            raise ValidationError(msg)
 
     def validate_config(self) -> None:
         """Validate entire configuration.
-        
-        Raises:
+
+        Raises
+        ------
             ValidationError: If validation fails.
         """
         if not isinstance(self.config, dict):
-            raise ValidationError("Configuration must be a dictionary")
+            msg = "Configuration must be a dictionary"
+            raise ValidationError(msg)
 
         # Check for required top-level sections
         required_sections = {"metrics", "websocket", "database", "logging"}
         missing = required_sections - set(self.config.keys())
         if missing:
-            raise ValidationError(f"Missing required configuration sections: {missing}")
+            msg = f"Missing required configuration sections: {missing}"
+            raise ValidationError(msg)
 
         # Validate each section
         self._validate_metrics_section(self.config["metrics"])
@@ -183,11 +211,13 @@ class ConfigManager:
 
     def update_config(self, updates: dict[str, Any]) -> ValidationResult:
         """Update configuration with new values.
-        
+
         Args:
+        ----
             updates: New configuration values.
-            
+
         Returns:
+        -------
             ValidationResult indicating success/failure.
         """
         # Create a copy of current config
@@ -202,11 +232,13 @@ class ConfigManager:
 
     def validate_config(self, config: dict[str, Any]) -> ValidationResult:
         """Validate configuration against schema.
-        
+
         Args:
+        ----
             config: Configuration to validate.
-            
+
         Returns:
+        -------
             ValidationResult indicating success/failure.
         """
         try:
@@ -221,11 +253,13 @@ class ConfigManager:
 
     def update_alert_rules(self, rules: list[dict[str, Any]]) -> ValidationResult:
         """Update alert rules in configuration.
-        
+
         Args:
+        ----
             rules: New alert rules.
-            
+
         Returns:
+        -------
             ValidationResult indicating success/failure.
         """
         for rule in rules:
@@ -270,11 +304,13 @@ def get_environment_overrides() -> dict[str, Any]:
 
 def apply_environment_overrides(config: dict[str, Any]) -> dict[str, Any]:
     """Apply environment variable overrides to configuration.
-    
+
     Args:
+    ----
         config: Base configuration.
-        
+
     Returns:
+    -------
         Configuration with overrides applied.
     """
     overrides = get_environment_overrides()

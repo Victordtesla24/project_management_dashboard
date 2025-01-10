@@ -12,20 +12,21 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-from concurrent import futures
 import logging
 import re
 import socket
 import typing
 import unittest
+from concurrent import futures
 
+import pytest
+from tornado import gen
 from tornado.concurrent import (
     Future,
-    run_on_executor,
     future_set_result_unless_cancelled,
+    run_on_executor,
 )
-from tornado.escape import utf8, to_unicode
-from tornado import gen
+from tornado.escape import to_unicode, utf8
 from tornado.iostream import IOStream
 from tornado.tcpserver import TCPServer
 from tornado.testing import AsyncTestCase, bind_unused_port, gen_test
@@ -35,16 +36,16 @@ class MiscFutureTest(AsyncTestCase):
     def test_future_set_result_unless_cancelled(self):
         fut = Future()  # type: Future[int]
         future_set_result_unless_cancelled(fut, 42)
-        self.assertEqual(fut.result(), 42)
-        self.assertFalse(fut.cancelled())
+        assert fut.result() == 42
+        assert not fut.cancelled()
 
         fut = Future()
         fut.cancel()
         is_cancelled = fut.cancelled()
         future_set_result_unless_cancelled(fut, 42)
-        self.assertEqual(fut.cancelled(), is_cancelled)
+        assert fut.cancelled() == is_cancelled
         if not is_cancelled:
-            self.assertEqual(fut.result(), 42)
+            assert fut.result() == 42
 
 
 # The following series of classes demonstrate and test various styles
@@ -68,14 +69,15 @@ class CapError(Exception):
     pass
 
 
-class BaseCapClient(object):
-    def __init__(self, port):
+class BaseCapClient:
+    def __init__(self, port) -> None:
         self.port = port
 
     def process_response(self, data):
         m = re.match("(.*)\t(.*)\n", to_unicode(data))
         if m is None:
-            raise Exception("did not match")
+            msg = "did not match"
+            raise Exception(msg)
         status, message = m.groups()
         if status == "ok":
             return message
@@ -98,7 +100,7 @@ class GeneratorCapClient(BaseCapClient):
         raise gen.Return(self.process_response(data))
 
 
-class ClientTestMixin(object):
+class ClientTestMixin:
     client_class = None  # type: typing.Callable
 
     def setUp(self):
@@ -116,7 +118,7 @@ class ClientTestMixin(object):
         future = self.client.capitalize("hello")
         self.io_loop.add_future(future, self.stop)
         self.wait()
-        self.assertEqual(future.result(), "HELLO")
+        assert future.result() == "HELLO"
 
     def test_future_error(self: typing.Any):
         future = self.client.capitalize("HELLO")
@@ -128,14 +130,14 @@ class ClientTestMixin(object):
         @gen.coroutine
         def f():
             result = yield self.client.capitalize("hello")
-            self.assertEqual(result, "HELLO")
+            assert result == "HELLO"
 
         self.io_loop.run_sync(f)
 
     def test_generator_error(self: typing.Any):
         @gen.coroutine
         def f():
-            with self.assertRaisesRegex(CapError, "already capitalized"):
+            with pytest.raises(CapError, match="already capitalized"):
                 yield self.client.capitalize("HELLO")
 
         self.io_loop.run_sync(f)
@@ -148,8 +150,8 @@ class GeneratorClientTest(ClientTestMixin, AsyncTestCase):
 class RunOnExecutorTest(AsyncTestCase):
     @gen_test
     def test_no_calling(self):
-        class Object(object):
-            def __init__(self):
+        class Object:
+            def __init__(self) -> None:
                 self.executor = futures.thread.ThreadPoolExecutor(1)
 
             @run_on_executor
@@ -158,12 +160,12 @@ class RunOnExecutorTest(AsyncTestCase):
 
         o = Object()
         answer = yield o.f()
-        self.assertEqual(answer, 42)
+        assert answer == 42
 
     @gen_test
     def test_call_with_no_args(self):
-        class Object(object):
-            def __init__(self):
+        class Object:
+            def __init__(self) -> None:
                 self.executor = futures.thread.ThreadPoolExecutor(1)
 
             @run_on_executor()
@@ -172,12 +174,12 @@ class RunOnExecutorTest(AsyncTestCase):
 
         o = Object()
         answer = yield o.f()
-        self.assertEqual(answer, 42)
+        assert answer == 42
 
     @gen_test
     def test_call_with_executor(self):
-        class Object(object):
-            def __init__(self):
+        class Object:
+            def __init__(self) -> None:
                 self.__executor = futures.thread.ThreadPoolExecutor(1)
 
             @run_on_executor(executor="_Object__executor")
@@ -186,12 +188,12 @@ class RunOnExecutorTest(AsyncTestCase):
 
         o = Object()
         answer = yield o.f()
-        self.assertEqual(answer, 42)
+        assert answer == 42
 
     @gen_test
     def test_async_await(self):
-        class Object(object):
-            def __init__(self):
+        class Object:
+            def __init__(self) -> None:
                 self.executor = futures.thread.ThreadPoolExecutor(1)
 
             @run_on_executor()
@@ -201,11 +203,10 @@ class RunOnExecutorTest(AsyncTestCase):
         o = Object()
 
         async def f():
-            answer = await o.f()
-            return answer
+            return await o.f()
 
         result = yield f()
-        self.assertEqual(result, 42)
+        assert result == 42
 
 
 if __name__ == "__main__":

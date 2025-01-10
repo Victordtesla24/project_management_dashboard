@@ -1,7 +1,6 @@
 import numpy as np
-import pytest
-
 import pandas as pd
+import pytest
 from pandas.core.interchange.utils import dtype_to_arrow_c_fmt
 
 # TODO: use ArrowSchema to get reference C-string.
@@ -12,7 +11,7 @@ from pandas.core.interchange.utils import dtype_to_arrow_c_fmt
 
 
 @pytest.mark.parametrize(
-    "pandas_dtype, c_string",
+    ("pandas_dtype", "c_string"),
     [
         (np.dtype("bool"), "b"),
         (np.dtype("int8"), "c"),
@@ -41,7 +40,7 @@ def test_dtype_to_arrow_c_fmt(pandas_dtype, c_string):  # PR01
 
 
 @pytest.mark.parametrize(
-    "pa_dtype, args_kwargs, c_string",
+    ("pa_dtype", "args_kwargs", "c_string"),
     [
         ["null", {}, "n"],
         ["bool_", {}, "b"],

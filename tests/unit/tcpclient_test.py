@@ -12,26 +12,27 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-from contextlib import closing
 import getpass
 import os
 import socket
+import typing
 import unittest
+from contextlib import closing
 
+import pytest
 from tornado.concurrent import Future
-from tornado.netutil import bind_sockets, Resolver
+from tornado.gen import TimeoutError
+from tornado.netutil import Resolver, bind_sockets
 from tornado.queues import Queue
 from tornado.tcpclient import TCPClient, _Connector
 from tornado.tcpserver import TCPServer
+from tornado.test.util import refusing_port, skipIfNoIPv6, skipIfNonUnix
 from tornado.testing import AsyncTestCase, gen_test
-from tornado.test.util import skipIfNoIPv6, refusing_port, skipIfNonUnix
-from tornado.gen import TimeoutError
-
-import typing
 
 if typing.TYPE_CHECKING:
+    from typing import Dict, List, Tuple  # noqa: F401
+
     from tornado.iostream import IOStream  # noqa: F401
-    from typing import List, Dict, Tuple  # noqa: F401
 
 # Fake address families for testing.  Used in place of AF_INET
 # and AF_INET6 because some installations do not have AF_INET6.
@@ -39,7 +40,7 @@ AF1, AF2 = 1, 2
 
 
 class TestTCPServer(TCPServer):
-    def __init__(self, family):
+    def __init__(self, family) -> None:
         super().__init__()
         self.streams = []  # type: List[IOStream]
         self.queue = Queue()  # type: Queue[IOStream]
@@ -83,7 +84,7 @@ class TCPClientTest(AsyncTestCase):
         # The port used here doesn't matter, but some systems require it
         # to be non-zero if we do not also pass AI_PASSIVE.
         addrinfo = self.io_loop.run_sync(lambda: Resolver().resolve("localhost", 80))
-        families = set(addr[0] for addr in addrinfo)
+        families = {addr[0] for addr in addrinfo}
         if socket.AF_INET6 not in families:
             self.skipTest("localhost does not resolve to ipv6")
 
@@ -102,7 +103,7 @@ class TCPClientTest(AsyncTestCase):
         with closing(stream):
             stream.write(b"hello")
             data = yield server_stream.read_bytes(5)
-            self.assertEqual(data, b"hello")
+            assert data == b"hello"
 
     def test_connect_ipv4_ipv4(self):
         self.do_test_connect(socket.AF_INET, "127.0.0.1")
@@ -137,7 +138,7 @@ class TCPClientTest(AsyncTestCase):
     def test_refused_ipv4(self):
         cleanup_func, port = refusing_port()
         self.addCleanup(cleanup_func)
-        with self.assertRaises(IOError):
+        with pytest.raises(IOError):
             yield self.client.connect("127.0.0.1", port)
 
     def test_source_ip_fail(self):
@@ -177,30 +178,26 @@ class TCPClientTest(AsyncTestCase):
             def resolve(self, *args, **kwargs):
                 return Future()  # never completes
 
-        with self.assertRaises(TimeoutError):
-            yield TCPClient(resolver=TimeoutResolver()).connect(
-                "1.2.3.4", 12345, timeout=timeout
-            )
+        with pytest.raises(TimeoutError):
+            yield TCPClient(resolver=TimeoutResolver()).connect("1.2.3.4", 12345, timeout=timeout)
 
 
 class TestConnectorSplit(unittest.TestCase):
     def test_one_family(self):
         # These addresses aren't in the right format, but split doesn't care.
         primary, secondary = _Connector.split([(AF1, "a"), (AF1, "b")])
-        self.assertEqual(primary, [(AF1, "a"), (AF1, "b")])
-        self.assertEqual(secondary, [])
+        assert primary == [(AF1, "a"), (AF1, "b")]
+        assert secondary == []
 
     def test_mixed(self):
-        primary, secondary = _Connector.split(
-            [(AF1, "a"), (AF2, "b"), (AF1, "c"), (AF2, "d")]
-        )
-        self.assertEqual(primary, [(AF1, "a"), (AF1, "c")])
-        self.assertEqual(secondary, [(AF2, "b"), (AF2, "d")])
+        primary, secondary = _Connector.split([(AF1, "a"), (AF2, "b"), (AF1, "c"), (AF2, "d")])
+        assert primary == [(AF1, "a"), (AF1, "c")]
+        assert secondary == [(AF2, "b"), (AF2, "d")]
 
 
 class ConnectorTest(AsyncTestCase):
-    class FakeStream(object):
-        def __init__(self):
+    class FakeStream:
+        def __init__(self) -> None:
             self.closed = False
 
         def close(self):
@@ -218,7 +215,7 @@ class ConnectorTest(AsyncTestCase):
         # Unless explicitly checked (and popped) in the test, we shouldn't
         # be closing any streams
         for stream in self.streams.values():
-            self.assertFalse(stream.closed)
+            assert not stream.closed
         super().tearDown()
 
     def create_stream(self, af, addr):
@@ -229,7 +226,7 @@ class ConnectorTest(AsyncTestCase):
         return stream, future
 
     def assert_pending(self, *keys):
-        self.assertEqual(sorted(self.connect_futures.keys()), sorted(keys))
+        assert sorted(self.connect_futures.keys()) == sorted(keys)
 
     def resolve_connect(self, af, addr, success):
         future = self.connect_futures.pop((af, addr))
@@ -237,14 +234,14 @@ class ConnectorTest(AsyncTestCase):
             future.set_result(self.streams[addr])
         else:
             self.streams.pop(addr)
-            future.set_exception(IOError())
+            future.set_exception(OSError())
         # Run the loop to allow callbacks to be run.
         self.io_loop.add_callback(self.stop)
         self.wait()
 
     def assert_connector_streams_closed(self, conn):
         for stream in conn.streams:
-            self.assertTrue(stream.closed)
+            assert stream.closed
 
     def start_connect(self, addrinfo):
         conn = _Connector(addrinfo, self.create_stream)
@@ -254,9 +251,9 @@ class ConnectorTest(AsyncTestCase):
 
     def test_immediate_success(self):
         conn, future = self.start_connect(self.addrinfo)
-        self.assertEqual(list(self.connect_futures.keys()), [(AF1, "a")])
+        assert list(self.connect_futures.keys()) == [(AF1, "a")]
         self.resolve_connect(AF1, "a", True)
-        self.assertEqual(future.result(), (AF1, "a", self.streams["a"]))
+        assert future.result() == (AF1, "a", self.streams["a"])
 
     def test_immediate_failure(self):
         # Fail with just one address.
@@ -271,7 +268,7 @@ class ConnectorTest(AsyncTestCase):
         self.resolve_connect(AF1, "a", False)
         self.assert_pending((AF1, "b"))
         self.resolve_connect(AF1, "b", True)
-        self.assertEqual(future.result(), (AF1, "b", self.streams["b"]))
+        assert future.result() == (AF1, "b", self.streams["b"])
 
     def test_one_family_second_try_failure(self):
         conn, future = self.start_connect([(AF1, "a"), (AF1, "b")])
@@ -291,7 +288,7 @@ class ConnectorTest(AsyncTestCase):
         self.resolve_connect(AF1, "a", False)
         self.assert_pending((AF1, "b"))
         self.resolve_connect(AF1, "b", True)
-        self.assertEqual(future.result(), (AF1, "b", self.streams["b"]))
+        assert future.result() == (AF1, "b", self.streams["b"])
 
     def test_two_families_immediate_failure(self):
         conn, future = self.start_connect(self.addrinfo)
@@ -300,7 +297,7 @@ class ConnectorTest(AsyncTestCase):
         self.assert_pending((AF1, "b"), (AF2, "c"))
         self.resolve_connect(AF1, "b", False)
         self.resolve_connect(AF2, "c", True)
-        self.assertEqual(future.result(), (AF2, "c", self.streams["c"]))
+        assert future.result() == (AF2, "c", self.streams["c"])
 
     def test_two_families_timeout(self):
         conn, future = self.start_connect(self.addrinfo)
@@ -308,7 +305,7 @@ class ConnectorTest(AsyncTestCase):
         conn.on_timeout()
         self.assert_pending((AF1, "a"), (AF2, "c"))
         self.resolve_connect(AF2, "c", True)
-        self.assertEqual(future.result(), (AF2, "c", self.streams["c"]))
+        assert future.result() == (AF2, "c", self.streams["c"])
         # resolving 'a' after the connection has completed doesn't start 'b'
         self.resolve_connect(AF1, "a", False)
         self.assert_pending()
@@ -319,10 +316,10 @@ class ConnectorTest(AsyncTestCase):
         conn.on_timeout()
         self.assert_pending((AF1, "a"), (AF2, "c"))
         self.resolve_connect(AF1, "a", True)
-        self.assertEqual(future.result(), (AF1, "a", self.streams["a"]))
+        assert future.result() == (AF1, "a", self.streams["a"])
         # resolving 'c' after completion closes the connection.
         self.resolve_connect(AF2, "c", True)
-        self.assertTrue(self.streams.pop("c").closed)
+        assert self.streams.pop("c").closed
 
     def test_all_fail(self):
         conn, future = self.start_connect(self.addrinfo)
@@ -336,7 +333,7 @@ class ConnectorTest(AsyncTestCase):
         self.assert_pending((AF1, "a"))
         self.resolve_connect(AF1, "a", False)
         self.assert_pending((AF1, "b"))
-        self.assertFalse(future.done())
+        assert not future.done()
         self.resolve_connect(AF1, "b", False)
         self.assertRaises(IOError, future.result)
 
@@ -347,12 +344,12 @@ class ConnectorTest(AsyncTestCase):
         # the connector will close all streams on connect timeout, we
         # should explicitly pop the connect_future.
         self.connect_futures.pop((AF1, "a"))
-        self.assertTrue(self.streams.pop("a").closed)
+        assert self.streams.pop("a").closed
         conn.on_timeout()
         # if the future is set with TimeoutError, we will not iterate next
         # possible address.
         self.assert_pending()
-        self.assertEqual(len(conn.streams), 1)
+        assert len(conn.streams) == 1
         self.assert_connector_streams_closed(conn)
         self.assertRaises(TimeoutError, future.result)
 
@@ -362,12 +359,12 @@ class ConnectorTest(AsyncTestCase):
         self.resolve_connect(AF1, "a", True)
         conn.on_connect_timeout()
         self.assert_pending()
-        self.assertEqual(self.streams["a"].closed, False)
+        assert self.streams["a"].closed is False
         # success stream will be pop
-        self.assertEqual(len(conn.streams), 0)
+        assert len(conn.streams) == 0
         # streams in connector should be closed after connect timeout
         self.assert_connector_streams_closed(conn)
-        self.assertEqual(future.result(), (AF1, "a", self.streams["a"]))
+        assert future.result() == (AF1, "a", self.streams["a"])
 
     def test_one_family_second_try_after_connect_timeout(self):
         conn, future = self.start_connect([(AF1, "a"), (AF1, "b")])
@@ -376,9 +373,9 @@ class ConnectorTest(AsyncTestCase):
         self.assert_pending((AF1, "b"))
         conn.on_connect_timeout()
         self.connect_futures.pop((AF1, "b"))
-        self.assertTrue(self.streams.pop("b").closed)
+        assert self.streams.pop("b").closed
         self.assert_pending()
-        self.assertEqual(len(conn.streams), 2)
+        assert len(conn.streams) == 2
         self.assert_connector_streams_closed(conn)
         self.assertRaises(TimeoutError, future.result)
 
@@ -390,7 +387,7 @@ class ConnectorTest(AsyncTestCase):
         self.resolve_connect(AF1, "b", False)
         conn.on_connect_timeout()
         self.assert_pending()
-        self.assertEqual(len(conn.streams), 2)
+        assert len(conn.streams) == 2
         self.assert_connector_streams_closed(conn)
         self.assertRaises(IOError, future.result)
 
@@ -401,11 +398,11 @@ class ConnectorTest(AsyncTestCase):
         self.assert_pending((AF1, "a"), (AF2, "c"))
         conn.on_connect_timeout()
         self.connect_futures.pop((AF1, "a"))
-        self.assertTrue(self.streams.pop("a").closed)
+        assert self.streams.pop("a").closed
         self.connect_futures.pop((AF2, "c"))
-        self.assertTrue(self.streams.pop("c").closed)
+        assert self.streams.pop("c").closed
         self.assert_pending()
-        self.assertEqual(len(conn.streams), 2)
+        assert len(conn.streams) == 2
         self.assert_connector_streams_closed(conn)
         self.assertRaises(TimeoutError, future.result)
 
@@ -417,23 +414,23 @@ class ConnectorTest(AsyncTestCase):
         self.resolve_connect(AF1, "a", True)
         # if one of streams succeed, connector will close all other streams
         self.connect_futures.pop((AF2, "c"))
-        self.assertTrue(self.streams.pop("c").closed)
+        assert self.streams.pop("c").closed
         self.assert_pending()
-        self.assertEqual(len(conn.streams), 1)
+        assert len(conn.streams) == 1
         self.assert_connector_streams_closed(conn)
-        self.assertEqual(future.result(), (AF1, "a", self.streams["a"]))
+        assert future.result() == (AF1, "a", self.streams["a"])
 
     def test_two_family_timeout_after_connect_timeout(self):
         conn, future = self.start_connect(self.addrinfo)
         self.assert_pending((AF1, "a"))
         conn.on_connect_timeout()
         self.connect_futures.pop((AF1, "a"))
-        self.assertTrue(self.streams.pop("a").closed)
+        assert self.streams.pop("a").closed
         self.assert_pending()
         conn.on_timeout()
         # if the future is set with TimeoutError, connector will not
         # trigger secondary address.
         self.assert_pending()
-        self.assertEqual(len(conn.streams), 1)
+        assert len(conn.streams) == 1
         self.assert_connector_streams_closed(conn)
         self.assertRaises(TimeoutError, future.result)

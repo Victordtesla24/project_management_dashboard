@@ -1,388 +1,245 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022-2024)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+"""Worker-level Bootsteps."""
+import atexit
+import warnings
 
-from __future__ import annotations
+from celery import bootsteps
+from celery._state import _set_task_join_will_block
+from celery.exceptions import ImproperlyConfigured
+from celery.platforms import IS_WINDOWS
+from celery.utils.log import worker_logger as logger
+from kombu.asynchronous import Hub as _Hub
+from kombu.asynchronous import get_event_loop, set_event_loop
+from kombu.asynchronous.semaphore import DummyLock, LaxBoundedSemaphore
+from kombu.asynchronous.timer import Timer as _Timer
 
-import inspect
-import json
-import os
-import threading
-from typing import TYPE_CHECKING, Any, Final
+__all__ = ("Timer", "Hub", "Pool", "Beat", "StateDB", "Consumer")
 
-import streamlit
-from streamlit import type_util, util
-from streamlit.elements.form import current_form_id
-from streamlit.errors import StreamlitAPIException
-from streamlit.logger import get_logger
-from streamlit.proto.Components_pb2 import ArrowTable as ArrowTableProto
-from streamlit.proto.Components_pb2 import SpecialArg
-from streamlit.proto.Element_pb2 import Element
-from streamlit.runtime.metrics_util import gather_metrics
-from streamlit.runtime.scriptrunner import get_script_run_ctx
-from streamlit.runtime.state import NoValue, register_widget
-from streamlit.runtime.state.common import compute_widget_id
-from streamlit.type_util import to_bytes
+GREEN_POOLS = {"eventlet", "gevent"}
 
-if TYPE_CHECKING:
-    from streamlit.delta_generator import DeltaGenerator
+ERR_B_GREEN = """\
+-B option doesn't work with eventlet/gevent pools: \
+use standalone beat instead.\
+"""
 
-_LOGGER: Final = get_logger(__name__)
+W_POOL_SETTING = """
+The worker_pool setting shouldn't be used to select the eventlet/gevent
+pools, instead you *must use the -P* argument so that patches are applied
+as early as possible.
+"""
 
 
-class MarshallComponentException(StreamlitAPIException):
-    """Class for exceptions generated during custom component marshalling."""
+class Timer(bootsteps.Step):
+    """Timer bootstep."""
 
-
-
-class CustomComponent:
-    """A Custom Component declaration."""
-
-    def __init__(
-        self,
-        name: str,
-        path: str | None = None,
-        url: str | None = None,
-    ):
-        if (path is None and url is None) or (path is not None and url is not None):
-            raise StreamlitAPIException(
-                "Either 'path' or 'url' must be set, but not both."
+    def create(self, w):
+        if w.use_eventloop:
+            # does not use dedicated timer thread.
+            w.timer = _Timer(max_interval=10.0)
+        else:
+            if not w.timer_cls:
+                # Default Timer is set by the pool, as for example, the
+                # eventlet pool needs a custom timer implementation.
+                w.timer_cls = w.pool_cls.Timer
+            w.timer = self.instantiate(
+                w.timer_cls,
+                max_interval=w.timer_precision,
+                on_error=self.on_timer_error,
+                on_tick=self.on_timer_tick,
             )
 
-        self.name = name
-        self.path = path
-        self.url = url
+    def on_timer_error(self, exc):
+        logger.error("Timer error: %r", exc, exc_info=True)
 
-    def __repr__(self) -> str:
-        return util.repr_(self)
+    def on_timer_tick(self, delay):
+        logger.debug("Timer wake-up! Next ETA %s secs.", delay)
 
-    @property
-    def abspath(self) -> str | None:
-        """The absolute path that the component is served from."""
-        if self.path is None:
-            return None
-        return os.path.abspath(self.path)
 
-    def __call__(
-        self,
-        *args,
-        default: Any = None,
-        key: str | None = None,
-        **kwargs,
-    ) -> Any:
-        """An alias for create_instance."""
-        return self.create_instance(*args, default=default, key=key, **kwargs)
+class Hub(bootsteps.StartStopStep):
+    """Worker starts the event loop."""
 
-    @gather_metrics("create_instance")
-    def create_instance(
-        self,
-        *args,
-        default: Any = None,
-        key: str | None = None,
-        **kwargs,
-    ) -> Any:
-        """Create a new instance of the component.
+    requires = (Timer,)
 
-        Parameters
-        ----------
-        *args
-            Must be empty; all args must be named. (This parameter exists to
-            enforce correct use of the function.)
-        default: any or None
-            The default return value for the component. This is returned when
-            the component's frontend hasn't yet specified a value with
-            `setComponentValue`.
-        key: str or None
-            If not None, this is the user key we use to generate the
-            component's "widget ID".
-        **kwargs
-            Keyword args to pass to the component.
+    def __init__(self, w, **kwargs) -> None:
+        w.hub = None
+        super().__init__(w, **kwargs)
 
-        Returns
-        -------
-        any or None
-            The component's widget value.
+    def include_if(self, w):
+        return w.use_eventloop
 
-        """
-        if len(args) > 0:
-            raise MarshallComponentException(f"Argument '{args[0]}' needs a label")
+    def create(self, w):
+        w.hub = get_event_loop()
+        if w.hub is None:
+            required_hub = getattr(w._conninfo, "requires_hub", None)
+            w.hub = set_event_loop((required_hub if required_hub else _Hub)(w.timer))
+        self._patch_thread_primitives(w)
+        return self
 
+    def start(self, w):
+        pass
+
+    def stop(self, w):
+        w.hub.close()
+
+    def terminate(self, w):
+        w.hub.close()
+
+    def _patch_thread_primitives(self, w):
+        # make clock use dummy lock
+        w.app.clock.mutex = DummyLock()
+        # multiprocessing's ApplyResult uses this lock.
         try:
-            pass
-
-            from streamlit.components.v1 import component_arrow
+            from billiard import pool
         except ImportError:
-            raise StreamlitAPIException(
-                """To use Custom Components in Streamlit, you need to install
-PyArrow. To do so locally:
-
-`pip install pyarrow`
-
-And if you're using Streamlit Cloud, add "pyarrow" to your requirements.txt."""
-            )
-
-        # In addition to the custom kwargs passed to the component, we also
-        # send the special 'default' and 'key' params to the component
-        # frontend.
-        all_args = dict(kwargs, **{"default": default, "key": key})
-
-        json_args = {}
-        special_args = []
-        for arg_name, arg_val in all_args.items():
-            if type_util.is_bytes_like(arg_val):
-                bytes_arg = SpecialArg()
-                bytes_arg.key = arg_name
-                bytes_arg.bytes = to_bytes(arg_val)
-                special_args.append(bytes_arg)
-            elif type_util.is_dataframe_like(arg_val):
-                dataframe_arg = SpecialArg()
-                dataframe_arg.key = arg_name
-                component_arrow.marshall(dataframe_arg.arrow_dataframe.data, arg_val)
-                special_args.append(dataframe_arg)
-            else:
-                json_args[arg_name] = arg_val
-
-        try:
-            serialized_json_args = json.dumps(json_args)
-        except Exception as ex:
-            raise MarshallComponentException(
-                "Could not convert component args to JSON", ex
-            )
-
-        def marshall_component(
-            dg: DeltaGenerator, element: Element
-        ) -> Any | type[NoValue]:
-            element.component_instance.component_name = self.name
-            element.component_instance.form_id = current_form_id(dg)
-            if self.url is not None:
-                element.component_instance.url = self.url
-
-            # Normally, a widget's element_hash (which determines
-            # its identity across multiple runs of an app) is computed
-            # by hashing its arguments. This means that, if any of the arguments
-            # to the widget are changed, Streamlit considers it a new widget
-            # instance and it loses its previous state.
-            #
-            # However! If a *component* has a `key` argument, then the
-            # component's hash identity is determined by entirely by
-            # `component_name + url + key`. This means that, when `key`
-            # exists, the component will maintain its identity even when its
-            # other arguments change, and the component's iframe won't be
-            # remounted on the frontend.
-
-            def marshall_element_args():
-                element.component_instance.json_args = serialized_json_args
-                element.component_instance.special_args.extend(special_args)
-
-            ctx = get_script_run_ctx()
-
-            if key is None:
-                marshall_element_args()
-                id = compute_widget_id(
-                    "component_instance",
-                    user_key=key,
-                    name=self.name,
-                    form_id=current_form_id(dg),
-                    url=self.url,
-                    key=key,
-                    json_args=serialized_json_args,
-                    special_args=special_args,
-                    page=ctx.page_script_hash if ctx else None,
-                )
-            else:
-                id = compute_widget_id(
-                    "component_instance",
-                    user_key=key,
-                    name=self.name,
-                    form_id=current_form_id(dg),
-                    url=self.url,
-                    key=key,
-                    page=ctx.page_script_hash if ctx else None,
-                )
-            element.component_instance.id = id
-
-            def deserialize_component(ui_value, widget_id=""):
-                # ui_value is an object from json, an ArrowTable proto, or a bytearray
-                return ui_value
-
-            component_state = register_widget(
-                element_type="component_instance",
-                element_proto=element.component_instance,
-                user_key=key,
-                widget_func_name=self.name,
-                deserializer=deserialize_component,
-                serializer=lambda x: x,
-                ctx=ctx,
-            )
-            widget_value = component_state.value
-
-            if key is not None:
-                marshall_element_args()
-
-            if widget_value is None:
-                widget_value = default
-            elif isinstance(widget_value, ArrowTableProto):
-                widget_value = component_arrow.arrow_proto_to_dataframe(widget_value)
-
-            # widget_value will be either None or whatever the component's most
-            # recent setWidgetValue value is. We coerce None -> NoValue,
-            # because that's what DeltaGenerator._enqueue expects.
-            return widget_value if widget_value is not None else NoValue
-
-        # We currently only support writing to st._main, but this will change
-        # when we settle on an improved API in a post-layout world.
-        dg = streamlit._main
-
-        element = Element()
-        return_value = marshall_component(dg, element)
-        result = dg._enqueue(
-            "component_instance", element.component_instance, return_value
-        )
-
-        return result
-
-    def __eq__(self, other) -> bool:
-        """Equality operator."""
-        return (
-            isinstance(other, CustomComponent)
-            and self.name == other.name
-            and self.path == other.path
-            and self.url == other.url
-        )
-
-    def __ne__(self, other) -> bool:
-        """Inequality operator."""
-        return not self == other
-
-    def __str__(self) -> str:
-        return f"'{self.name}': {self.path if self.path is not None else self.url}"
+            pass
+        else:
+            pool.Lock = DummyLock
 
 
-def declare_component(
-    name: str,
-    path: str | None = None,
-    url: str | None = None,
-) -> CustomComponent:
-    """Create and register a custom component.
+class Pool(bootsteps.StartStopStep):
+    """Bootstep managing the worker pool.
 
-    Parameters
-    ----------
-    name: str
-        A short, descriptive name for the component. Like, "slider".
-    path: str or None
-        The path to serve the component's frontend files from. Either
-        `path` or `url` must be specified, but not both.
-    url: str or None
-        The URL that the component is served from. Either `path` or `url`
-        must be specified, but not both.
+    Describes how to initialize the worker pool, and starts and stops
+    the pool during worker start-up/shutdown.
 
-    Returns
-    -------
-    CustomComponent
-        A CustomComponent that can be called like a function.
-        Calling the component will create a new instance of the component
-        in the Streamlit app.
+    Adds attributes:
 
+        * autoscale
+        * pool
+        * max_concurrency
+        * min_concurrency
     """
 
-    # Get our stack frame.
-    current_frame = inspect.currentframe()
-    assert current_frame is not None
+    requires = (Hub,)
 
-    # Get the stack frame of our calling function.
-    caller_frame = current_frame.f_back
-    assert caller_frame is not None
+    def __init__(self, w, autoscale=None, **kwargs) -> None:
+        w.pool = None
+        w.max_concurrency = None
+        w.min_concurrency = w.concurrency
+        self.optimization = w.optimization
+        if isinstance(autoscale, str):
+            max_c, _, min_c = autoscale.partition(",")
+            autoscale = [int(max_c), min_c and int(min_c) or 0]
+        w.autoscale = autoscale
+        if w.autoscale:
+            w.max_concurrency, w.min_concurrency = w.autoscale
+        super().__init__(w, **kwargs)
 
-    # Get the caller's module name. `__name__` gives us the module's
-    # fully-qualified name, which includes its package.
-    module = inspect.getmodule(caller_frame)
-    assert module is not None
-    module_name = module.__name__
+    def close(self, w):
+        if w.pool:
+            w.pool.close()
 
-    # If the caller was the main module that was executed (that is, if the
-    # user executed `python my_component.py`), then this name will be
-    # "__main__" instead of the actual package name. In this case, we use
-    # the main module's filename, sans `.py` extension, as the component name.
-    if module_name == "__main__":
-        file_path = inspect.getfile(caller_frame)
-        filename = os.path.basename(file_path)
-        module_name, _ = os.path.splitext(filename)
+    def terminate(self, w):
+        if w.pool:
+            w.pool.terminate()
 
-    # Build the component name.
-    component_name = f"{module_name}.{name}"
+    def create(self, w):
+        semaphore = None
+        max_restarts = None
+        if w.app.conf.worker_pool in GREEN_POOLS:  # pragma: no cover
+            warnings.warn(UserWarning(W_POOL_SETTING))
+        threaded = not w.use_eventloop or IS_WINDOWS
+        procs = w.min_concurrency
+        w.process_task = w._process_task
+        if not threaded:
+            semaphore = w.semaphore = LaxBoundedSemaphore(procs)
+            w._quick_acquire = w.semaphore.acquire
+            w._quick_release = w.semaphore.release
+            max_restarts = 100
+            if w.pool_putlocks and w.pool_cls.uses_semaphore:
+                w.process_task = w._process_task_sem
+        allow_restart = w.pool_restarts
+        pool = w.pool = self.instantiate(
+            w.pool_cls,
+            w.min_concurrency,
+            initargs=(w.app, w.hostname),
+            maxtasksperchild=w.max_tasks_per_child,
+            max_memory_per_child=w.max_memory_per_child,
+            timeout=w.time_limit,
+            soft_timeout=w.soft_time_limit,
+            putlocks=w.pool_putlocks and threaded,
+            lost_worker_timeout=w.worker_lost_wait,
+            threads=threaded,
+            max_restarts=max_restarts,
+            allow_restart=allow_restart,
+            forking_enable=True,
+            semaphore=semaphore,
+            sched_strategy=self.optimization,
+            app=w.app,
+        )
+        _set_task_join_will_block(pool.task_join_will_block)
+        return pool
 
-    # Create our component object, and register it.
-    component = CustomComponent(name=component_name, path=path, url=url)
-    ComponentRegistry.instance().register_component(component)
+    def info(self, w):
+        return {"pool": w.pool.info if w.pool else "N/A"}
 
-    return component
+    def register_with_event_loop(self, w, hub):
+        w.pool.register_with_event_loop(hub)
 
 
-class ComponentRegistry:
-    _instance_lock: threading.Lock = threading.Lock()
-    _instance: ComponentRegistry | None = None
+class Beat(bootsteps.StartStopStep):
+    """Step used to embed a beat process.
 
-    @classmethod
-    def instance(cls) -> ComponentRegistry:
-        """Returns the singleton ComponentRegistry"""
-        # We use a double-checked locking optimization to avoid the overhead
-        # of acquiring the lock in the common case:
-        # https://en.wikipedia.org/wiki/Double-checked_locking
-        if cls._instance is None:
-            with cls._instance_lock:
-                if cls._instance is None:
-                    cls._instance = ComponentRegistry()
-        return cls._instance
+    Enabled when the ``beat`` argument is set.
+    """
 
-    def __init__(self):
-        self._components: dict[str, CustomComponent] = {}
-        self._lock = threading.Lock()
+    label = "Beat"
+    conditional = True
 
-    def __repr__(self) -> str:
-        return util.repr_(self)
+    def __init__(self, w, beat=False, **kwargs) -> None:
+        self.enabled = w.beat = beat
+        w.beat = None
+        super().__init__(w, beat=beat, **kwargs)
 
-    def register_component(self, component: CustomComponent) -> None:
-        """Register a CustomComponent.
+    def create(self, w):
+        from celery.beat import EmbeddedService
 
-        Parameters
-        ----------
-        component : CustomComponent
-            The component to register.
-        """
+        if w.pool_cls.__module__.endswith(("gevent", "eventlet")):
+            raise ImproperlyConfigured(ERR_B_GREEN)
+        b = w.beat = EmbeddedService(
+            w.app,
+            schedule_filename=w.schedule_filename,
+            scheduler_cls=w.scheduler,
+        )
+        return b
 
-        # Validate the component's path
-        abspath = component.abspath
-        if abspath is not None and not os.path.isdir(abspath):
-            raise StreamlitAPIException(f"No such component directory: '{abspath}'")
 
-        with self._lock:
-            existing = self._components.get(component.name)
-            self._components[component.name] = component
+class StateDB(bootsteps.Step):
+    """Bootstep that sets up between-restart state database file."""
 
-        if existing is not None and component != existing:
-            _LOGGER.warning(
-                "%s overriding previously-registered %s",
-                component,
-                existing,
-            )
+    def __init__(self, w, **kwargs) -> None:
+        self.enabled = w.statedb
+        w._persistence = None
+        super().__init__(w, **kwargs)
 
-        _LOGGER.debug("Registered component %s", component)
+    def create(self, w):
+        w._persistence = w.state.Persistent(w.state, w.statedb, w.app.clock)
+        atexit.register(w._persistence.save)
 
-    def get_component_path(self, name: str) -> str | None:
-        """Return the filesystem path for the component with the given name.
 
-        If no such component is registered, or if the component exists but is
-        being served from a URL, return None instead.
-        """
-        component = self._components.get(name, None)
-        return component.abspath if component is not None else None
+class Consumer(bootsteps.StartStopStep):
+    """Bootstep starting the Consumer blueprint."""
+
+    last = True
+
+    def create(self, w):
+        if w.max_concurrency:
+            prefetch_count = max(w.max_concurrency, 1) * w.prefetch_multiplier
+        else:
+            prefetch_count = w.concurrency * w.prefetch_multiplier
+        c = w.consumer = self.instantiate(
+            w.consumer_cls,
+            w.process_task,
+            hostname=w.hostname,
+            task_events=w.task_events,
+            init_callback=w.ready_callback,
+            initial_prefetch_count=prefetch_count,
+            pool=w.pool,
+            timer=w.timer,
+            app=w.app,
+            controller=w,
+            hub=w.hub,
+            worker_options=w.options,
+            disable_rate_limits=w.disable_rate_limits,
+            prefetch_multiplier=w.prefetch_multiplier,
+        )
+        return c

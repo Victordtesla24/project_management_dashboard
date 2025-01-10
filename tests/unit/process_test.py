@@ -7,15 +7,16 @@ import sys
 import time
 import unittest
 
+import pytest
 from tornado.httpclient import HTTPClient, HTTPError
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.log import gen_log
-from tornado.process import fork_processes, task_id, Subprocess
+from tornado.process import Subprocess, fork_processes, task_id
 from tornado.simple_httpclient import SimpleAsyncHTTPClient
-from tornado.testing import bind_unused_port, ExpectLog, AsyncTestCase, gen_test
 from tornado.test.util import skipIfNonUnix
-from tornado.web import RequestHandler, Application
+from tornado.testing import AsyncTestCase, ExpectLog, bind_unused_port, gen_test
+from tornado.web import Application, RequestHandler
 
 
 # Not using AsyncHTTPTestCase because we need control over the IOLoop.
@@ -54,9 +55,7 @@ class ProcessTest(unittest.TestCase):
         # reactor and don't restore it to a sane state after the fork
         # (asyncio has the same issue, but we have a special case in
         # place for it).
-        with ExpectLog(
-            gen_log, "(Starting .* processes|child .* exited|uncaught exception)"
-        ):
+        with ExpectLog(gen_log, "(Starting .* processes|child .* exited|uncaught exception)"):
             sock, port = bind_unused_port()
 
             def get_url(path):
@@ -66,18 +65,18 @@ class ProcessTest(unittest.TestCase):
             signal.alarm(5)  # master process
             try:
                 id = fork_processes(3, max_restarts=3)
-                self.assertTrue(id is not None)
+                assert id is not None
                 signal.alarm(5)  # child processes
             except SystemExit as e:
                 # if we exit cleanly from fork_processes, all the child processes
                 # finished with status 0
-                self.assertEqual(e.code, 0)
-                self.assertTrue(task_id() is None)
+                assert e.code == 0
+                assert task_id() is None
                 sock.close()
                 return
             try:
                 if id in (0, 1):
-                    self.assertEqual(id, task_id())
+                    assert id == task_id()
 
                     async def f():
                         server = HTTPServer(self.get_app())
@@ -86,7 +85,7 @@ class ProcessTest(unittest.TestCase):
 
                     asyncio.run(f())
                 elif id == 2:
-                    self.assertEqual(id, task_id())
+                    assert id == task_id()
                     sock.close()
                     # Always use SimpleAsyncHTTPClient here; the curl
                     # version appears to get confused sometimes if the
@@ -122,7 +121,7 @@ class ProcessTest(unittest.TestCase):
                     pid = int(fetch("/").body)
                     fetch("/?exit=4", fail_ok=True)
                     pid2 = int(fetch("/").body)
-                    self.assertNotEqual(pid, pid2)
+                    assert pid != pid2
 
                     # Kill the last one so we shut down cleanly
                     fetch("/?exit=0", fail_ok=True)
@@ -147,9 +146,8 @@ class SubprocessTest(AsyncTestCase):
             # This probably indicates a problem with either TornadoReactor
             # or TwistedIOLoop, but I haven't been able to track it down
             # and for now this is just causing spurious travis-ci failures.
-            raise unittest.SkipTest(
-                "Subprocess tests not compatible with " "LayeredTwistedIOLoop"
-            )
+            msg = "Subprocess tests not compatible with LayeredTwistedIOLoop"
+            raise unittest.SkipTest(msg)
         subproc = Subprocess(
             [sys.executable, "-u", "-i"],
             stdin=Subprocess.STREAM,
@@ -162,12 +160,12 @@ class SubprocessTest(AsyncTestCase):
         yield subproc.stdout.read_until(b">>> ")
         subproc.stdin.write(b"print('hello')\n")
         data = yield subproc.stdout.read_until(b"\n")
-        self.assertEqual(data, b"hello\n")
+        assert data == b"hello\n"
 
         yield subproc.stdout.read_until(b">>> ")
         subproc.stdin.write(b"raise SystemExit\n")
         data = yield subproc.stdout.read_until_close()
-        self.assertEqual(data, b"")
+        assert data == b""
 
     @gen_test
     def test_close_stdin(self):
@@ -182,7 +180,7 @@ class SubprocessTest(AsyncTestCase):
         yield subproc.stdout.read_until(b">>> ")
         subproc.stdin.close()
         data = yield subproc.stdout.read_until_close()
-        self.assertEqual(data, b"\n")
+        assert data == b"\n"
 
     @gen_test
     def test_stderr(self):
@@ -194,7 +192,7 @@ class SubprocessTest(AsyncTestCase):
         )
         self.addCleanup(lambda: self.term_and_wait(subproc))
         data = yield subproc.stderr.read_until(b"\n")
-        self.assertEqual(data, b"hello\n")
+        assert data == b"hello\n"
         # More mysterious EBADF: This fails if done with self.addCleanup instead of here.
         subproc.stderr.close()
 
@@ -204,8 +202,8 @@ class SubprocessTest(AsyncTestCase):
         subproc = Subprocess([sys.executable, "-c", "pass"])
         subproc.set_exit_callback(self.stop)
         ret = self.wait()
-        self.assertEqual(ret, 0)
-        self.assertEqual(subproc.returncode, ret)
+        assert ret == 0
+        assert subproc.returncode == ret
 
     @gen_test
     def test_sigchild_future(self):
@@ -213,8 +211,8 @@ class SubprocessTest(AsyncTestCase):
         self.addCleanup(Subprocess.uninitialize)
         subproc = Subprocess([sys.executable, "-c", "pass"])
         ret = yield subproc.wait_for_exit()
-        self.assertEqual(ret, 0)
-        self.assertEqual(subproc.returncode, ret)
+        assert ret == 0
+        assert subproc.returncode == ret
 
     def test_sigchild_signal(self):
         Subprocess.initialize()
@@ -248,22 +246,24 @@ class SubprocessTest(AsyncTestCase):
             try:
                 self.wait()
             except AssertionError:
-                raise AssertionError("subprocess failed to terminate")
+                msg = "subprocess failed to terminate"
+                raise AssertionError(msg)
             else:
+                msg = "subprocess closed stdout but failed to get termination signal"
                 raise AssertionError(
-                    "subprocess closed stdout but failed to " "get termination signal"
+                    msg,
                 )
-        self.assertEqual(subproc.returncode, ret)
-        self.assertEqual(ret, -signal.SIGTERM)
+        assert subproc.returncode == ret
+        assert ret == -signal.SIGTERM
 
     @gen_test
     def test_wait_for_exit_raise(self):
         Subprocess.initialize()
         self.addCleanup(Subprocess.uninitialize)
         subproc = Subprocess([sys.executable, "-c", "import sys; sys.exit(1)"])
-        with self.assertRaises(subprocess.CalledProcessError) as cm:
+        with pytest.raises(subprocess.CalledProcessError) as cm:
             yield subproc.wait_for_exit()
-        self.assertEqual(cm.exception.returncode, 1)
+        assert cm.exception.returncode == 1
 
     @gen_test
     def test_wait_for_exit_raise_disabled(self):
@@ -271,4 +271,4 @@ class SubprocessTest(AsyncTestCase):
         self.addCleanup(Subprocess.uninitialize)
         subproc = Subprocess([sys.executable, "-c", "import sys; sys.exit(1)"])
         ret = yield subproc.wait_for_exit(raise_error=False)
-        self.assertEqual(ret, 1)
+        assert ret == 1

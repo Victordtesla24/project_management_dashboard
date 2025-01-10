@@ -1,4 +1,4 @@
-"""\1"""
+r"""\1."""
 DEFAULT_CONFIG = {
     "metrics": {
         "collection_interval": 60,

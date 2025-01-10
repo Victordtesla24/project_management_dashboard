@@ -79,7 +79,9 @@ class TestStruct(unittest.TestCase):
 
         # number of types different
         r5 = RStruct(
-            "FooBarBaz", ["a", "b", "c"], [bool_rprimitive, int_rprimitive, bool_rprimitive]
+            "FooBarBaz",
+            ["a", "b", "c"],
+            [bool_rprimitive, int_rprimitive, bool_rprimitive],
         )
 
         assert is_runtime_subtype(r1, r) is True

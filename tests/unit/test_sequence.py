@@ -1,25 +1,12 @@
-# testing/suite/test_sequence.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
-# <see AUTHORS file>
-#
-# This module is part of SQLAlchemy and is released under
-# the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
-from .. import config
-from .. import fixtures
-from ..assertions import eq_
-from ..assertions import is_true
-from ..config import requirements
-from ..provision import normalize_sequence
-from ..schema import Column
-from ..schema import Table
-from ... import inspect
-from ... import Integer
-from ... import MetaData
-from ... import Sequence
-from ... import String
-from ... import testing
+from sqlalchemy import Integer, MetaData, Sequence, String, inspect, testing
+
+from tests import config, fixtures
+from tests.assertions import eq_, is_true
+from tests.config import requirements
+from tests.provision import normalize_sequence
+from tests.schema import Column, Table
 
 
 class SequenceTest(fixtures.TablesTest):
@@ -89,11 +76,11 @@ class SequenceTest(fixtures.TablesTest):
             )
 
     def test_insert_roundtrip(self, connection):
-        connection.execute(self.tables.seq_pk.insert(), dict(data="some data"))
+        connection.execute(self.tables.seq_pk.insert(), {"data": "some data"})
         self._assert_round_trip(self.tables.seq_pk, connection)
 
     def test_insert_lastrowid(self, connection):
-        r = connection.execute(self.tables.seq_pk.insert(), dict(data="some data"))
+        r = connection.execute(self.tables.seq_pk.insert(), {"data": "some data"})
         eq_(r.inserted_primary_key, (testing.db.dialect.default_sequence_base,))
 
     def test_nextval_direct(self, connection):
@@ -102,7 +89,7 @@ class SequenceTest(fixtures.TablesTest):
 
     @requirements.sequences_optional
     def test_optional_seq(self, connection):
-        r = connection.execute(self.tables.seq_opt_pk.insert(), dict(data="some data"))
+        r = connection.execute(self.tables.seq_opt_pk.insert(), {"data": "some data"})
         eq_(r.inserted_primary_key, (1,))
 
     def _assert_round_trip(self, table, conn):
@@ -110,9 +97,7 @@ class SequenceTest(fixtures.TablesTest):
         eq_(row, (testing.db.dialect.default_sequence_base, "some data"))
 
     def test_insert_roundtrip_no_implicit_returning(self, connection):
-        connection.execute(
-            self.tables.seq_no_returning.insert(), dict(data="some data")
-        )
+        connection.execute(self.tables.seq_no_returning.insert(), {"data": "some data"})
         self._assert_round_trip(self.tables.seq_no_returning, connection)
 
     @testing.combinations((True,), (False,), argnames="implicit_returning")
@@ -124,9 +109,7 @@ class SequenceTest(fixtures.TablesTest):
             Column(
                 "id",
                 Integer,
-                normalize_sequence(
-                    config, Sequence("noret_sch_id_seq", schema="alt_schema")
-                ),
+                normalize_sequence(config, Sequence("noret_sch_id_seq", schema="alt_schema")),
                 primary_key=True,
             ),
             Column("data", String(50)),
@@ -135,18 +118,16 @@ class SequenceTest(fixtures.TablesTest):
         )
 
         connection = connection.execution_options(
-            schema_translate_map={"alt_schema": config.test_schema}
+            schema_translate_map={"alt_schema": config.test_schema},
         )
-        connection.execute(seq_no_returning.insert(), dict(data="some data"))
+        connection.execute(seq_no_returning.insert(), {"data": "some data"})
         self._assert_round_trip(seq_no_returning, connection)
 
     @testing.requires.schemas
     def test_nextval_direct_schema_translate(self, connection):
-        seq = normalize_sequence(
-            config, Sequence("noret_sch_id_seq", schema="alt_schema")
-        )
+        seq = normalize_sequence(config, Sequence("noret_sch_id_seq", schema="alt_schema"))
         connection = connection.execution_options(
-            schema_translate_map={"alt_schema": config.test_schema}
+            schema_translate_map={"alt_schema": config.test_schema},
         )
 
         r = connection.scalar(seq)
@@ -168,11 +149,12 @@ class SequenceCompilerTest(testing.AssertsCompiledSQL, fixtures.TestBase):
         stmt = table.insert().values(q=5)
 
         seq_nextval = connection.dialect.statement_compiler(
-            statement=None, dialect=connection.dialect
+            statement=None,
+            dialect=connection.dialect,
         ).visit_sequence(normalize_sequence(config, Sequence("y_seq")))
         self.assert_compile(
             stmt,
-            "INSERT INTO x (y, q) VALUES (%s, 5)" % (seq_nextval,),
+            f"INSERT INTO x (y, q) VALUES ({seq_nextval}, 5)",
             literal_binds=True,
             dialect=connection.dialect,
         )
@@ -243,18 +225,14 @@ class HasSequenceTest(fixtures.TablesTest):
     @testing.requires.schemas
     def test_has_sequence_schemas_neg(self, connection):
         eq_(
-            inspect(connection).has_sequence(
-                "some_sequence", schema=config.test_schema
-            ),
+            inspect(connection).has_sequence("some_sequence", schema=config.test_schema),
             False,
         )
 
     @testing.requires.schemas
     def test_has_sequence_default_not_in_remote(self, connection):
         eq_(
-            inspect(connection).has_sequence(
-                "other_sequence", schema=config.test_schema
-            ),
+            inspect(connection).has_sequence("other_sequence", schema=config.test_schema),
             False,
         )
 

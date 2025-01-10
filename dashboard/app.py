@@ -1,4 +1,5 @@
 """Main application module."""
+import contextlib
 import logging
 import os
 
@@ -10,13 +11,16 @@ from .routes import bp as routes_bp
 
 logger = logging.getLogger(__name__)
 
+
 def create_app(config=None):
     """Create and configure the Flask application.
-    
+
     Args:
+    ----
         config: Optional configuration dictionary.
-        
+
     Returns:
+    -------
         Flask application instance.
     """
     app = Flask(__name__)
@@ -30,10 +34,8 @@ def create_app(config=None):
     CORS(app)
 
     # Ensure instance folder exists
-    try:
+    with contextlib.suppress(OSError):
         os.makedirs(app.instance_path)
-    except OSError:
-        pass
 
     # Register blueprints
     app.register_blueprint(routes_bp)

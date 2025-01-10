@@ -1,26 +1,21 @@
-# testing/suite/test_rowcount.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
-# <see AUTHORS file>
-#
-# This module is part of SQLAlchemy and is released under
-# the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
-from sqlalchemy import bindparam
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import MetaData
-from sqlalchemy import select
-from sqlalchemy import String
-from sqlalchemy import Table
-from sqlalchemy import testing
-from sqlalchemy import text
-from sqlalchemy.testing import eq_
-from sqlalchemy.testing import fixtures
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    bindparam,
+    select,
+    testing,
+    text,
+)
+from sqlalchemy.testing import eq_, fixtures
 
 
 class RowCountTest(fixtures.TablesTest):
-    """test rowcount functionality"""
+    """test rowcount functionality."""
 
     __requires__ = ("sane_rowcount",)
     __backend__ = True
@@ -57,16 +52,13 @@ class RowCountTest(fixtures.TablesTest):
         employees_table = cls.tables.employees
         connection.execute(
             employees_table.insert(),
-            [
-                {"employee_id": i, "name": n, "department": d}
-                for i, (n, d) in enumerate(data)
-            ],
+            [{"employee_id": i, "name": n, "department": d} for i, (n, d) in enumerate(data)],
         )
 
     def test_basic(self, connection):
         employees_table = self.tables.employees
         s = select(employees_table.c.name, employees_table.c.department).order_by(
-            employees_table.c.employee_id
+            employees_table.c.employee_id,
         )
         rows = connection.execute(s).fetchall()
 
@@ -101,7 +93,7 @@ class RowCountTest(fixtures.TablesTest):
             )
         elif statement.select:
             s = select(employees_table.c.name, employees_table.c.department).where(
-                employees_table.c.department == "C"
+                employees_table.c.department == "C",
             )
             r = connection.execute(s)
             r.all()
@@ -144,16 +136,13 @@ class RowCountTest(fixtures.TablesTest):
             ("delete", testing.requires.delete_returning),
         ],
     )
-    def test_update_delete_rowcount_return_defaults(
-        self, connection, implicit_returning, dml
-    ):
-        """note this test should succeed for all RETURNING backends
+    def test_update_delete_rowcount_return_defaults(self, connection, implicit_returning, dml):
+        """Note this test should succeed for all RETURNING backends
         as of 2.0.  In
         Idf28379f8705e403a3c6a937f6a798a042ef2540 we changed rowcount to use
-        len(rows) when we have implicit returning
+        len(rows) when we have implicit returning.
 
         """
-
         if implicit_returning:
             employees_table = self.tables.employees
         else:
@@ -191,14 +180,14 @@ class RowCountTest(fixtures.TablesTest):
     def test_raw_sql_rowcount(self, connection):
         # test issue #3622, make sure eager rowcount is called for text
         result = connection.exec_driver_sql(
-            "update employees set department='Z' where department='C'"
+            "update employees set department='Z' where department='C'",
         )
         eq_(result.rowcount, 3)
 
     def test_text_rowcount(self, connection):
         # test issue #3622, make sure eager rowcount is called for text
         result = connection.execute(
-            text("update employees set department='Z' " "where department='C'")
+            text("update employees set department='Z' where department='C'"),
         )
         eq_(result.rowcount, 3)
 
@@ -234,9 +223,7 @@ class RowCountTest(fixtures.TablesTest):
     def test_multi_delete_rowcount(self, connection):
         employees_table = self.tables.employees
 
-        stmt = employees_table.delete().where(
-            employees_table.c.name == bindparam("emp_name")
-        )
+        stmt = employees_table.delete().where(employees_table.c.name == bindparam("emp_name"))
 
         r = connection.execute(
             stmt,

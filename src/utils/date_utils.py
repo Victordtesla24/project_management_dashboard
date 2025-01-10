@@ -11,8 +11,7 @@ lock_ = threading.Lock()
 
 
 class DateHelper:
-    """
-    DateHelper to groups different implementations of date operations.
+    """DateHelper to groups different implementations of date operations.
 
     If you would like to serialize the query results to custom timezone, you can use following code:
 
@@ -31,8 +30,7 @@ class DateHelper:
     """
 
     def __init__(self, timezone: datetime.tzinfo = tz.utc) -> None:
-        """
-        Initialize defaults.
+        """Initialize defaults.
 
         :param timezone: Default timezone used for serialization "datetime" without "tzinfo".
                          Default value is "UTC".
@@ -40,29 +38,26 @@ class DateHelper:
         self.timezone = timezone
 
     def parse_date(self, date_string: str):
-        """
-        Parse string into Date or Timestamp.
+        """Parse string into Date or Timestamp.
 
         :return: Returns a :class:`datetime.datetime` object or compliant implementation
                  like :class:`class 'pandas._libs.tslibs.timestamps.Timestamp`
         """
 
     def to_nanoseconds(self, delta):
-        """
-        Get number of nanoseconds in timedelta.
+        """Get number of nanoseconds in timedelta.
 
         Solution comes from v1 client. Thx.
         https://github.com/influxdata/influxdb-python/pull/811
         """
-        nanoseconds_in_days = delta.days * 86400 * 10 ** 9
-        nanoseconds_in_seconds = delta.seconds * 10 ** 9
-        nanoseconds_in_micros = delta.microseconds * 10 ** 3
+        nanoseconds_in_days = delta.days * 86400 * 10**9
+        nanoseconds_in_seconds = delta.seconds * 10**9
+        nanoseconds_in_micros = delta.microseconds * 10**3
 
         return nanoseconds_in_days + nanoseconds_in_seconds + nanoseconds_in_micros
 
     def to_utc(self, value: datetime):
-        """
-        Convert datetime to UTC timezone.
+        """Convert datetime to UTC timezone.
 
         :param value: datetime
         :return: datetime in UTC
@@ -74,8 +69,7 @@ class DateHelper:
 
 
 def get_date_helper() -> DateHelper:
-    """
-    Return DateHelper with proper implementation.
+    """Return DateHelper with proper implementation.
 
     If there is a 'ciso8601' than use 'ciso8601.parse_datetime' else use 'dateutil.parse'.
     """
@@ -87,6 +81,7 @@ def get_date_helper() -> DateHelper:
                 _date_helper = DateHelper()
                 try:
                     import ciso8601
+
                     _date_helper.parse_date = ciso8601.parse_datetime
                 except ModuleNotFoundError:
                     _date_helper.parse_date = parser.parse

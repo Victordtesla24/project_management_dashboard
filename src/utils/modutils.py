@@ -25,15 +25,18 @@ import logging
 import os
 import sys
 import sysconfig
-import types
 import warnings
-from collections.abc import Callable, Iterable, Sequence
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from astroid.const import IS_JYTHON, IS_PYPY, PY310_PLUS
 from astroid.interpreter._import import spec, util
+
+if TYPE_CHECKING:
+    import types
+    from collections.abc import Callable, Iterable, Sequence
 
 if PY310_PLUS:
     from sys import stdlib_module_names
@@ -67,10 +70,8 @@ if os.name == "nt":
         # sys.base_exec_prefix is always defined, but in a virtual environment
         # created with the stdlib **venv** module, it points to the original
         # installation, if the virtual env is activated.
-        try:
+        with suppress(AttributeError):
             STD_LIB_DIRS.add(os.path.join(sys.base_exec_prefix, "dlls"))
-        except AttributeError:
-            pass
 
 if IS_PYPY and sys.version_info < (3, 8):
     # PyPy stores the stdlib in two places: sys.prefix/lib_pypy and sys.prefix/lib-python/3
@@ -250,7 +251,8 @@ def _get_relative_base_path(filename: str, path_to_check: str) -> list[str] | No
     this allows to find the relative base path even if the file is a
     symlink of a file in the passed in path
 
-    Examples:
+    Examples
+    --------
         _get_relative_base_path("/a/b/c/d.py", "/a/b") ->  ["c","d"]
         _get_relative_base_path("/a/b/c/d.py", "/dev") ->  None
     """
@@ -291,7 +293,8 @@ def modpath_from_file_with_callback(
         if is_package_cb(pathname, modpath[:-1]):
             return modpath
 
-    raise ImportError("Unable to find module for {} in {}".format(filename, ", \n".join(sys.path)))
+    msg = "Unable to find module for {} in {}".format(filename, ", \n".join(sys.path))
+    raise ImportError(msg)
 
 
 def modpath_from_file(filename: str, path: Sequence[str] | None = None) -> list[str]:
@@ -430,7 +433,9 @@ def get_module_part(dotted_name: str, context_file: str | None = None) -> str:
 
 
 def get_module_files(
-    src_directory: str, blacklist: Sequence[str], list_all: bool = False,
+    src_directory: str,
+    blacklist: Sequence[str],
+    list_all: bool = False,
 ) -> list[str]:
     """Given a package directory return a list of all available python
     module's files in the package and its subpackages.
@@ -496,12 +501,12 @@ def is_python_source(filename: str | None) -> bool:
 
 
 def is_stdlib_module(modname: str) -> bool:
-    """Return: True if the modname is in the standard library"""
+    """Return: True if the modname is in the standard library."""
     return modname.split(".")[0] in stdlib_module_names
 
 
 def module_in_path(modname: str, path: str | Iterable[str]) -> bool:
-    """Try to determine if a module is imported from one of the specified paths
+    """Try to determine if a module is imported from one of the specified paths.
 
     :param modname: name of the module
 
@@ -511,7 +516,6 @@ def module_in_path(modname: str, path: str | Iterable[str]) -> bool:
       true if the module:
       - is located on the path listed in one of the directory in `paths`
     """
-
     modname = modname.split(".")[0]
     try:
         filename = file_from_modpath([modname])
@@ -662,10 +666,10 @@ def is_directory(specobj: spec.ModuleSpec) -> bool:
 
 
 def is_module_name_part_of_extension_package_whitelist(
-    module_name: str, package_whitelist: set[str],
+    module_name: str,
+    package_whitelist: set[str],
 ) -> bool:
-    """
-    Returns True if one part of the module name is in the package whitelist.
+    """Returns True if one part of the module name is in the package whitelist.
 
     >>> is_module_name_part_of_extension_package_whitelist('numpy.core.umath', {'numpy'})
     True

@@ -26,7 +26,7 @@ ssl_context = None
 if config.get("ssl"):
 # SSL configuration would go here if needed
 self.server = await websockets.serve(
-self.handle_client, config["host"], config["port"], ssl=ssl_context
+self.handle_client, config["host"], config["port"], ssl=ssl_context,
     )
 self.running = True
 self.collection_task = asyncio.create_task(self.collect_metrics_loop())
@@ -81,7 +81,7 @@ except json.JSONDecodeError:
 await websocket.send(json.dumps({"error": "Invalid JSON format"}))
 except Exception as e:
 await websocket.send(
-json.dumps({"error": f"Message handling error: {str(e)}"})
+json.dumps({"error": f"Message handling error: {str(e)}"}),
     )
 except websockets.ConnectionClosed:
 finally:

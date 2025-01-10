@@ -1,9 +1,3 @@
-# testing/suite/test_types.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
-# <see AUTHORS file>
-#
-# This module is part of SQLAlchemy and is released under
-# the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
 
@@ -13,51 +7,46 @@ import json
 import re
 import uuid
 
-from .. import config
-from .. import engines
-from .. import fixtures
-from .. import mock
-from ..assertions import eq_
-from ..assertions import is_
-from ..assertions import ne_
-from ..config import requirements
-from ..schema import Column
-from ..schema import Table
-from ... import and_
-from ... import ARRAY
-from ... import BigInteger
-from ... import bindparam
-from ... import Boolean
-from ... import case
-from ... import cast
-from ... import Date
-from ... import DateTime
-from ... import Float
-from ... import Integer
-from ... import Interval
-from ... import JSON
-from ... import literal
-from ... import literal_column
-from ... import MetaData
-from ... import null
-from ... import Numeric
-from ... import select
-from ... import String
-from ... import testing
-from ... import Text
-from ... import Time
-from ... import TIMESTAMP
-from ... import type_coerce
-from ... import TypeDecorator
-from ... import Unicode
-from ... import UnicodeText
-from ... import UUID
-from ... import Uuid
-from ...orm import declarative_base
-from ...orm import Session
-from ...sql import sqltypes
-from ...sql.sqltypes import LargeBinary
-from ...sql.sqltypes import PickleType
+from sqlalchemy import (
+    ARRAY,
+    JSON,
+    TIMESTAMP,
+    UUID,
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    Integer,
+    Interval,
+    MetaData,
+    Numeric,
+    String,
+    Text,
+    Time,
+    TypeDecorator,
+    Unicode,
+    UnicodeText,
+    Uuid,
+    and_,
+    bindparam,
+    case,
+    cast,
+    literal,
+    literal_column,
+    null,
+    select,
+    testing,
+    type_coerce,
+)
+from sqlalchemy.orm import Session, declarative_base
+from sqlalchemy.sql import sqltypes
+from sqlalchemy.sql.sqltypes import LargeBinary, PickleType
+
+from tests import config, engines, fixtures, mock
+from tests.assertions import eq_, is_, ne_
+from tests.config import requirements
+from tests.schema import Column, Table
 
 
 class _LiteralRoundTripFixture:
@@ -65,8 +54,7 @@ class _LiteralRoundTripFixture:
 
     @testing.fixture
     def literal_round_trip(self, metadata, connection):
-        """test literal rendering"""
-
+        """Test literal rendering."""
         # for literal, we test the literal render in an INSERT
         # into a typed column.  we can then SELECT it back as its
         # official type; ideally we'd be able to use CAST here
@@ -113,7 +101,7 @@ class _LiteralRoundTripFixture:
                             compare if compare is not None else input_[0],
                             type_,
                             literal_execute=True,
-                        )
+                        ),
                     )
             else:
                 stmt = t.select().where(t.c.x.is_not(None))
@@ -258,9 +246,7 @@ class ArrayTest(_LiteralRoundTripFixture, fixtures.TablesTest):
                 "multi_dim": [["one", "two"], ["thr'ee", "réve🐍 illé"]],
             },
         )
-        row = connection.execute(
-            select(array_table.c.single_dim, array_table.c.multi_dim)
-        ).first()
+        row = connection.execute(select(array_table.c.single_dim, array_table.c.multi_dim)).first()
         eq_(row, ([1, 2, 3], [["one", "two"], ["thr'ee", "réve🐍 illé"]]))
 
     def test_literal_simple(self, literal_round_trip):
@@ -417,7 +403,7 @@ class StringTest(_LiteralRoundTripFixture, fixtures.TestBase):
         literal_round_trip(String(40), [data], [data])
 
     def test_concatenate_binary(self, connection):
-        """dialects with special string concatenation operators should
+        """Dialects with special string concatenation operators should
         implement visit_concat_op_binary() and visit_concat_op_clauselist()
         in their compiler.
 
@@ -428,7 +414,7 @@ class StringTest(_LiteralRoundTripFixture, fixtures.TestBase):
         eq_(connection.scalar(select(literal("a") + "b")), "ab")
 
     def test_concatenate_clauselist(self, connection):
-        """dialects with special string concatenation operators should
+        """Dialects with special string concatenation operators should
         implement visit_concat_op_binary() and visit_concat_op_clauselist()
         in their compiler.
 
@@ -484,39 +470,39 @@ class IntervalTest(_LiteralRoundTripFixture, fixtures.TestBase):
         return it
 
     def test_arithmetic_operation_table_interval_and_literal_interval(
-        self, connection, arithmetic_table_fixture
+        self,
+        connection,
+        arithmetic_table_fixture,
     ):
         interval_table = arithmetic_table_fixture
         data = datetime.timedelta(days=2, seconds=5)
         connection.execute(interval_table.insert(), {"id": 1, "interval_data": data})
         # Subtraction Operation
         value = connection.execute(
-            select(interval_table.c.interval_data - literal(self.data))
+            select(interval_table.c.interval_data - literal(self.data)),
         ).scalar()
         eq_(value, data - self.data)
 
         # Addition Operation
         value = connection.execute(
-            select(interval_table.c.interval_data + literal(self.data))
+            select(interval_table.c.interval_data + literal(self.data)),
         ).scalar()
         eq_(value, data + self.data)
 
     def test_arithmetic_operation_table_date_and_literal_interval(
-        self, connection, arithmetic_table_fixture
+        self,
+        connection,
+        arithmetic_table_fixture,
     ):
         interval_table = arithmetic_table_fixture
         now = datetime.datetime.now().replace(microsecond=0)
         connection.execute(interval_table.insert(), {"id": 1, "date_data": now})
         # Subtraction Operation
-        value = connection.execute(
-            select(interval_table.c.date_data - literal(self.data))
-        ).scalar()
+        value = connection.execute(select(interval_table.c.date_data - literal(self.data))).scalar()
         eq_(value, (now - self.data))
 
         # Addition Operation
-        value = connection.execute(
-            select(interval_table.c.date_data + literal(self.data))
-        ).scalar()
+        value = connection.execute(select(interval_table.c.date_data + literal(self.data))).scalar()
         eq_(value, (now + self.data))
 
 
@@ -559,9 +545,7 @@ class _DateFixture(_LiteralRoundTripFixture, fixtures.TestBase):
     def test_round_trip_decorated(self, connection):
         date_table = self.tables.date_table
 
-        connection.execute(
-            date_table.insert(), {"id": 1, "decorated_date_data": self.data}
-        )
+        connection.execute(date_table.insert(), {"id": 1, "decorated_date_data": self.data})
 
         row = connection.execute(select(date_table.c.decorated_date_data)).first()
 
@@ -590,19 +574,17 @@ class _DateFixture(_LiteralRoundTripFixture, fixtures.TestBase):
         # a certain type, does the DBAPI have the info it needs to do this.
         date_table = self.tables.date_table
         with config.db.begin() as conn:
-            result = conn.execute(
-                date_table.insert(), {"id": 1, "date_data": self.data}
-            )
+            result = conn.execute(date_table.insert(), {"id": 1, "date_data": self.data})
             id_ = result.inserted_primary_key[0]
             stmt = select(date_table.c.id).where(
                 case(
                     (
-                        bindparam("foo", type_=self.datatype) != None,
+                        bindparam("foo", type_=self.datatype) is not None,
                         bindparam("foo", type_=self.datatype),
                     ),
                     else_=date_table.c.date_data,
                 )
-                == date_table.c.date_data
+                == date_table.c.date_data,
             )
 
             row = conn.execute(stmt, {"foo": None}).first()
@@ -766,8 +748,7 @@ class IntegerTest(_LiteralRoundTripFixture, fixtures.TestBase):
 
     @_huge_ints()
     def test_huge_int_auto_accommodation(self, connection, intvalue):
-        """test #7909"""
-
+        """Test #7909."""
         eq_(
             connection.scalar(select(intvalue).where(literal(intvalue) == intvalue)),
             intvalue,
@@ -846,87 +827,72 @@ class TrueDivTest(fixtures.TestBase):
         argnames="left, right, expected",
     )
     def test_truediv_integer(self, connection, left, right, expected):
-        """test #4926"""
-
+        """Test #4926."""
         eq_(
             connection.scalar(
                 select(
-                    literal_column(left, type_=Integer())
-                    / literal_column(right, type_=Integer())
-                )
+                    literal_column(left, type_=Integer()) / literal_column(right, type_=Integer()),
+                ),
             ),
             expected,
         )
 
-    @testing.combinations(
-        ("15", "10", 1), ("-15", "5", -3), argnames="left, right, expected"
-    )
+    @testing.combinations(("15", "10", 1), ("-15", "5", -3), argnames="left, right, expected")
     def test_floordiv_integer(self, connection, left, right, expected):
-        """test #4926"""
-
+        """Test #4926."""
         eq_(
             connection.scalar(
                 select(
-                    literal_column(left, type_=Integer())
-                    // literal_column(right, type_=Integer())
-                )
+                    literal_column(left, type_=Integer()) // literal_column(right, type_=Integer()),
+                ),
             ),
             expected,
         )
 
     @testing.combinations(("5.52", "2.4", "2.3"), argnames="left, right, expected")
     def test_truediv_numeric(self, connection, left, right, expected):
-        """test #4926"""
-
+        """Test #4926."""
         eq_(
             connection.scalar(
                 select(
                     literal_column(left, type_=Numeric(10, 2))
-                    / literal_column(right, type_=Numeric(10, 2))
-                )
+                    / literal_column(right, type_=Numeric(10, 2)),
+                ),
             ),
             decimal.Decimal(expected),
         )
 
     @testing.combinations(("5.52", "2.4", 2.3), argnames="left, right, expected")
     def test_truediv_float(self, connection, left, right, expected):
-        """test #4926"""
-
+        """Test #4926."""
         eq_(
             connection.scalar(
-                select(
-                    literal_column(left, type_=Float())
-                    / literal_column(right, type_=Float())
-                )
+                select(literal_column(left, type_=Float()) / literal_column(right, type_=Float())),
             ),
             expected,
         )
 
     @testing.combinations(("5.52", "2.4", "2.0"), argnames="left, right, expected")
     def test_floordiv_numeric(self, connection, left, right, expected):
-        """test #4926"""
-
+        """Test #4926."""
         eq_(
             connection.scalar(
                 select(
-                    literal_column(left, type_=Numeric())
-                    // literal_column(right, type_=Numeric())
-                )
+                    literal_column(left, type_=Numeric()) // literal_column(right, type_=Numeric()),
+                ),
             ),
             decimal.Decimal(expected),
         )
 
     def test_truediv_integer_bound(self, connection):
-        """test #4926"""
-
+        """Test #4926."""
         eq_(
             connection.scalar(select(literal(15) / literal(10))),
             1.5,
         )
 
     def test_floordiv_integer_bound(self, connection):
-        """test #4926"""
-
+        """Test #4926."""
         eq_(
             connection.scalar(select(literal(15) // literal(10))),
             1,
@@ -967,7 +933,7 @@ class NumericTest(_LiteralRoundTripFixture, fixtures.TestBase):
 
             connection.execute(t.insert(), {"x": test_value})
             assert_we_are_a_number = connection.scalar(
-                select(type_coerce(t.c.x + add_value, type_))
+                select(type_coerce(t.c.x + add_value, type_)),
             )
             eq_(
                 round(assert_we_are_a_number, 3),
@@ -1024,8 +990,7 @@ class NumericTest(_LiteralRoundTripFixture, fixtures.TestBase):
 
     @testing.requires.infinity_floats
     def test_infinity_floats(self, do_numeric_test):
-        """test for #977, #7283"""
-
+        """Test for #977, #7283."""
         do_numeric_test(
             Float(None),
             [float("inf")],
@@ -1092,13 +1057,12 @@ class NumericTest(_LiteralRoundTripFixture, fixtures.TestBase):
 
     @testing.requires.precision_numerics_enotation_large
     def test_enotation_decimal(self, do_numeric_test):
-        """test exceedingly small decimals.
+        """Test exceedingly small decimals.
 
         Decimal reports values with E notation when the exponent
         is greater than 6.
 
         """
-
         numbers = {
             decimal.Decimal("1E-2"),
             decimal.Decimal("1E-3"),
@@ -1117,8 +1081,7 @@ class NumericTest(_LiteralRoundTripFixture, fixtures.TestBase):
 
     @testing.requires.precision_numerics_enotation_large
     def test_enotation_decimal_large(self, do_numeric_test):
-        """test exceedingly large decimals."""
-
+        """Test exceedingly large decimals."""
         numbers = {
             decimal.Decimal("4E+8"),
             decimal.Decimal("5748E+15"),
@@ -1139,9 +1102,7 @@ class NumericTest(_LiteralRoundTripFixture, fixtures.TestBase):
     @testing.requires.precision_numerics_retains_significant_digits
     def test_numeric_no_decimal(self, do_numeric_test):
         numbers = {decimal.Decimal("1.000")}
-        do_numeric_test(
-            Numeric(precision=5, scale=3), numbers, numbers, check_scale=True
-        )
+        do_numeric_test(Numeric(precision=5, scale=3), numbers, numbers, check_scale=True)
 
     @testing.combinations(sqltypes.Float, sqltypes.Double, argnames="cls_")
     @testing.requires.float_is_numeric
@@ -1178,7 +1139,7 @@ class BooleanTest(_LiteralRoundTripFixture, fixtures.TablesTest):
         )
 
         row = connection.execute(
-            select(boolean_table.c.value, boolean_table.c.unconstrained_value)
+            select(boolean_table.c.value, boolean_table.c.unconstrained_value),
         ).first()
 
         eq_(row, (True, False))
@@ -1194,7 +1155,7 @@ class BooleanTest(_LiteralRoundTripFixture, fixtures.TablesTest):
         )
 
         row = connection.execute(
-            select(boolean_table.c.value, boolean_table.c.unconstrained_value)
+            select(boolean_table.c.value, boolean_table.c.unconstrained_value),
         ).first()
 
         eq_(row, (None, None))
@@ -1217,11 +1178,7 @@ class BooleanTest(_LiteralRoundTripFixture, fixtures.TablesTest):
                 1,
             )
             eq_(
-                conn.scalar(
-                    select(boolean_table.c.id).where(
-                        boolean_table.c.unconstrained_value
-                    )
-                ),
+                conn.scalar(select(boolean_table.c.id).where(boolean_table.c.unconstrained_value)),
                 1,
             )
             eq_(
@@ -1229,11 +1186,7 @@ class BooleanTest(_LiteralRoundTripFixture, fixtures.TablesTest):
                 2,
             )
             eq_(
-                conn.scalar(
-                    select(boolean_table.c.id).where(
-                        ~boolean_table.c.unconstrained_value
-                    )
-                ),
+                conn.scalar(select(boolean_table.c.id).where(~boolean_table.c.unconstrained_value)),
                 2,
             )
 
@@ -1258,9 +1211,7 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
     def test_round_trip_data1(self, connection):
         self._test_round_trip({"key1": "value1", "key2": "value2"}, connection)
 
-    @testing.combinations(
-        ("unicode", True), ("ascii", False), argnames="unicode_", id_="ia"
-    )
+    @testing.combinations(("unicode", True), ("ascii", False), argnames="unicode_", id_="ia")
     @testing.combinations(100, 1999, 3000, 4000, 5000, 9000, argnames="length")
     def test_round_trip_pretty_large_data(self, connection, unicode_, length):
         if unicode_:
@@ -1338,9 +1289,7 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
         ] + json_elements
 
         def decorate(fn):
-            fn = testing.combinations(id_="sa", *elements)(fn)
-
-            return fn
+            return testing.combinations(id_="sa", *elements)(fn)
 
         return decorate
 
@@ -1425,7 +1374,10 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
 
         with config.db.begin() as conn:
             datatype, compare_value, p_s = self._json_value_insert(
-                conn, datatype, value, data_element
+                conn,
+                datatype,
+                value,
+                data_element,
             )
 
             expr = data_table.c.data["key1"]
@@ -1446,7 +1398,10 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
 
         with config.db.begin() as conn:
             datatype, compare_value, p_s = self._json_value_insert(
-                conn, datatype, value, data_element
+                conn,
+                datatype,
+                value,
+                data_element,
             )
 
             expr = data_table.c.data["key1"]
@@ -1467,7 +1422,10 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
         data_element = {"key1": {"subkey1": value}}
         with config.db.begin() as conn:
             datatype, compare_value, p_s = self._json_value_insert(
-                conn, datatype, value, data_element
+                conn,
+                datatype,
+                value,
+                data_element,
             )
 
             expr = data_table.c.data[("key1", "subkey1")]
@@ -1519,9 +1477,7 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
 
         js = mock.Mock(side_effect=json.dumps)
         jd = mock.Mock(side_effect=json.loads)
-        engine = engines.testing_engine(
-            options=dict(json_serializer=js, json_deserializer=jd)
-        )
+        engine = engines.testing_engine(options={"json_serializer": js, "json_deserializer": jd})
 
         # support sqlite :memory: database...
         data_table.create(engine, checkfirst=True)
@@ -1559,7 +1515,7 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
             }
         elif insert_type == "multiparameters":
             stmt, params = self.tables.data_table.insert(), [
-                {"name": "r1", "nulldata": None, "data": None}
+                {"name": "r1", "nulldata": None, "data": None},
             ]
         elif insert_type == "values":
             stmt, params = (
@@ -1577,7 +1533,7 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
             )
 
         else:
-            assert False
+            raise AssertionError
 
         conn.execute(stmt, params)
 
@@ -1598,9 +1554,7 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
         )
 
         eq_(
-            conn.scalar(
-                select(self.tables.data_table.c.name).where(cast(col, String) == "null")
-            ),
+            conn.scalar(select(self.tables.data_table.c.name).where(cast(col, String) == "null")),
             "r1",
         )
 
@@ -1621,24 +1575,20 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
                 "data": None,
             }
         elif insert_type == "multiparameters":
-            stmt, params = self.tables.data_table.insert(), [
-                {"name": "r1", "data": None}
-            ]
+            stmt, params = self.tables.data_table.insert(), [{"name": "r1", "data": None}]
         elif insert_type == "values":
             stmt, params = (
                 self.tables.data_table.insert().values(name="r1", data=None),
                 {},
             )
         else:
-            assert False
+            raise AssertionError
 
         conn = connection
         conn.execute(stmt, params)
 
         eq_(
-            conn.scalar(
-                select(self.tables.data_table.c.name).where(cast(col, String) == "null")
-            ),
+            conn.scalar(select(self.tables.data_table.c.name).where(cast(col, String) == "null")),
             "r1",
         )
 
@@ -1677,9 +1627,7 @@ class JSONTest(_LiteralRoundTripFixture, fixtures.TablesTest):
             s.add(d1)
             s.commit()
 
-            s.bulk_insert_mappings(
-                Data, [{"name": "d2", "data": None, "nulldata": None}]
-            )
+            s.bulk_insert_mappings(Data, [{"name": "d2", "data": None, "nulldata": None}])
             eq_(
                 s.query(
                     cast(self.tables.data_table.c.data, String()),
@@ -1733,7 +1681,7 @@ class JSONLegacyStringCastIndexTest(_LiteralRoundTripFixture, fixtures.TablesTes
         "nested": {
             "elem1": [{"a": "b", "c": "d"}, {"e": "f", "g": "h"}],
             "elem2": {"elem3": {"elem4": "elem5"}},
-        }
+        },
     }
 
     data6 = {"a": 5, "b": "some value", "c": {"foo": "bar"}}
@@ -1771,9 +1719,7 @@ class JSONLegacyStringCastIndexTest(_LiteralRoundTripFixture, fixtures.TablesTes
             eq_(conn.scalar(stmt), expected)
 
             if test_literal:
-                literal_sql = str(
-                    stmt.compile(config.db, compile_kwargs={"literal_binds": True})
-                )
+                literal_sql = str(stmt.compile(config.db, compile_kwargs={"literal_binds": True}))
 
                 eq_(conn.exec_driver_sql(literal_sql).scalar(), expected)
 
@@ -1867,7 +1813,7 @@ class UuidTest(_LiteralRoundTripFixture, fixtures.TablesTest):
             select(uuid_table.c.uuid_data, uuid_table.c.uuid_data_nonnative).where(
                 uuid_table.c.uuid_data == data,
                 uuid_table.c.uuid_data_nonnative == data,
-            )
+            ),
         ).first()
         eq_(row, (data, data))
 
@@ -1890,7 +1836,7 @@ class UuidTest(_LiteralRoundTripFixture, fixtures.TablesTest):
             ).where(
                 uuid_table.c.uuid_text_data == data,
                 uuid_table.c.uuid_text_data_nonnative == data,
-            )
+            ),
         ).first()
         eq_((row[0].lower(), row[1].lower()), (data, data))
 

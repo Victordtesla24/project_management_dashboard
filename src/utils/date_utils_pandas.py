@@ -12,4 +12,6 @@ class PandasDateTimeHelper(DateHelper):
 
     def to_nanoseconds(self, delta):
         """Get number of nanoseconds with nanos precision."""
-        return super().to_nanoseconds(delta) + (delta.nanoseconds if hasattr(delta, 'nanoseconds') else 0)
+        return super().to_nanoseconds(delta) + (
+            delta.nanoseconds if hasattr(delta, "nanoseconds") else 0
+        )

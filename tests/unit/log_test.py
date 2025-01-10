@@ -40,7 +40,7 @@ class LogFormatterTest(unittest.TestCase):
     # Matches the output of a single logging call (which may be multiple lines
     # if a traceback was included, so we use the DOTALL option)
     LINE_RE = re.compile(
-        b"(?s)\x01\\[E [0-9]{6} [0-9]{2}:[0-9]{2}:[0-9]{2} log_test:[0-9]+\\]\x02 (.*)"
+        b"(?s)\x01\\[E [0-9]{6} [0-9]{2}:[0-9]{2}:[0-9]{2} log_test:[0-9]+\\]\x02 (.*)",
     )
 
     def setUp(self):
@@ -79,26 +79,26 @@ class LogFormatterTest(unittest.TestCase):
 
     def test_basic_logging(self):
         self.logger.error("foo")
-        self.assertEqual(self.get_output(), b"foo")
+        assert self.get_output() == b"foo"
 
     def test_bytes_logging(self):
         with ignore_bytes_warning():
             # This will be "\xe9" on python 2 or "b'\xe9'" on python 3
             self.logger.error(b"\xe9")
-            self.assertEqual(self.get_output(), utf8(repr(b"\xe9")))
+            assert self.get_output() == utf8(repr(b"\xe9"))
 
     def test_utf8_logging(self):
         with ignore_bytes_warning():
-            self.logger.error("\u00e9".encode("utf8"))
+            self.logger.error("\u00e9".encode())
         if issubclass(bytes, basestring_type):
             # on python 2, utf8 byte strings (and by extension ascii byte
             # strings) are passed through as-is.
-            self.assertEqual(self.get_output(), utf8("\u00e9"))
+            assert self.get_output() == utf8("é")
         else:
             # on python 3, byte strings always get repr'd even if
             # they're ascii-only, so this degenerates into another
             # copy of test_bytes_logging.
-            self.assertEqual(self.get_output(), utf8(repr(utf8("\u00e9"))))
+            assert self.get_output() == utf8(repr(utf8("é")))
 
     def test_bytes_exception_logging(self):
         try:
@@ -108,13 +108,13 @@ class LogFormatterTest(unittest.TestCase):
         # This will be "Exception: \xe9" on python 2 or
         # "Exception: b'\xe9'" on python 3.
         output = self.get_output()
-        self.assertRegex(output, rb"Exception.*\\xe9")
+        assert re.search(b"Exception.*\\\\xe9", output)
         # The traceback contains newlines, which should not have been escaped.
-        self.assertNotIn(rb"\n", output)
+        assert b"\\n" not in output
 
     def test_unicode_logging(self):
         self.logger.error("\u00e9")
-        self.assertEqual(self.get_output(), utf8("\u00e9"))
+        assert self.get_output() == utf8("é")
 
 
 class EnablePrettyLoggingTest(unittest.TestCase):
@@ -130,13 +130,13 @@ class EnablePrettyLoggingTest(unittest.TestCase):
         try:
             self.options.log_file_prefix = tmpdir + "/test_log"
             enable_pretty_logging(options=self.options, logger=self.logger)
-            self.assertEqual(1, len(self.logger.handlers))
+            assert len(self.logger.handlers) == 1
             self.logger.error("hello")
             self.logger.handlers[0].flush()
             filenames = glob.glob(tmpdir + "/test_log*")
-            self.assertEqual(1, len(filenames))
+            assert len(filenames) == 1
             with open(filenames[0], encoding="utf-8") as f:
-                self.assertRegex(f.read(), r"^\[E [^]]*\] hello$")
+                assert re.search("^\\[E [^]]*\\] hello$", f.read())
         finally:
             for handler in self.logger.handlers:
                 handler.flush()
@@ -154,9 +154,9 @@ class EnablePrettyLoggingTest(unittest.TestCase):
             self.logger.error("hello")
             self.logger.handlers[0].flush()
             filenames = glob.glob(tmpdir + "/test_log*")
-            self.assertEqual(1, len(filenames))
+            assert len(filenames) == 1
             with open(filenames[0], encoding="utf-8") as f:
-                self.assertRegex(f.read(), r"^\[E [^]]*\] hello$")
+                assert re.search("^\\[E [^]]*\\] hello$", f.read())
         finally:
             for handler in self.logger.handlers:
                 handler.flush()
@@ -192,42 +192,34 @@ class LoggingOptionTest(unittest.TestCase):
         # ran.
         IMPORT = "from tornado.options import options, parse_command_line"
         LOG_INFO = 'import logging; logging.info("hello")'
-        program = ";".join([IMPORT, statement, LOG_INFO])
+        program = f"{IMPORT};{statement};{LOG_INFO}"
         proc = subprocess.Popen(
             [sys.executable, "-c", program] + (args or []),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
         stdout, stderr = proc.communicate()
-        self.assertEqual(proc.returncode, 0, "process failed: %r" % stdout)
+        assert proc.returncode == 0, "process failed: %r" % stdout
         return b"hello" in stdout
 
     def test_default(self):
-        self.assertFalse(self.logs_present("pass"))
+        assert not self.logs_present("pass")
 
     def test_tornado_default(self):
-        self.assertTrue(self.logs_present("parse_command_line()"))
+        assert self.logs_present("parse_command_line()")
 
     def test_disable_command_line(self):
-        self.assertFalse(self.logs_present("parse_command_line()", ["--logging=none"]))
+        assert not self.logs_present("parse_command_line()", ["--logging=none"])
 
     def test_disable_command_line_case_insensitive(self):
-        self.assertFalse(self.logs_present("parse_command_line()", ["--logging=None"]))
+        assert not self.logs_present("parse_command_line()", ["--logging=None"])
 
     def test_disable_code_string(self):
-        self.assertFalse(
-            self.logs_present('options.logging = "none"; parse_command_line()')
-        )
+        assert not self.logs_present('options.logging = "none"; parse_command_line()')
 
     def test_disable_code_none(self):
-        self.assertFalse(
-            self.logs_present("options.logging = None; parse_command_line()")
-        )
+        assert not self.logs_present("options.logging = None; parse_command_line()")
 
     def test_disable_override(self):
         # command line trumps code defaults
-        self.assertTrue(
-            self.logs_present(
-                "options.logging = None; parse_command_line()", ["--logging=info"]
-            )
-        )
+        assert self.logs_present("options.logging = None; parse_command_line()", ["--logging=info"])

@@ -1,5 +1,5 @@
 """Vendored code from scikit-image in order to limit the number of dependencies
-Extracted from scikit-image/skimage/exposure/exposure.py
+Extracted from scikit-image/skimage/exposure/exposure.py.
 """
 
 from warnings import warn
@@ -37,7 +37,7 @@ DTYPE_RANGE.update(
         "uint14": (0, 2**14 - 1),
         "bool": dtype_range[np.bool_],
         "float": dtype_range[np.float64],
-    }
+    },
 )
 
 
@@ -124,7 +124,7 @@ def _output_dtype(dtype_or_range):
     else:
         raise ValueError(
             "Incorrect value for out_range, should be a valid image data "
-            "type or a pair of values, got %s." % str(dtype_or_range)
+            "type or a pair of values, got %s." % str(dtype_or_range),
         )
 
 
@@ -226,9 +226,7 @@ def rescale_intensity(image, in_range="image", out_range="dtype"):
         out_dtype = _output_dtype(out_range)
 
     imin, imax = map(float, intensity_range(image, in_range))
-    omin, omax = map(
-        float, intensity_range(image, out_range, clip_negative=(imin >= 0))
-    )
+    omin, omax = map(float, intensity_range(image, out_range, clip_negative=(imin >= 0)))
 
     if np.any(np.isnan([imin, imax, omin, omax])):
         warn(

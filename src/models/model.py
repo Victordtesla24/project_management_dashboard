@@ -19,9 +19,7 @@ class _QueryProperty:
     """
 
     def __get__(self, obj: Model | None, cls: type[Model]) -> Query:
-        return cls.query_class(
-            cls, session=cls.__fsa__.session()  # type: ignore[arg-type]
-        )
+        return cls.query_class(cls, session=cls.__fsa__.session())  # type: ignore[arg-type]
 
 
 class Model:
@@ -79,7 +77,11 @@ class BindMetaMixin(type):
     metadata: sa.MetaData
 
     def __init__(
-        cls, name: str, bases: tuple[type, ...], d: dict[str, t.Any], **kwargs: t.Any
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        d: dict[str, t.Any],
+        **kwargs: t.Any,
     ) -> None:
         if not ("metadata" in cls.__dict__ or "__table__" in cls.__dict__):
             bind_key = getattr(cls, "__bind_key__", None)
@@ -110,9 +112,10 @@ class BindMixin:
     metadata: sa.MetaData
 
     @classmethod
-    def __init_subclass__(cls: t.Type[BindMixin], **kwargs: t.Dict[str, t.Any]) -> None:
+    def __init_subclass__(cls: type[BindMixin], **kwargs: dict[str, t.Any]) -> None:
         if not ("metadata" in cls.__dict__ or "__table__" in cls.__dict__) and hasattr(
-            cls, "__bind_key__"
+            cls,
+            "__bind_key__",
         ):
             bind_key = getattr(cls, "__bind_key__", None)
             parent_metadata = getattr(cls, "metadata", None)
@@ -136,7 +139,11 @@ class NameMetaMixin(type):
     __table__: sa.Table
 
     def __init__(
-        cls, name: str, bases: tuple[type, ...], d: dict[str, t.Any], **kwargs: t.Any
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        d: dict[str, t.Any],
+        **kwargs: t.Any,
     ) -> None:
         if should_set_tablename(cls):
             cls.__tablename__ = camel_to_snake_case(cls.__name__)
@@ -160,10 +167,7 @@ class NameMetaMixin(type):
         """
         schema = kwargs.get("schema")
 
-        if schema is None:
-            key = args[0]
-        else:
-            key = f"{schema}.{args[0]}"
+        key = args[0] if schema is None else f"{schema}.{args[0]}"
 
         # Check if a table with this name already exists. Allows reflected tables to be
         # applied to models by name.
@@ -173,7 +177,8 @@ class NameMetaMixin(type):
         # If a primary key is found, create a table for joined-table inheritance.
         for arg in args:
             if (isinstance(arg, sa.Column) and arg.primary_key) or isinstance(
-                arg, sa.PrimaryKeyConstraint
+                arg,
+                sa.PrimaryKeyConstraint,
             ):
                 return sa.Table(*args, **kwargs)
 
@@ -207,7 +212,7 @@ class NameMixin:
     __table__: sa.Table
 
     @classmethod
-    def __init_subclass__(cls: t.Type[NameMixin], **kwargs: t.Dict[str, t.Any]) -> None:
+    def __init_subclass__(cls: type[NameMixin], **kwargs: dict[str, t.Any]) -> None:
         if should_set_tablename(cls):
             cls.__tablename__ = camel_to_snake_case(cls.__name__)
 
@@ -231,10 +236,7 @@ class NameMixin:
         """
         schema = kwargs.get("schema")
 
-        if schema is None:
-            key = args[0]
-        else:
-            key = f"{schema}.{args[0]}"
+        key = args[0] if schema is None else f"{schema}.{args[0]}"
 
         # Check if a table with this name already exists. Allows reflected tables to be
         # applied to models by name.
@@ -244,7 +246,8 @@ class NameMixin:
         # If a primary key is found, create a table for joined-table inheritance.
         for arg in args:
             if (isinstance(arg, sa.Column) and arg.primary_key) or isinstance(
-                arg, sa.PrimaryKeyConstraint
+                arg,
+                sa.PrimaryKeyConstraint,
             ):
                 return sa.Table(*args, **kwargs)
 
@@ -301,11 +304,10 @@ def should_set_tablename(cls: type) -> bool:
             or base.__dict__.get("__abstract__", False)
             or not (
                 # SQLAlchemy 1.x
-                isinstance(base, sa_orm.DeclarativeMeta)
-                # 2.x: DeclarativeBas uses this as metaclass
-                or isinstance(base, sa_orm.decl_api.DeclarativeAttributeIntercept)
-                # 2.x: DeclarativeBaseNoMeta doesn't use a metaclass
-                or issubclass(base, sa_orm.DeclarativeBaseNoMeta)
+                isinstance(
+                    base,
+                    (sa_orm.DeclarativeMeta, sa_orm.decl_api.DeclarativeAttributeIntercept),
+                )
             )
         )
 

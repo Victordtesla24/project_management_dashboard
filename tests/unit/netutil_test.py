@@ -2,22 +2,22 @@ import errno
 import os
 import signal
 import socket
-from subprocess import Popen
 import sys
 import time
+import typing
 import unittest
+from subprocess import Popen
 
+import pytest
 from tornado.netutil import (
     BlockingResolver,
     OverrideResolver,
     ThreadedResolver,
-    is_valid_ip,
     bind_sockets,
+    is_valid_ip,
 )
-from tornado.testing import AsyncTestCase, gen_test, bind_unused_port
 from tornado.test.util import skipIfNoNetwork
-
-import typing
+from tornado.testing import AsyncTestCase, bind_unused_port, gen_test
 
 if typing.TYPE_CHECKING:
     from typing import List  # noqa: F401
@@ -38,7 +38,7 @@ else:
     from tornado.platform.twisted import TwistedResolver
 
 
-class _ResolverTestMixin(object):
+class _ResolverTestMixin:
     resolver = None  # type: typing.Any
 
     @gen_test
@@ -47,26 +47,25 @@ class _ResolverTestMixin(object):
         # Most of the time localhost resolves to either the ipv4 loopback
         # address alone, or ipv4+ipv6. But some versions of pycares will only
         # return the ipv6 version, so we have to check for either one alone.
-        self.assertTrue(
-            ((socket.AF_INET, ("127.0.0.1", 80)) in addrinfo)
-            or ((socket.AF_INET6, ("::1", 80)) in addrinfo),
-            f"loopback address not found in {addrinfo}",
-        )
+        assert (socket.AF_INET, ("127.0.0.1", 80)) in addrinfo or (
+            socket.AF_INET6,
+            ("::1", 80),
+        ) in addrinfo, f"loopback address not found in {addrinfo}"
 
 
 # It is impossible to quickly and consistently generate an error in name
 # resolution, so test this case separately, using mocks as needed.
-class _ResolverErrorTestMixin(object):
+class _ResolverErrorTestMixin:
     resolver = None  # type: typing.Any
 
     @gen_test
     def test_bad_host(self: typing.Any):
-        with self.assertRaises(IOError):
+        with pytest.raises(IOError):
             yield self.resolver.resolve("an invalid domain", 80, socket.AF_UNSPEC)
 
 
 def _failing_getaddrinfo(*args):
-    """Dummy implementation of getaddrinfo for use in mocks"""
+    """Dummy implementation of getaddrinfo for use in mocks."""
     raise socket.gaierror(errno.EIO, "mock: lookup failed")
 
 
@@ -108,12 +107,10 @@ class OverrideResolverTest(AsyncTestCase, _ResolverTestMixin):
     @gen_test
     def test_resolve_multiaddr(self):
         result = yield self.resolver.resolve("google.com", 80, socket.AF_INET)
-        self.assertIn((socket.AF_INET, ("1.2.3.4", 80)), result)
+        assert (socket.AF_INET, ("1.2.3.4", 80)) in result
 
         result = yield self.resolver.resolve("google.com", 80, socket.AF_INET6)
-        self.assertIn(
-            (socket.AF_INET6, ("2a02:6b8:7c:40c:c51e:495f:e23a:3", 80, 0, 0)), result
-        )
+        assert (socket.AF_INET6, ("2a02:6b8:7c:40c:c51e:495f:e23a:3", 80, 0, 0)) in result
 
 
 @skipIfNoNetwork
@@ -155,7 +152,7 @@ class ThreadedResolverImportTest(unittest.TestCase):
         while time.time() - start < TIMEOUT:
             return_code = popen.poll()
             if return_code is not None:
-                self.assertEqual(0, return_code)
+                assert return_code == 0
                 return  # Success.
             time.sleep(0.05)
 
@@ -187,9 +184,7 @@ class CaresResolverTest(AsyncTestCase, _ResolverTestMixin):
 # test error cases here.
 @skipIfNoNetwork
 @unittest.skipIf(twisted is None, "twisted module not present")
-@unittest.skipIf(
-    getattr(twisted, "__version__", "0.0") < "12.1", "old version of twisted"
-)
+@unittest.skipIf(getattr(twisted, "__version__", "0.0") < "12.1", "old version of twisted")
 @unittest.skipIf(sys.platform == "win32", "twisted resolver hangs on windows")
 class TwistedResolverTest(AsyncTestCase, _ResolverTestMixin):
     def setUp(self):
@@ -199,19 +194,19 @@ class TwistedResolverTest(AsyncTestCase, _ResolverTestMixin):
 
 class IsValidIPTest(unittest.TestCase):
     def test_is_valid_ip(self):
-        self.assertTrue(is_valid_ip("127.0.0.1"))
-        self.assertTrue(is_valid_ip("4.4.4.4"))
-        self.assertTrue(is_valid_ip("::1"))
-        self.assertTrue(is_valid_ip("2620:0:1cfe:face:b00c::3"))
-        self.assertTrue(not is_valid_ip("www.google.com"))
-        self.assertTrue(not is_valid_ip("localhost"))
-        self.assertTrue(not is_valid_ip("4.4.4.4<"))
-        self.assertTrue(not is_valid_ip(" 127.0.0.1"))
-        self.assertTrue(not is_valid_ip(""))
-        self.assertTrue(not is_valid_ip(" "))
-        self.assertTrue(not is_valid_ip("\n"))
-        self.assertTrue(not is_valid_ip("\x00"))
-        self.assertTrue(not is_valid_ip("a" * 100))
+        assert is_valid_ip("127.0.0.1")
+        assert is_valid_ip("4.4.4.4")
+        assert is_valid_ip("::1")
+        assert is_valid_ip("2620:0:1cfe:face:b00c::3")
+        assert not is_valid_ip("www.google.com")
+        assert not is_valid_ip("localhost")
+        assert not is_valid_ip("4.4.4.4<")
+        assert not is_valid_ip(" 127.0.0.1")
+        assert not is_valid_ip("")
+        assert not is_valid_ip(" ")
+        assert not is_valid_ip("\n")
+        assert not is_valid_ip("\x00")
+        assert not is_valid_ip("a" * 100)
 
 
 class TestPortAllocation(unittest.TestCase):
@@ -221,20 +216,18 @@ class TestPortAllocation(unittest.TestCase):
         sockets = bind_sockets(0, "localhost")
         try:
             port = sockets[0].getsockname()[1]
-            self.assertTrue(all(s.getsockname()[1] == port for s in sockets[1:]))
+            assert all(s.getsockname()[1] == port for s in sockets[1:])
         finally:
             for sock in sockets:
                 sock.close()
 
-    @unittest.skipIf(
-        not hasattr(socket, "SO_REUSEPORT"), "SO_REUSEPORT is not supported"
-    )
+    @unittest.skipIf(not hasattr(socket, "SO_REUSEPORT"), "SO_REUSEPORT is not supported")
     def test_reuse_port(self):
         sockets = []  # type: List[socket.socket]
         socket, port = bind_unused_port(reuse_port=True)
         try:
             sockets = bind_sockets(port, "127.0.0.1", reuse_port=True)
-            self.assertTrue(all(s.getsockname()[1] == port for s in sockets))
+            assert all(s.getsockname()[1] == port for s in sockets)
         finally:
             socket.close()
             for sock in sockets:

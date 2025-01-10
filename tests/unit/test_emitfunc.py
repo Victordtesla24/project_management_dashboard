@@ -101,7 +101,8 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
         self.ptr = add_local("ptr", pointer_rprimitive)
         self.t = add_local("t", RTuple([int_rprimitive, bool_rprimitive]))
         self.tt = add_local(
-            "tt", RTuple([RTuple([int_rprimitive, bool_rprimitive]), bool_rprimitive])
+            "tt",
+            RTuple([RTuple([int_rprimitive, bool_rprimitive]), bool_rprimitive]),
         )
         ir = ClassIR("A", "mod")
         ir.attributes = {
@@ -134,7 +135,7 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
     def test_tuple_get(self) -> None:
         self.assert_emit(TupleGet(self.t, 1, 0), "cpy_r_r0 = cpy_r_t.f1;")
 
-    def test_load_None(self) -> None:  # noqa: N802
+    def test_load_None(self) -> None:
         self.assert_emit(
             LoadAddress(none_object_op.type, none_object_op.src, 0),
             "cpy_r_r0 = (PyObject *)&_Py_NoneStruct;",
@@ -145,16 +146,23 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
 
     def test_int_add(self) -> None:
         self.assert_emit_binary_op(
-            "+", self.n, self.m, self.k, "cpy_r_r0 = CPyTagged_Add(cpy_r_m, cpy_r_k);"
+            "+",
+            self.n,
+            self.m,
+            self.k,
+            "cpy_r_r0 = CPyTagged_Add(cpy_r_m, cpy_r_k);",
         )
 
     def test_int_sub(self) -> None:
         self.assert_emit_binary_op(
-            "-", self.n, self.m, self.k, "cpy_r_r0 = CPyTagged_Subtract(cpy_r_m, cpy_r_k);"
+            "-",
+            self.n,
+            self.m,
+            self.k,
+            "cpy_r_r0 = CPyTagged_Subtract(cpy_r_m, cpy_r_k);",
         )
 
     def test_int_neg(self) -> None:
-        assert int_neg_op.c_function_name is not None
         self.assert_emit(
             CallC(
                 int_neg_op.c_function_name,
@@ -261,7 +269,10 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
 
     def test_call(self) -> None:
         decl = FuncDecl(
-            "myfn", None, "mod", FuncSignature([RuntimeArg("m", int_rprimitive)], int_rprimitive)
+            "myfn",
+            None,
+            "mod",
+            FuncSignature([RuntimeArg("m", int_rprimitive)], int_rprimitive),
         )
         self.assert_emit(Call(decl, [self.m], 55), "cpy_r_r0 = CPyDef_myfn(cpy_r_m);")
 
@@ -271,11 +282,13 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
             None,
             "mod",
             FuncSignature(
-                [RuntimeArg("m", int_rprimitive), RuntimeArg("n", int_rprimitive)], int_rprimitive
+                [RuntimeArg("m", int_rprimitive), RuntimeArg("n", int_rprimitive)],
+                int_rprimitive,
             ),
         )
         self.assert_emit(
-            Call(decl, [self.m, self.k], 55), "cpy_r_r0 = CPyDef_myfn(cpy_r_m, cpy_r_k);"
+            Call(decl, [self.m, self.k], 55),
+            "cpy_r_r0 = CPyDef_myfn(cpy_r_m, cpy_r_k);",
         )
 
     def test_inc_ref(self) -> None:
@@ -303,7 +316,7 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
     def test_list_get_item(self) -> None:
         self.assert_emit(
             CallC(
-                str(list_get_item_op.c_function_name),
+                list_get_item_op.c_function_name,
                 [self.m, self.k],
                 list_get_item_op.return_type,
                 list_get_item_op.steals,
@@ -317,7 +330,7 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
     def test_list_set_item(self) -> None:
         self.assert_emit(
             CallC(
-                str(list_set_item_op.c_function_name),
+                list_set_item_op.c_function_name,
                 [self.l, self.n, self.o],
                 list_set_item_op.return_type,
                 list_set_item_op.steals,
@@ -347,13 +360,14 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
 
     def test_unbox_i64(self) -> None:
         self.assert_emit(
-            Unbox(self.o, int64_rprimitive, 55), """cpy_r_r0 = CPyLong_AsInt64(cpy_r_o);"""
+            Unbox(self.o, int64_rprimitive, 55),
+            """cpy_r_r0 = CPyLong_AsInt64(cpy_r_o);""",
         )
 
     def test_list_append(self) -> None:
         self.assert_emit(
             CallC(
-                str(list_append_op.c_function_name),
+                list_append_op.c_function_name,
                 [self.l, self.o],
                 list_append_op.return_type,
                 list_append_op.steals,
@@ -493,7 +507,7 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
     def test_dict_get_item(self) -> None:
         self.assert_emit(
             CallC(
-                str(dict_get_item_op.c_function_name),
+                dict_get_item_op.c_function_name,
                 [self.d, self.o2],
                 dict_get_item_op.return_type,
                 dict_get_item_op.steals,
@@ -507,7 +521,7 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
     def test_dict_set_item(self) -> None:
         self.assert_emit(
             CallC(
-                str(dict_set_item_op.c_function_name),
+                dict_set_item_op.c_function_name,
                 [self.d, self.o, self.o2],
                 dict_set_item_op.return_type,
                 dict_set_item_op.steals,
@@ -521,7 +535,7 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
     def test_dict_update(self) -> None:
         self.assert_emit(
             CallC(
-                str(dict_update_op.c_function_name),
+                dict_update_op.c_function_name,
                 [self.d, self.o],
                 dict_update_op.return_type,
                 dict_update_op.steals,
@@ -548,7 +562,11 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
 
     def test_dict_contains(self) -> None:
         self.assert_emit_binary_op(
-            "in", self.b, self.o, self.d, """cpy_r_r0 = PyDict_Contains(cpy_r_d, cpy_r_o);"""
+            "in",
+            self.b,
+            self.o,
+            self.d,
+            """cpy_r_r0 = PyDict_Contains(cpy_r_d, cpy_r_o);""",
         )
 
     def test_int_op(self) -> None:
@@ -640,21 +658,27 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
 
     def test_set_mem(self) -> None:
         self.assert_emit(
-            SetMem(bool_rprimitive, self.ptr, self.b), """*(char *)cpy_r_ptr = cpy_r_b;"""
+            SetMem(bool_rprimitive, self.ptr, self.b),
+            """*(char *)cpy_r_ptr = cpy_r_b;""",
         )
 
     def test_get_element_ptr(self) -> None:
         r = RStruct(
-            "Foo", ["b", "i32", "i64"], [bool_rprimitive, int32_rprimitive, int64_rprimitive]
+            "Foo",
+            ["b", "i32", "i64"],
+            [bool_rprimitive, int32_rprimitive, int64_rprimitive],
         )
         self.assert_emit(
-            GetElementPtr(self.o, r, "b"), """cpy_r_r0 = (CPyPtr)&((Foo *)cpy_r_o)->b;"""
+            GetElementPtr(self.o, r, "b"),
+            """cpy_r_r0 = (CPyPtr)&((Foo *)cpy_r_o)->b;""",
         )
         self.assert_emit(
-            GetElementPtr(self.o, r, "i32"), """cpy_r_r0 = (CPyPtr)&((Foo *)cpy_r_o)->i32;"""
+            GetElementPtr(self.o, r, "i32"),
+            """cpy_r_r0 = (CPyPtr)&((Foo *)cpy_r_o)->i32;""",
         )
         self.assert_emit(
-            GetElementPtr(self.o, r, "i64"), """cpy_r_r0 = (CPyPtr)&((Foo *)cpy_r_o)->i64;"""
+            GetElementPtr(self.o, r, "i64"),
+            """cpy_r_r0 = (CPyPtr)&((Foo *)cpy_r_o)->i64;""",
         )
 
     def test_load_address(self) -> None:
@@ -668,25 +692,30 @@ class TestFunctionEmitterVisitor(unittest.TestCase):
         a = Register(t, "a")
         self.registers.append(a)
         self.assert_emit(
-            AssignMulti(a, [self.o, self.o2]), """PyObject *cpy_r_a[2] = {cpy_r_o, cpy_r_o2};"""
+            AssignMulti(a, [self.o, self.o2]),
+            """PyObject *cpy_r_a[2] = {cpy_r_o, cpy_r_o2};""",
         )
 
     def test_long_unsigned(self) -> None:
         a = Register(int64_rprimitive, "a")
         self.assert_emit(
-            Assign(a, Integer(1 << 31, int64_rprimitive)), """cpy_r_a = 2147483648LL;"""
+            Assign(a, Integer(1 << 31, int64_rprimitive)),
+            """cpy_r_a = 2147483648LL;""",
         )
         self.assert_emit(
-            Assign(a, Integer((1 << 31) - 1, int64_rprimitive)), """cpy_r_a = 2147483647;"""
+            Assign(a, Integer((1 << 31) - 1, int64_rprimitive)),
+            """cpy_r_a = 2147483647;""",
         )
 
     def test_long_signed(self) -> None:
         a = Register(int64_rprimitive, "a")
         self.assert_emit(
-            Assign(a, Integer(-(1 << 31) + 1, int64_rprimitive)), """cpy_r_a = -2147483647;"""
+            Assign(a, Integer(-(1 << 31) + 1, int64_rprimitive)),
+            """cpy_r_a = -2147483647;""",
         )
         self.assert_emit(
-            Assign(a, Integer(-(1 << 31), int64_rprimitive)), """cpy_r_a = -2147483648LL;"""
+            Assign(a, Integer(-(1 << 31), int64_rprimitive)),
+            """cpy_r_a = -2147483648LL;""",
         )
 
     def test_cast_and_branch_merge(self) -> None:
@@ -789,7 +818,8 @@ else {
         a = Register(int32_rprimitive, "a")
         self.assert_emit(Extend(a, int64_rprimitive, signed=True), """cpy_r_r0 = cpy_r_a;""")
         self.assert_emit(
-            Extend(a, int64_rprimitive, signed=False), """cpy_r_r0 = (uint32_t)cpy_r_a;"""
+            Extend(a, int64_rprimitive, signed=False),
+            """cpy_r_r0 = (uint32_t)cpy_r_a;""",
         )
         if PLATFORM_SIZE == 4:
             self.assert_emit(
@@ -797,12 +827,14 @@ else {
                 """cpy_r_r0 = (Py_ssize_t)cpy_r_n;""",
             )
             self.assert_emit(
-                Extend(self.n, int64_rprimitive, signed=False), """cpy_r_r0 = cpy_r_n;"""
+                Extend(self.n, int64_rprimitive, signed=False),
+                """cpy_r_r0 = cpy_r_n;""",
             )
         if PLATFORM_SIZE == 8:
             self.assert_emit(Extend(a, int_rprimitive, signed=True), """cpy_r_r0 = cpy_r_a;""")
             self.assert_emit(
-                Extend(a, int_rprimitive, signed=False), """cpy_r_r0 = (uint32_t)cpy_r_a;"""
+                Extend(a, int_rprimitive, signed=False),
+                """cpy_r_r0 = (uint32_t)cpy_r_a;""",
             )
 
     def assert_emit(
@@ -837,33 +869,32 @@ else {
         actual_lines = [line.strip(" ") for line in frags]
         assert all(line.endswith("\n") for line in actual_lines)
         actual_lines = [line.rstrip("\n") for line in actual_lines]
-        if not expected.strip():
-            expected_lines = []
-        else:
-            expected_lines = expected.rstrip().split("\n")
+        expected_lines = [] if not expected.strip() else expected.rstrip().split("\n")
         expected_lines = [line.strip(" ") for line in expected_lines]
-        assert_string_arrays_equal(
-            expected_lines, actual_lines, msg="Generated code unexpected", traceback=True
-        )
+        assert_string_arrays_equal(expected_lines, actual_lines, msg="Generated code unexpected")
         if skip_next:
             assert visitor.op_index == 1
         else:
             assert visitor.op_index == 0
 
     def assert_emit_binary_op(
-        self, op: str, dest: Value, left: Value, right: Value, expected: str
+        self,
+        op: str,
+        dest: Value,
+        left: Value,
+        right: Value,
+        expected: str,
     ) -> None:
         if op in binary_ops:
             ops = binary_ops[op]
             for desc in ops:
                 if is_subtype(left.type, desc.arg_types[0]) and is_subtype(
-                    right.type, desc.arg_types[1]
+                    right.type,
+                    desc.arg_types[1],
                 ):
                     args = [left, right]
                     if desc.ordering is not None:
                         args = [args[i] for i in desc.ordering]
-                    # This only supports primitives that map to C calls
-                    assert desc.c_function_name is not None
                     self.assert_emit(
                         CallC(
                             desc.c_function_name,
@@ -878,7 +909,8 @@ else {
                     )
                     return
         else:
-            assert False, "Could not find matching op"
+            msg = "Could not find matching op"
+            raise AssertionError(msg)
 
 
 class TestGenerateFunction(unittest.TestCase):

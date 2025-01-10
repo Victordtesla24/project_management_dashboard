@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import itertools
 import re
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import astroid
 from astroid import nodes
 from astroid.util import UninferableBase
 from pylint.checkers import utils
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def space_indentation(s: str) -> int:
@@ -161,7 +164,8 @@ def _is_ellipsis(node: nodes.NodeNG) -> bool:
 
 
 def _merge_annotations(
-    annotations: Iterable[nodes.NodeNG], comment_annotations: Iterable[nodes.NodeNG],
+    annotations: Iterable[nodes.NodeNG],
+    comment_annotations: Iterable[nodes.NodeNG],
 ) -> Iterable[nodes.NodeNG | None]:
     for ann, comment_ann in itertools.zip_longest(annotations, comment_annotations):
         if ann and not _is_ellipsis(ann):
@@ -485,17 +489,20 @@ class EpytextDocstring(SphinxDocstring):
     """
 
     re_param_in_docstring = re.compile(
-        SphinxDocstring.re_param_raw.replace(":", "@", 1), re.X | re.S,
+        SphinxDocstring.re_param_raw.replace(":", "@", 1),
+        re.X | re.S,
     )
 
     re_type_in_docstring = re.compile(SphinxDocstring.re_type_raw.replace(":", "@", 1), re.X | re.S)
 
     re_property_type_in_docstring = re.compile(
-        SphinxDocstring.re_property_type_raw.replace(":", "@", 1), re.X | re.S,
+        SphinxDocstring.re_property_type_raw.replace(":", "@", 1),
+        re.X | re.S,
     )
 
     re_raise_in_docstring = re.compile(
-        SphinxDocstring.re_raise_raw.replace(":", "@", 1), re.X | re.S,
+        SphinxDocstring.re_raise_raw.replace(":", "@", 1),
+        re.X | re.S,
     )
 
     re_rtype_in_docstring = re.compile(

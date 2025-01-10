@@ -6,15 +6,15 @@ import traceback
 import typing
 import unittest
 
-from tornado.concurrent import Future
 from tornado import gen
+from tornado.concurrent import Future
 from tornado.httpclient import HTTPError, HTTPRequest
 from tornado.locks import Event
-from tornado.log import gen_log, app_log
+from tornado.log import app_log, gen_log
 from tornado.netutil import Resolver
 from tornado.simple_httpclient import SimpleAsyncHTTPClient
 from tornado.template import DictLoader
-from tornado.testing import AsyncHTTPTestCase, gen_test, bind_unused_port, ExpectLog
+from tornado.testing import AsyncHTTPTestCase, ExpectLog, bind_unused_port, gen_test
 from tornado.web import Application, RequestHandler
 
 try:
@@ -28,11 +28,12 @@ except ImportError:
     traceback.print_exc()
     raise
 
+import pytest
 from tornado.websocket import (
+    WebSocketClosedError,
+    WebSocketError,
     WebSocketHandler,
     websocket_connect,
-    WebSocketError,
-    WebSocketClosedError,
 )
 
 try:
@@ -93,7 +94,8 @@ class HeaderHandler(TestWebSocketHandler):
                 # In a websocket context, many RequestHandler methods
                 # raise RuntimeErrors.
                 method()  # type: ignore
-                raise Exception("did not get expected exception")
+                msg = "did not get expected exception"
+                raise Exception(msg)
             except RuntimeError:
                 pass
         self.write_message(self.request.headers.get("X-Test", ""))
@@ -166,7 +168,8 @@ class SubprotocolHandler(TestWebSocketHandler):
 
     def select_subprotocol(self, subprotocols):
         if self.select_subprotocol_called:
-            raise Exception("select_subprotocol called twice")
+            msg = "select_subprotocol called twice"
+            raise Exception(msg)
         self.select_subprotocol_called = True
         if "goodproto" in subprotocols:
             return "goodproto"
@@ -174,7 +177,8 @@ class SubprotocolHandler(TestWebSocketHandler):
 
     def open(self):
         if not self.select_subprotocol_called:
-            raise Exception("select_subprotocol not called")
+            msg = "select_subprotocol not called"
+            raise Exception(msg)
         self.write_message("subprotocol=%s" % self.selected_subprotocol)
 
 
@@ -192,19 +196,22 @@ class OpenCoroutineHandler(TestWebSocketHandler):
 
     def on_message(self, message):
         if not self.open_finished:
-            raise Exception("on_message called before open finished")
+            msg = "on_message called before open finished"
+            raise Exception(msg)
         self.write_message("ok")
 
 
 class ErrorInOpenHandler(TestWebSocketHandler):
     def open(self):
-        raise Exception("boom")
+        msg = "boom"
+        raise Exception(msg)
 
 
 class ErrorInAsyncOpenHandler(TestWebSocketHandler):
     async def open(self):
         await asyncio.sleep(0)
-        raise Exception("boom")
+        msg = "boom"
+        raise Exception(msg)
 
 
 class NoDelayHandler(TestWebSocketHandler):
@@ -225,9 +232,7 @@ class WebSocketBaseTestCase(AsyncHTTPTestCase):
 
     @gen.coroutine
     def ws_connect(self, path, **kwargs):
-        ws = yield websocket_connect(
-            "ws://127.0.0.1:%d%s" % (self.get_http_port(), path), **kwargs
-        )
+        ws = yield websocket_connect("ws://127.0.0.1:%d%s" % (self.get_http_port(), path), **kwargs)
         self.conns_to_close.append(ws)
         raise gen.Return(ws)
 
@@ -237,50 +242,50 @@ class WebSocketTest(WebSocketBaseTestCase):
         self.close_future = Future()  # type: Future[None]
         return Application(
             [
-                ("/echo", EchoHandler, dict(close_future=self.close_future)),
+                ("/echo", EchoHandler, {"close_future": self.close_future}),
                 ("/non_ws", NonWebSocketHandler),
                 ("/redirect", RedirectHandler),
-                ("/header", HeaderHandler, dict(close_future=self.close_future)),
+                ("/header", HeaderHandler, {"close_future": self.close_future}),
                 (
                     "/header_echo",
                     HeaderEchoHandler,
-                    dict(close_future=self.close_future),
+                    {"close_future": self.close_future},
                 ),
                 (
                     "/close_reason",
                     CloseReasonHandler,
-                    dict(close_future=self.close_future),
+                    {"close_future": self.close_future},
                 ),
                 (
                     "/error_in_on_message",
                     ErrorInOnMessageHandler,
-                    dict(close_future=self.close_future),
+                    {"close_future": self.close_future},
                 ),
                 (
                     "/async_prepare",
                     AsyncPrepareHandler,
-                    dict(close_future=self.close_future),
+                    {"close_future": self.close_future},
                 ),
                 (
                     "/path_args/(.*)",
                     PathArgsHandler,
-                    dict(close_future=self.close_future),
+                    {"close_future": self.close_future},
                 ),
                 (
                     "/coroutine",
                     CoroutineOnMessageHandler,
-                    dict(close_future=self.close_future),
+                    {"close_future": self.close_future},
                 ),
-                ("/render", RenderMessageHandler, dict(close_future=self.close_future)),
+                ("/render", RenderMessageHandler, {"close_future": self.close_future}),
                 (
                     "/subprotocol",
                     SubprotocolHandler,
-                    dict(close_future=self.close_future),
+                    {"close_future": self.close_future},
                 ),
                 (
                     "/open_coroutine",
                     OpenCoroutineHandler,
-                    dict(close_future=self.close_future, test=self),
+                    {"close_future": self.close_future, "test": self},
                 ),
                 ("/error_in_open", ErrorInOpenHandler),
                 ("/error_in_async_open", ErrorInAsyncOpenHandler),
@@ -300,7 +305,7 @@ class WebSocketTest(WebSocketBaseTestCase):
     def test_http_request(self):
         # WS server, HTTP client.
         response = self.fetch("/echo")
-        self.assertEqual(response.code, 400)
+        assert response.code == 400
 
     def test_missing_websocket_key(self):
         response = self.fetch(
@@ -311,7 +316,7 @@ class WebSocketTest(WebSocketBaseTestCase):
                 "Sec-WebSocket-Version": "13",
             },
         )
-        self.assertEqual(response.code, 400)
+        assert response.code == 400
 
     def test_bad_websocket_version(self):
         response = self.fetch(
@@ -322,24 +327,22 @@ class WebSocketTest(WebSocketBaseTestCase):
                 "Sec-WebSocket-Version": "12",
             },
         )
-        self.assertEqual(response.code, 426)
+        assert response.code == 426
 
     @gen_test
     def test_websocket_gen(self):
         ws = yield self.ws_connect("/echo")
         yield ws.write_message("hello")
         response = yield ws.read_message()
-        self.assertEqual(response, "hello")
+        assert response == "hello"
 
     def test_websocket_callbacks(self):
-        websocket_connect(
-            "ws://127.0.0.1:%d/echo" % self.get_http_port(), callback=self.stop
-        )
+        websocket_connect("ws://127.0.0.1:%d/echo" % self.get_http_port(), callback=self.stop)
         ws = self.wait().result()
         ws.write_message("hello")
         ws.read_message(self.stop)
         response = self.wait().result()
-        self.assertEqual(response, "hello")
+        assert response == "hello"
         self.close_future.add_done_callback(lambda f: self.stop())
         ws.close()
         self.wait()
@@ -349,20 +352,20 @@ class WebSocketTest(WebSocketBaseTestCase):
         ws = yield self.ws_connect("/echo")
         ws.write_message(b"hello \xe9", binary=True)
         response = yield ws.read_message()
-        self.assertEqual(response, b"hello \xe9")
+        assert response == b"hello \xe9"
 
     @gen_test
     def test_unicode_message(self):
         ws = yield self.ws_connect("/echo")
         ws.write_message("hello \u00e9")
         response = yield ws.read_message()
-        self.assertEqual(response, "hello \u00e9")
+        assert response == "hello é"
 
     @gen_test
     def test_error_in_closed_client_write_message(self):
         ws = yield self.ws_connect("/echo")
         ws.close()
-        with self.assertRaises(WebSocketClosedError):
+        with pytest.raises(WebSocketClosedError):
             ws.write_message("hello \u00e9")
 
     @gen_test
@@ -370,7 +373,7 @@ class WebSocketTest(WebSocketBaseTestCase):
         ws = yield self.ws_connect("/render")
         ws.write_message("hello")
         response = yield ws.read_message()
-        self.assertEqual(response, "<b>hello</b>")
+        assert response == "<b>hello</b>"
 
     @gen_test
     def test_error_in_on_message(self):
@@ -378,38 +381,35 @@ class WebSocketTest(WebSocketBaseTestCase):
         ws.write_message("hello")
         with ExpectLog(app_log, "Uncaught exception"):
             response = yield ws.read_message()
-        self.assertIs(response, None)
+        assert response is None
 
     @gen_test
     def test_websocket_http_fail(self):
-        with self.assertRaises(HTTPError) as cm:
+        with pytest.raises(HTTPError) as cm:
             yield self.ws_connect("/notfound")
-        self.assertEqual(cm.exception.code, 404)
+        assert cm.exception.code == 404
 
     @gen_test
     def test_websocket_http_success(self):
-        with self.assertRaises(WebSocketError):
+        with pytest.raises(WebSocketError):
             yield self.ws_connect("/non_ws")
 
     @gen_test
     def test_websocket_http_redirect(self):
-        with self.assertRaises(HTTPError):
+        with pytest.raises(HTTPError):
             yield self.ws_connect("/redirect")
 
     @gen_test
     def test_websocket_network_fail(self):
         sock, port = bind_unused_port()
         sock.close()
-        with self.assertRaises(IOError):
-            with ExpectLog(gen_log, ".*", required=False):
-                yield websocket_connect(
-                    "ws://127.0.0.1:%d/" % port, connect_timeout=3600
-                )
+        with pytest.raises(IOError), ExpectLog(gen_log, ".*", required=False):
+            yield websocket_connect("ws://127.0.0.1:%d/" % port, connect_timeout=3600)
 
     @gen_test
     def test_websocket_close_buffered_data(self):
         with contextlib.closing(
-            (yield websocket_connect("ws://127.0.0.1:%d/echo" % self.get_http_port()))
+            (yield websocket_connect("ws://127.0.0.1:%d/echo" % self.get_http_port())),
         ) as ws:
             ws.write_message("hello")
             ws.write_message("world")
@@ -425,12 +425,12 @@ class WebSocketTest(WebSocketBaseTestCase):
                     HTTPRequest(
                         "ws://127.0.0.1:%d/header" % self.get_http_port(),
                         headers={"X-Test": "hello"},
-                    )
+                    ),
                 )
-            )
+            ),
         ) as ws:
             response = yield ws.read_message()
-            self.assertEqual(response, "hello")
+            assert response == "hello"
 
     @gen_test
     def test_websocket_header_echo(self):
@@ -443,44 +443,42 @@ class WebSocketTest(WebSocketBaseTestCase):
                     HTTPRequest(
                         "ws://127.0.0.1:%d/header_echo" % self.get_http_port(),
                         headers={"X-Test-Hello": "hello"},
-                    )
+                    ),
                 )
-            )
+            ),
         ) as ws:
-            self.assertEqual(ws.headers.get("X-Test-Hello"), "hello")
-            self.assertEqual(
-                ws.headers.get("X-Extra-Response-Header"), "Extra-Response-Value"
-            )
+            assert ws.headers.get("X-Test-Hello") == "hello"
+            assert ws.headers.get("X-Extra-Response-Header") == "Extra-Response-Value"
 
     @gen_test
     def test_server_close_reason(self):
         ws = yield self.ws_connect("/close_reason")
         msg = yield ws.read_message()
         # A message of None means the other side closed the connection.
-        self.assertIs(msg, None)
-        self.assertEqual(ws.close_code, 1001)
-        self.assertEqual(ws.close_reason, "goodbye")
+        assert msg is None
+        assert ws.close_code == 1001
+        assert ws.close_reason == "goodbye"
         # The on_close callback is called no matter which side closed.
         code, reason = yield self.close_future
         # The client echoed the close code it received to the server,
         # so the server's close code (returned via close_future) is
         # the same.
-        self.assertEqual(code, 1001)
+        assert code == 1001
 
     @gen_test
     def test_client_close_reason(self):
         ws = yield self.ws_connect("/echo")
         ws.close(1001, "goodbye")
         code, reason = yield self.close_future
-        self.assertEqual(code, 1001)
-        self.assertEqual(reason, "goodbye")
+        assert code == 1001
+        assert reason == "goodbye"
 
     @gen_test
     def test_write_after_close(self):
         ws = yield self.ws_connect("/close_reason")
         msg = yield ws.read_message()
-        self.assertIs(msg, None)
-        with self.assertRaises(WebSocketClosedError):
+        assert msg is None
+        with pytest.raises(WebSocketClosedError):
             ws.write_message("hello")
 
     @gen_test
@@ -490,13 +488,13 @@ class WebSocketTest(WebSocketBaseTestCase):
         ws = yield self.ws_connect("/async_prepare")
         ws.write_message("hello")
         res = yield ws.read_message()
-        self.assertEqual(res, "hello")
+        assert res == "hello"
 
     @gen_test
     def test_path_args(self):
         ws = yield self.ws_connect("/path_args/hello")
         res = yield ws.read_message()
-        self.assertEqual(res, "hello")
+        assert res == "hello"
 
     @gen_test
     def test_coroutine(self):
@@ -505,9 +503,9 @@ class WebSocketTest(WebSocketBaseTestCase):
         yield ws.write_message("hello1")
         yield ws.write_message("hello2")
         res = yield ws.read_message()
-        self.assertEqual(res, "hello1")
+        assert res == "hello1"
         res = yield ws.read_message()
-        self.assertEqual(res, "hello2")
+        assert res == "hello2"
 
     @gen_test
     def test_check_origin_valid_no_path(self):
@@ -516,12 +514,10 @@ class WebSocketTest(WebSocketBaseTestCase):
         url = "ws://127.0.0.1:%d/echo" % port
         headers = {"Origin": "http://127.0.0.1:%d" % port}
 
-        with contextlib.closing(
-            (yield websocket_connect(HTTPRequest(url, headers=headers)))
-        ) as ws:
+        with contextlib.closing((yield websocket_connect(HTTPRequest(url, headers=headers)))) as ws:
             ws.write_message("hello")
             response = yield ws.read_message()
-            self.assertEqual(response, "hello")
+            assert response == "hello"
 
     @gen_test
     def test_check_origin_valid_with_path(self):
@@ -530,12 +526,10 @@ class WebSocketTest(WebSocketBaseTestCase):
         url = "ws://127.0.0.1:%d/echo" % port
         headers = {"Origin": "http://127.0.0.1:%d/something" % port}
 
-        with contextlib.closing(
-            (yield websocket_connect(HTTPRequest(url, headers=headers)))
-        ) as ws:
+        with contextlib.closing((yield websocket_connect(HTTPRequest(url, headers=headers)))) as ws:
             ws.write_message("hello")
             response = yield ws.read_message()
-            self.assertEqual(response, "hello")
+            assert response == "hello"
 
     @gen_test
     def test_check_origin_invalid_partial_url(self):
@@ -544,9 +538,9 @@ class WebSocketTest(WebSocketBaseTestCase):
         url = "ws://127.0.0.1:%d/echo" % port
         headers = {"Origin": "127.0.0.1:%d" % port}
 
-        with self.assertRaises(HTTPError) as cm:
+        with pytest.raises(HTTPError) as cm:
             yield websocket_connect(HTTPRequest(url, headers=headers))
-        self.assertEqual(cm.exception.code, 403)
+        assert cm.exception.code == 403
 
     @gen_test
     def test_check_origin_invalid(self):
@@ -557,10 +551,10 @@ class WebSocketTest(WebSocketBaseTestCase):
         # domain
         headers = {"Origin": "http://somewhereelse.com"}
 
-        with self.assertRaises(HTTPError) as cm:
+        with pytest.raises(HTTPError) as cm:
             yield websocket_connect(HTTPRequest(url, headers=headers))
 
-        self.assertEqual(cm.exception.code, 403)
+        assert cm.exception.code == 403
 
     @gen_test
     def test_check_origin_invalid_subdomains(self):
@@ -570,7 +564,7 @@ class WebSocketTest(WebSocketBaseTestCase):
         # server is only running on ipv4. Test for this edge case and skip
         # the test if it happens.
         addrinfo = yield Resolver().resolve("localhost", port)
-        families = set(addr[0] for addr in addrinfo)
+        families = {addr[0] for addr in addrinfo}
         if socket.AF_INET not in families:
             self.skipTest("localhost does not resolve to ipv4")
             return
@@ -580,26 +574,24 @@ class WebSocketTest(WebSocketBaseTestCase):
         # resolver to websocket_connect we could test sibling domains as well.
         headers = {"Origin": "http://subtenant.localhost"}
 
-        with self.assertRaises(HTTPError) as cm:
+        with pytest.raises(HTTPError) as cm:
             yield websocket_connect(HTTPRequest(url, headers=headers))
 
-        self.assertEqual(cm.exception.code, 403)
+        assert cm.exception.code == 403
 
     @gen_test
     def test_subprotocols(self):
-        ws = yield self.ws_connect(
-            "/subprotocol", subprotocols=["badproto", "goodproto"]
-        )
-        self.assertEqual(ws.selected_subprotocol, "goodproto")
+        ws = yield self.ws_connect("/subprotocol", subprotocols=["badproto", "goodproto"])
+        assert ws.selected_subprotocol == "goodproto"
         res = yield ws.read_message()
-        self.assertEqual(res, "subprotocol=goodproto")
+        assert res == "subprotocol=goodproto"
 
     @gen_test
     def test_subprotocols_not_offered(self):
         ws = yield self.ws_connect("/subprotocol")
-        self.assertIs(ws.selected_subprotocol, None)
+        assert ws.selected_subprotocol is None
         res = yield ws.read_message()
-        self.assertEqual(res, "subprotocol=None")
+        assert res == "subprotocol=None"
 
     @gen_test
     def test_open_coroutine(self):
@@ -608,27 +600,27 @@ class WebSocketTest(WebSocketBaseTestCase):
         yield ws.write_message("hello")
         self.message_sent.set()
         res = yield ws.read_message()
-        self.assertEqual(res, "ok")
+        assert res == "ok"
 
     @gen_test
     def test_error_in_open(self):
         with ExpectLog(app_log, "Uncaught exception"):
             ws = yield self.ws_connect("/error_in_open")
             res = yield ws.read_message()
-        self.assertIsNone(res)
+        assert res is None
 
     @gen_test
     def test_error_in_async_open(self):
         with ExpectLog(app_log, "Uncaught exception"):
             ws = yield self.ws_connect("/error_in_async_open")
             res = yield ws.read_message()
-        self.assertIsNone(res)
+        assert res is None
 
     @gen_test
     def test_nodelay(self):
         ws = yield self.ws_connect("/nodelay")
         res = yield ws.read_message()
-        self.assertEqual(res, "hello")
+        assert res == "hello"
 
 
 class NativeCoroutineOnMessageHandler(TestWebSocketHandler):
@@ -656,12 +648,12 @@ class WebSocketNativeCoroutineTest(WebSocketBaseTestCase):
         yield ws.write_message("hello1")
         yield ws.write_message("hello2")
         res = yield ws.read_message()
-        self.assertEqual(res, "hello1")
+        assert res == "hello1"
         res = yield ws.read_message()
-        self.assertEqual(res, "hello2")
+        assert res == "hello2"
 
 
-class CompressionTestMixin(object):
+class CompressionTestMixin:
     MESSAGE = "Hello world. Testing 123 123"
 
     def get_app(self):
@@ -678,14 +670,14 @@ class CompressionTestMixin(object):
                 (
                     "/echo",
                     EchoHandler,
-                    dict(compression_options=self.get_server_compression_options()),
+                    {"compression_options": self.get_server_compression_options()},
                 ),
                 (
                     "/limited",
                     LimitedHandler,
-                    dict(compression_options=self.get_server_compression_options()),
+                    {"compression_options": self.get_server_compression_options()},
                 ),
-            ]
+            ],
         )
 
     def get_server_compression_options(self):
@@ -695,37 +687,39 @@ class CompressionTestMixin(object):
         return None
 
     def verify_wire_bytes(self, bytes_in: int, bytes_out: int) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @gen_test
     def test_message_sizes(self: typing.Any):
         ws = yield self.ws_connect(
-            "/echo", compression_options=self.get_client_compression_options()
+            "/echo",
+            compression_options=self.get_client_compression_options(),
         )
         # Send the same message three times so we can measure the
         # effect of the context_takeover options.
-        for i in range(3):
+        for _i in range(3):
             ws.write_message(self.MESSAGE)
             response = yield ws.read_message()
-            self.assertEqual(response, self.MESSAGE)
-        self.assertEqual(ws.protocol._message_bytes_out, len(self.MESSAGE) * 3)
-        self.assertEqual(ws.protocol._message_bytes_in, len(self.MESSAGE) * 3)
+            assert response == self.MESSAGE
+        assert ws.protocol._message_bytes_out == len(self.MESSAGE) * 3
+        assert ws.protocol._message_bytes_in == len(self.MESSAGE) * 3
         self.verify_wire_bytes(ws.protocol._wire_bytes_in, ws.protocol._wire_bytes_out)
 
     @gen_test
     def test_size_limit(self: typing.Any):
         ws = yield self.ws_connect(
-            "/limited", compression_options=self.get_client_compression_options()
+            "/limited",
+            compression_options=self.get_client_compression_options(),
         )
         # Small messages pass through.
         ws.write_message("a" * 128)
         response = yield ws.read_message()
-        self.assertEqual(response, "128")
+        assert response == "128"
         # This message is too big after decompression, but it compresses
         # down to a size that will pass the initial checks.
         ws.write_message("a" * 2048)
         response = yield ws.read_message()
-        self.assertIsNone(response)
+        assert response is None
 
 
 class UncompressedTestMixin(CompressionTestMixin):
@@ -733,8 +727,8 @@ class UncompressedTestMixin(CompressionTestMixin):
 
     def verify_wire_bytes(self: typing.Any, bytes_in, bytes_out):
         # Bytes out includes the 4-byte mask key per message.
-        self.assertEqual(bytes_out, 3 * (len(self.MESSAGE) + 6))
-        self.assertEqual(bytes_in, 3 * (len(self.MESSAGE) + 2))
+        assert bytes_out == 3 * (len(self.MESSAGE) + 6)
+        assert bytes_in == 3 * (len(self.MESSAGE) + 2)
 
 
 class NoCompressionTest(UncompressedTestMixin, WebSocketBaseTestCase):
@@ -760,32 +754,32 @@ class DefaultCompressionTest(CompressionTestMixin, WebSocketBaseTestCase):
         return {}
 
     def verify_wire_bytes(self, bytes_in, bytes_out):
-        self.assertLess(bytes_out, 3 * (len(self.MESSAGE) + 6))
-        self.assertLess(bytes_in, 3 * (len(self.MESSAGE) + 2))
+        assert bytes_out < 3 * (len(self.MESSAGE) + 6)
+        assert bytes_in < 3 * (len(self.MESSAGE) + 2)
         # Bytes out includes the 4 bytes mask key per message.
-        self.assertEqual(bytes_out, bytes_in + 12)
+        assert bytes_out == bytes_in + 12
 
 
-class MaskFunctionMixin(object):
+class MaskFunctionMixin:
     # Subclasses should define self.mask(mask, data)
     def mask(self, mask: bytes, data: bytes) -> bytes:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def test_mask(self: typing.Any):
-        self.assertEqual(self.mask(b"abcd", b""), b"")
-        self.assertEqual(self.mask(b"abcd", b"b"), b"\x03")
-        self.assertEqual(self.mask(b"abcd", b"54321"), b"TVPVP")
-        self.assertEqual(self.mask(b"ZXCV", b"98765432"), b"c`t`olpd")
+        assert self.mask(b"abcd", b"") == b""
+        assert self.mask(b"abcd", b"b") == b"\x03"
+        assert self.mask(b"abcd", b"54321") == b"TVPVP"
+        assert self.mask(b"ZXCV", b"98765432") == b"c`t`olpd"
         # Include test cases with \x00 bytes (to ensure that the C
         # extension isn't depending on null-terminated strings) and
         # bytes with the high bit set (to smoke out signedness issues).
-        self.assertEqual(
-            self.mask(b"\x00\x01\x02\x03", b"\xff\xfb\xfd\xfc\xfe\xfa"),
-            b"\xff\xfa\xff\xff\xfe\xfb",
+        assert (
+            self.mask(b"\x00\x01\x02\x03", b"\xff\xfb\xfd\xfc\xfe\xfa")
+            == b"\xff\xfa\xff\xff\xfe\xfb"
         )
-        self.assertEqual(
-            self.mask(b"\xff\xfb\xfd\xfc", b"\x00\x01\x02\x03\x04\x05"),
-            b"\xff\xfa\xff\xff\xfb\xfe",
+        assert (
+            self.mask(b"\xff\xfb\xfd\xfc", b"\x00\x01\x02\x03\x04\x05")
+            == b"\xff\xfa\xff\xff\xfb\xfe"
         )
 
 
@@ -811,9 +805,9 @@ class ServerPeriodicPingTest(WebSocketBaseTestCase):
     @gen_test
     def test_server_ping(self):
         ws = yield self.ws_connect("/")
-        for i in range(3):
+        for _i in range(3):
             response = yield ws.read_message()
-            self.assertEqual(response, "got pong")
+            assert response == "got pong"
         # TODO: test that the connection gets closed if ping responses stop.
 
 
@@ -828,9 +822,9 @@ class ClientPeriodicPingTest(WebSocketBaseTestCase):
     @gen_test
     def test_client_ping(self):
         ws = yield self.ws_connect("/", ping_interval=0.01)
-        for i in range(3):
+        for _i in range(3):
             response = yield ws.read_message()
-            self.assertEqual(response, "got ping")
+            assert response == "got ping"
         # TODO: test that the connection gets closed if ping responses stop.
         ws.close()
 
@@ -852,11 +846,11 @@ class ManualPingTest(WebSocketBaseTestCase):
         ws.ping("hello")
         resp = yield ws.read_message()
         # on_ping always sees bytes.
-        self.assertEqual(resp, b"hello")
+        assert resp == b"hello"
 
         ws.ping(b"binary hello")
         resp = yield ws.read_message()
-        self.assertEqual(resp, b"binary hello")
+        assert resp == b"binary hello"
 
 
 class MaxMessageSizeTest(WebSocketBaseTestCase):
@@ -871,14 +865,14 @@ class MaxMessageSizeTest(WebSocketBaseTestCase):
         msg = "a" * 1024
         ws.write_message(msg)
         resp = yield ws.read_message()
-        self.assertEqual(resp, msg)
+        assert resp == msg
 
         # Write a message that is too large.
         ws.write_message(msg + "b")
         resp = yield ws.read_message()
         # A message of None means the other side closed the connection.
-        self.assertIs(resp, None)
-        self.assertEqual(ws.close_code, 1009)
-        self.assertEqual(ws.close_reason, "message too big")
+        assert resp is None
+        assert ws.close_code == 1009
+        assert ws.close_reason == "message too big"
         # TODO: Needs tests of messages split over multiple
         # continuation frames.

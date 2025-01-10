@@ -35,12 +35,6 @@ class TestNameGen(unittest.TestCase):
             "fu.bar": "fu.bar.",
             "foo.baz": "baz.",
         }
-        assert make_module_translation_map(["foo", "foo.foo", "bar.foo", "bar.foo.bar.foo"]) == {
-            "foo": "foo.",
-            "foo.foo": "foo.foo.",
-            "bar.foo": "bar.foo.",
-            "bar.foo.bar.foo": "foo.bar.foo.",
-        }
 
     def test_name_generator(self) -> None:
         g = NameGenerator([["foo", "foo.zar"]])

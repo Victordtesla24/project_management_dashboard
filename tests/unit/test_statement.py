@@ -1,7 +1,4 @@
-# coding: utf-8
-
-"""
-InfluxDB OSS API Service.
+"""InfluxDB OSS API Service.
 
 The InfluxDB v2 API provides a programmatic interface for all interactions with InfluxDB. Access the InfluxDB API using the `/api/v2/` endpoint.   # noqa: E501
 
@@ -35,18 +32,12 @@ class TestStatement(Statement):
 
     attribute_map = {"type": "type", "assignment": "assignment"}
 
-    def __init__(self, type=None, assignment=None):  # noqa: E501,D401,D403
-        """TestStatement - a model defined in OpenAPI."""  # noqa: E501
-        Statement.__init__(self)  # noqa: E501
-
-        self._type = None
-        self._assignment = None
+    def __init__(self, type=None, assignment=None) -> None:
+        """TestStatement - a model defined in OpenAPI."""
+        super().__init__()
+        self._type = type if type is not None else None
+        self._assignment = assignment if assignment is not None else None
         self.discriminator = None
-
-        if type is not None:
-            self.type = type
-        if assignment is not None:
-            self.assignment = assignment
 
     @property
     def type(self):
@@ -56,7 +47,7 @@ class TestStatement(Statement):
 
         :return: The type of this TestStatement.
         :rtype: str
-        """  # noqa: E501
+        """
         return self._type
 
     @type.setter
@@ -67,7 +58,7 @@ class TestStatement(Statement):
 
         :param type: The type of this TestStatement.
         :type: str
-        """  # noqa: E501
+        """
         self._type = type
 
     @property
@@ -76,7 +67,7 @@ class TestStatement(Statement):
 
         :return: The assignment of this TestStatement.
         :rtype: VariableAssignment
-        """  # noqa: E501
+        """
         return self._assignment
 
     @assignment.setter
@@ -85,31 +76,27 @@ class TestStatement(Statement):
 
         :param assignment: The assignment of this TestStatement.
         :type: VariableAssignment
-        """  # noqa: E501
+        """
         self._assignment = assignment
 
     def to_dict(self):
         """Return the model properties as a dict."""
         result = {}
 
-        for attr, _ in self.openapi_types.items():
+        for attr in self.openapi_types:
             value = getattr(self, attr)
             if isinstance(value, list):
-                result[attr] = list(
-                    map(lambda x: x.to_dict() if hasattr(x, "to_dict") else x, value)
-                )
+                result[attr] = [x.to_dict() if hasattr(x, "to_dict") else x for x in value]
             elif hasattr(value, "to_dict"):
                 result[attr] = value.to_dict()
             elif isinstance(value, dict):
                 result[attr] = dict(
                     map(
-                        lambda item: (
-                            (item[0], item[1].to_dict())
-                            if hasattr(item[1], "to_dict")
-                            else item
-                        ),
+                        lambda item: (item[0], item[1].to_dict())
+                        if hasattr(item[1], "to_dict")
+                        else item,
                         value.items(),
-                    )
+                    ),
                 )
             else:
                 result[attr] = value
@@ -120,7 +107,7 @@ class TestStatement(Statement):
         """Return the string representation of the model."""
         return pprint.pformat(self.to_dict())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """For `print` and `pprint`."""
         return self.to_str()
 

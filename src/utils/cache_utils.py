@@ -16,23 +16,21 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import hashlib
 import inspect
-import math
 import threading
 import time
-import types
 from abc import abstractmethod
 from collections import defaultdict
-from datetime import timedelta
-from typing import Any, Callable, Final, Literal, overload
+from typing import TYPE_CHECKING, Any, Callable, Final
 
 from streamlit import type_util
+from streamlit.dataframe_util import is_unevaluated_data_object
 from streamlit.elements.spinner import spinner
 from streamlit.logger import get_logger
 from streamlit.runtime.caching.cache_errors import (
-    BadTTLStringError,
     CacheError,
     CacheKeyNotFoundError,
     UnevaluatedDataFrameError,
@@ -41,7 +39,6 @@ from streamlit.runtime.caching.cache_errors import (
     UnserializableReturnValueError,
     get_cached_func_name_md,
 )
-from streamlit.runtime.caching.cache_type import CacheType
 from streamlit.runtime.caching.cached_message_replay import (
     CachedMessageReplayContext,
     CachedResult,
@@ -49,7 +46,13 @@ from streamlit.runtime.caching.cached_message_replay import (
     replay_cached_messages,
 )
 from streamlit.runtime.caching.hashing import HashFuncsDict, update_hash
+from streamlit.runtime.scriptrunner_utils.script_run_context import in_cached_function
 from streamlit.util import HASHLIB_KWARGS
+
+if TYPE_CHECKING:
+    from types import FunctionType
+
+    from streamlit.runtime.caching.cache_type import CacheType
 
 _LOGGER: Final = get_logger(__name__)
 
@@ -58,58 +61,10 @@ _LOGGER: Final = get_logger(__name__)
 TTLCACHE_TIMER = time.monotonic
 
 
-@overload
-def ttl_to_seconds(
-    ttl: float | timedelta | str | None, *, coerce_none_to_inf: Literal[False]
-) -> float | None:
-    ...
-
-
-@overload
-def ttl_to_seconds(ttl: float | timedelta | str | None) -> float:
-    ...
-
-
-def ttl_to_seconds(
-    ttl: float | timedelta | str | None, *, coerce_none_to_inf: bool = True
-) -> float | None:
-    """
-    Convert a ttl value to a float representing "number of seconds".
-    """
-    if coerce_none_to_inf and ttl is None:
-        return math.inf
-    if isinstance(ttl, timedelta):
-        return ttl.total_seconds()
-    if isinstance(ttl, str):
-        import numpy as np
-        import pandas as pd
-
-        try:
-            out: float = pd.Timedelta(ttl).total_seconds()
-        except ValueError as ex:
-            raise BadTTLStringError(ttl) from ex
-
-        if np.isnan(out):
-            raise BadTTLStringError(ttl)
-
-        return out
-
-    return ttl
-
-
-# We show a special "UnevaluatedDataFrame" warning for cached funcs
-# that attempt to return one of these unserializable types:
-UNEVALUATED_DATAFRAME_TYPES = (
-    "snowflake.snowpark.table.Table",
-    "snowflake.snowpark.dataframe.DataFrame",
-    "pyspark.sql.dataframe.DataFrame",
-)
-
-
 class Cache:
     """Function cache interface. Caches persist across script runs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._value_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
         self._value_locks_lock = threading.Lock()
 
@@ -144,14 +99,20 @@ class Cache:
         with self._value_locks_lock:
             return self._value_locks[value_key]
 
-    def clear(self):
-        """Clear all values from this cache."""
+    def clear(self, key: str | None = None):
+        """Clear values from this cache.
+        If no argument is passed, all items are cleared from the cache.
+        A key can be passed to clear that key from the cache only.
+        """
         with self._value_locks_lock:
-            self._value_locks.clear()
-        self._clear()
+            if not key:
+                self._value_locks.clear()
+            elif key in self._value_locks:
+                del self._value_locks[key]
+        self._clear(key=key)
 
     @abstractmethod
-    def _clear(self) -> None:
+    def _clear(self, key: str | None = None) -> None:
         """Subclasses must implement this to perform cache-clearing logic."""
         raise NotImplementedError
 
@@ -165,14 +126,12 @@ class CachedFuncInfo:
 
     def __init__(
         self,
-        func: types.FunctionType,
+        func: FunctionType,
         show_spinner: bool | str,
-        allow_widgets: bool,
         hash_funcs: HashFuncsDict | None,
-    ):
+    ) -> None:
         self.func = func
         self.show_spinner = show_spinner
-        self.allow_widgets = allow_widgets
         self.hash_funcs = hash_funcs
 
     @property
@@ -196,52 +155,72 @@ def make_cached_func_wrapper(info: CachedFuncInfo) -> Callable[..., Any]:
     value otherwise.
 
     The wrapper also has a `clear` function that can be called to clear
-    all of the wrapper's cached values.
+    some or all of the wrapper's cached values.
     """
     cached_func = CachedFunc(info)
+    return functools.update_wrapper(cached_func, info.func)
 
-    # We'd like to simply return `cached_func`, which is already a Callable.
-    # But using `functools.update_wrapper` on the CachedFunc instance
-    # itself results in errors when our caching decorators are used to decorate
-    # member functions. (See https://github.com/streamlit/streamlit/issues/6109)
 
-    @functools.wraps(info.func)
-    def wrapper(*args, **kwargs):
-        return cached_func(*args, **kwargs)
+class BoundCachedFunc:
+    """A wrapper around a CachedFunc that binds it to a specific instance in case of
+    decorated function is a class method.
+    """
 
-    # Give our wrapper its `clear` function.
-    # (This results in a spurious mypy error that we suppress.)
-    wrapper.clear = cached_func.clear  # type: ignore
+    def __init__(self, cached_func: CachedFunc, instance: Any) -> None:
+        self._cached_func = cached_func
+        self._instance = instance
 
-    return wrapper
+    def __call__(self, *args, **kwargs) -> Any:
+        return self._cached_func(self._instance, *args, **kwargs)
+
+    def __repr__(self) -> str:
+        return f"<BoundCachedFunc: {self._cached_func._info.func} of {self._instance}>"
+
+    def clear(self, *args, **kwargs):
+        if args or kwargs:
+            # The instance is required as first parameter to allow
+            # args to be correctly resolved to the parameter names:
+            self._cached_func.clear(self._instance, *args, **kwargs)
+        else:
+            # if no args/kwargs are specified, we just want to clear the
+            # entire cache of this method:
+            self._cached_func.clear()
 
 
 class CachedFunc:
-    def __init__(self, info: CachedFuncInfo):
+    def __init__(self, info: CachedFuncInfo) -> None:
         self._info = info
         self._function_key = _make_function_key(info.cache_type, info.func)
 
+    def __repr__(self) -> str:
+        return f"<CachedFunc: {self._info.func}>"
+
+    def __get__(self, instance, owner=None):
+        """CachedFunc implements descriptor protocol to support cache methods."""
+        if instance is None:
+            return self
+
+        return functools.update_wrapper(BoundCachedFunc(self, instance), self)
+
     def __call__(self, *args, **kwargs) -> Any:
         """The wrapper. We'll only call our underlying function on a cache miss."""
-
-        name = self._info.func.__qualname__
-
-        if isinstance(self._info.show_spinner, bool):
+        spinner_message: str | None = None
+        if isinstance(self._info.show_spinner, str):
+            spinner_message = self._info.show_spinner
+        elif self._info.show_spinner is True:
+            name = self._info.func.__qualname__
             if len(args) == 0 and len(kwargs) == 0:
-                message = f"Running `{name}()`."
+                spinner_message = f"Running `{name}()`."
             else:
-                message = f"Running `{name}(...)`."
-        else:
-            message = self._info.show_spinner
+                spinner_message = f"Running `{name}(...)`."
 
-        if self._info.show_spinner or isinstance(self._info.show_spinner, str):
-            with spinner(message, _cache=True):
-                return self._get_or_create_cached_value(args, kwargs)
-        else:
-            return self._get_or_create_cached_value(args, kwargs)
+        return self._get_or_create_cached_value(args, kwargs, spinner_message)
 
     def _get_or_create_cached_value(
-        self, func_args: tuple[Any, ...], func_kwargs: dict[str, Any]
+        self,
+        func_args: tuple[Any, ...],
+        func_kwargs: dict[str, Any],
+        spinner_message: str | None = None,
     ) -> Any:
         # Retrieve the function's cache object. We must do this "just-in-time"
         # (as opposed to in the constructor), because caches can be invalidated
@@ -258,15 +237,31 @@ class CachedFunc:
             hash_funcs=self._info.hash_funcs,
         )
 
-        try:
+        with contextlib.suppress(CacheKeyNotFoundError):
             cached_result = cache.read_result(value_key)
             return self._handle_cache_hit(cached_result)
-        except CacheKeyNotFoundError:
-            pass
-        return self._handle_cache_miss(cache, value_key, func_args, func_kwargs)
+
+        # only show spinner if there is a message to show and always only for the
+        # outermost cache function if cache functions are nested, because the outermost
+        # function has to wait for the inner functions anyways. This avoids surprising
+        # users with slowdowned apps in case the inner functions are called very often,
+        # which would lead to a ton of (empty/spinner) proto messages that will make the
+        # app slow (see https://github.com/streamlit/streamlit/issues/9951). This is
+        # basically like auto-setting "show_spinner=False" on the @st.cache decorators
+        # on behalf of the user.
+        is_nested_cache_function = in_cached_function.get()
+        spinner_or_no_context = (
+            spinner(spinner_message, _cache=True)
+            if spinner_message is not None and not is_nested_cache_function
+            else contextlib.nullcontext()
+        )
+        with spinner_or_no_context:
+            return self._handle_cache_miss(cache, value_key, func_args, func_kwargs)
 
     def _handle_cache_hit(self, result: CachedResult) -> Any:
-        """Handle a cache hit: replay the result's cached messages, and return its value."""
+        """Handle a cache hit: replay the result's cached messages, and return its
+        value.
+        """
         replay_cached_messages(
             result,
             self._info.cache_type,
@@ -284,7 +279,6 @@ class CachedFunc:
         """Handle a cache miss: compute a new cached value, write it back to the cache,
         and return that newly-computed value.
         """
-
         # Implementation notes:
         # - We take a "compute_value_lock" before computing our value. This ensures that
         #   multiple sessions don't try to compute the same value simultaneously.
@@ -311,14 +305,13 @@ class CachedFunc:
                 cached_result = cache.read_result(value_key)
                 # Another thread computed the value before us. Early exit!
                 return self._handle_cache_hit(cached_result)
-
             except CacheKeyNotFoundError:
+                # No cache hit -> we will call the cached function
+                # below.
                 pass
 
             # We acquired the lock before any other thread. Compute the value!
-            with self._info.cached_message_replay_ctx.calling_cached_function(
-                self._info.func, self._info.allow_widgets
-            ):
+            with self._info.cached_message_replay_ctx.calling_cached_function(self._info.func):
                 computed_value = self._info.func(*func_args, **func_kwargs)
 
             # We've computed our value, and now we need to write it back to the cache
@@ -327,33 +320,77 @@ class CachedFunc:
             try:
                 cache.write_result(value_key, computed_value, messages)
                 return computed_value
-            except (CacheError, RuntimeError):
-                # An exception was thrown while we tried to write to the cache. Report it to the user.
-                # (We catch `RuntimeError` here because it will be raised by Apache Spark if we do not
-                # collect dataframe before using `st.cache_data`.)
-                if True in [
-                    type_util.is_type(computed_value, type_name)
-                    for type_name in UNEVALUATED_DATAFRAME_TYPES
-                ]:
+            except (CacheError, RuntimeError) as ex:
+                # An exception was thrown while we tried to write to the cache. Report
+                # it to the user. (We catch `RuntimeError` here because it will be
+                # raised by Apache Spark if we do not collect dataframe before
+                # using `st.cache_data`.)
+                if is_unevaluated_data_object(computed_value):
+                    # If the returned value is an unevaluated dataframe, raise an error.
+                    # Unevaluated dataframes are not yet in the local memory, which also
+                    # means they cannot be properly cached (serialized).
+                    msg = f"The function {get_cached_func_name_md(self._info.func)} is decorated with `st.cache_data` but it returns an unevaluated data object of type `{type_util.get_fqn_type(computed_value)}`. Please convert the object to a serializable format (e.g. Pandas DataFrame) before returning it, so `st.cache_data` can serialize and cache it."
                     raise UnevaluatedDataFrameError(
-                        f"""
-                        The function {get_cached_func_name_md(self._info.func)} is decorated with `st.cache_data` but it returns an unevaluated dataframe
-                        of type `{type_util.get_fqn_type(computed_value)}`. Please call `collect()` or `to_pandas()` on the dataframe before returning it,
-                        so `st.cache_data` can serialize and cache it."""
-                    )
+                        msg,
+                    ) from ex
                 raise UnserializableReturnValueError(
-                    return_value=computed_value, func=self._info.func
+                    return_value=computed_value,
+                    func=self._info.func,
                 )
 
-    def clear(self):
-        """Clear the wrapped function's associated cache."""
+    def clear(self, *args, **kwargs):
+        """Clear the cached function's associated cache.
+
+        If no arguments are passed, Streamlit will clear all values cached for
+        the function. If arguments are passed, Streamlit will clear the cached
+        value for these arguments only.
+
+        Parameters
+        ----------
+        *args: Any
+            Arguments of the cached functions.
+
+        **kwargs: Any
+            Keyword arguments of the cached function.
+
+        Example
+        -------
+        >>> import streamlit as st
+        >>> import time
+        >>>
+        >>> @st.cache_data
+        >>> def foo(bar):
+        >>>     time.sleep(2)
+        >>>     st.write(f"Executed foo({bar}).")
+        >>>     return bar
+        >>>
+        >>> if st.button("Clear all cached values for `foo`", on_click=foo.clear):
+        >>>     foo.clear()
+        >>>
+        >>> if st.button("Clear the cached value of `foo(1)`"):
+        >>>     foo.clear(1)
+        >>>
+        >>> foo(1)
+        >>> foo(2)
+
+        """
         cache = self._info.get_function_cache(self._function_key)
-        cache.clear()
+        if args or kwargs:
+            key = _make_value_key(
+                cache_type=self._info.cache_type,
+                func=self._info.func,
+                func_args=args,
+                func_kwargs=kwargs,
+                hash_funcs=self._info.hash_funcs,
+            )
+        else:
+            key = None
+        cache.clear(key=key)
 
 
 def _make_value_key(
     cache_type: CacheType,
-    func: types.FunctionType,
+    func: FunctionType,
     func_args: tuple[Any, ...],
     func_kwargs: dict[str, Any],
     hash_funcs: HashFuncsDict | None,
@@ -369,7 +406,6 @@ def _make_value_key(
         Raised (with a nicely-formatted explanation message) if we encounter
         an un-hashable arg.
     """
-
     # Create a (name, value) list of all *args and **kwargs passed to the
     # function.
     arg_pairs: list[tuple[str | None, Any]] = []
@@ -418,7 +454,7 @@ def _make_value_key(
     return value_key
 
 
-def _make_function_key(cache_type: CacheType, func: types.FunctionType) -> str:
+def _make_function_key(cache_type: CacheType, func: FunctionType) -> str:
     """Create the unique key for a function's cache.
 
     A function's key is stable across reruns of the app, and changes when
@@ -449,15 +485,12 @@ def _make_function_key(cache_type: CacheType, func: types.FunctionType) -> str:
         )
         source_code = func.__code__.co_code
 
-    update_hash(
-        source_code, hasher=func_hasher, cache_type=cache_type, hash_source=func
-    )
+    update_hash(source_code, hasher=func_hasher, cache_type=cache_type, hash_source=func)
 
-    cache_key = func_hasher.hexdigest()
-    return cache_key
+    return func_hasher.hexdigest()
 
 
-def _get_positional_arg_name(func: types.FunctionType, arg_index: int) -> str | None:
+def _get_positional_arg_name(func: FunctionType, arg_index: int) -> str | None:
     """Return the name of a function's positional argument.
 
     If arg_index is out of range, or refers to a parameter that is not a

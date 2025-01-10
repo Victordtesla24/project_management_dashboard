@@ -1,11 +1,28 @@
+import datetime
+import gzip
+import logging
+import os
+import shutil
+import socket
+import ssl
+import sys
+import tempfile
+import textwrap
+import typing
+import unittest
+import urllib.parse
+from contextlib import closing
+from io import BytesIO
+
+import pytest
 from tornado import gen, netutil
 from tornado.escape import (
+    _unicode,
     json_decode,
     json_encode,
-    utf8,
-    _unicode,
-    recursive_unicode,
     native_str,
+    recursive_unicode,
+    utf8,
 )
 from tornado.http1connection import HTTP1Connection
 from tornado.httpclient import HTTPError
@@ -18,35 +35,18 @@ from tornado.httputil import (
 )
 from tornado.iostream import IOStream
 from tornado.locks import Event
-from tornado.log import gen_log, app_log
+from tornado.log import app_log, gen_log
 from tornado.netutil import ssl_options_to_context
 from tornado.simple_httpclient import SimpleAsyncHTTPClient
+from tornado.test.util import skipOnTravis
 from tornado.testing import (
-    AsyncHTTPTestCase,
     AsyncHTTPSTestCase,
+    AsyncHTTPTestCase,
     AsyncTestCase,
     ExpectLog,
     gen_test,
 )
-from tornado.test.util import skipOnTravis
 from tornado.web import Application, RequestHandler, stream_request_body
-
-from contextlib import closing
-import datetime
-import gzip
-import logging
-import os
-import shutil
-import socket
-import ssl
-import sys
-import tempfile
-import textwrap
-import unittest
-import urllib.parse
-from io import BytesIO
-
-import typing
 
 if typing.TYPE_CHECKING:
     from typing import Dict, List  # noqa: F401
@@ -54,7 +54,8 @@ if typing.TYPE_CHECKING:
 
 async def read_stream_body(stream):
     """Reads an HTTP response from `stream` and returns a tuple of its
-    start_line, headers and body."""
+    start_line, headers and body.
+    """
     chunks = []
 
     class Delegate(HTTPMessageDelegate):
@@ -92,7 +93,8 @@ class HelloWorldRequestHandler(RequestHandler):
 
     def get(self):
         if self.request.protocol != self.expected_protocol:
-            raise Exception("unexpected protocol")
+            msg = "unexpected protocol"
+            raise Exception(msg)
         self.finish("Hello world")
 
     def post(self):
@@ -112,10 +114,10 @@ skipIfOldSSL = unittest.skipIf(
 
 class BaseSSLTest(AsyncHTTPSTestCase):
     def get_app(self):
-        return Application([("/", HelloWorldRequestHandler, dict(protocol="https"))])
+        return Application([("/", HelloWorldRequestHandler, {"protocol": "https"})])
 
 
-class SSLTestMixin(object):
+class SSLTestMixin:
     def get_ssl_options(self):
         return dict(
             ssl_version=self.get_ssl_version(),
@@ -123,15 +125,15 @@ class SSLTestMixin(object):
         )
 
     def get_ssl_version(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def test_ssl(self: typing.Any):
         response = self.fetch("/")
-        self.assertEqual(response.body, b"Hello world")
+        assert response.body == b"Hello world"
 
     def test_large_post(self: typing.Any):
         response = self.fetch("/", method="POST", body="A" * 5000)
-        self.assertEqual(response.body, b"Got 5000 bytes in POST")
+        assert response.body == b"Got 5000 bytes in POST"
 
     def test_non_ssl_request(self: typing.Any):
         # Make sure the server closes the connection when it gets a non-ssl
@@ -139,7 +141,7 @@ class SSLTestMixin(object):
         # misbehaving.
         with ExpectLog(gen_log, "(SSL Error|uncaught exception)"):
             with ExpectLog(gen_log, "Uncaught exception", required=False):
-                with self.assertRaises((IOError, HTTPError)):  # type: ignore
+                with pytest.raises((IOError, HTTPError)):  # type: ignore
                     self.fetch(
                         self.get_url("/").replace("https:", "http:"),
                         request_timeout=3600,
@@ -150,11 +152,9 @@ class SSLTestMixin(object):
     def test_error_logging(self: typing.Any):
         # No stack traces are logged for SSL errors.
         with ExpectLog(gen_log, "SSL Error") as expect_log:
-            with self.assertRaises((IOError, HTTPError)):  # type: ignore
-                self.fetch(
-                    self.get_url("/").replace("https:", "http:"), raise_error=True
-                )
-        self.assertFalse(expect_log.logged_stack)
+            with pytest.raises((IOError, HTTPError)):  # type: ignore
+                self.fetch(self.get_url("/").replace("https:", "http:"), raise_error=True)
+        assert not expect_log.logged_stack
 
 
 # Python's SSL implementation differs significantly between versions.
@@ -182,9 +182,7 @@ class TLSv1Test(BaseSSLTest, SSLTestMixin):
 
 class SSLContextTest(BaseSSLTest, SSLTestMixin):
     def get_ssl_options(self):
-        context = ssl_options_to_context(
-            AsyncHTTPSTestCase.get_ssl_options(self), server_side=True
-        )
+        context = ssl_options_to_context(AsyncHTTPSTestCase.get_ssl_options(self), server_side=True)
         assert isinstance(context, ssl.SSLContext)
         return context
 
@@ -201,7 +199,6 @@ class BadSSLOptionsTest(unittest.TestCase):
 
     def test_missing_key(self):
         """A missing SSL key should cause an immediate exception."""
-
         application = Application()
         module_dir = os.path.dirname(__file__)
         existing_certificate = os.path.join(module_dir, "test.crt")
@@ -238,7 +235,7 @@ class MultipartTestHandler(RequestHandler):
                 "argument": self.get_argument("argument"),
                 "filename": self.request.files["files"][0].filename,
                 "filebody": _unicode(self.request.files["files"][0]["body"]),
-            }
+            },
         )
 
 
@@ -255,18 +252,14 @@ class HTTPConnectionTest(AsyncHTTPTestCase):
 
     def raw_fetch(self, headers, body, newline=b"\r\n"):
         with closing(IOStream(socket.socket())) as stream:
-            self.io_loop.run_sync(
-                lambda: stream.connect(("127.0.0.1", self.get_http_port()))
-            )
+            self.io_loop.run_sync(lambda: stream.connect(("127.0.0.1", self.get_http_port())))
             stream.write(
-                newline.join(headers + [utf8("Content-Length: %d" % len(body))])
+                newline.join([*headers, utf8("Content-Length: %d" % len(body))])
                 + newline
                 + newline
-                + body
+                + body,
             )
-            start_line, headers, body = self.io_loop.run_sync(
-                lambda: read_stream_body(stream)
-            )
+            start_line, headers, body = self.io_loop.run_sync(lambda: read_stream_body(stream))
             return body
 
     def test_multipart_form(self):
@@ -282,29 +275,27 @@ class HTTPConnectionTest(AsyncHTTPTestCase):
                 [
                     b"Content-Disposition: form-data; name=argument",
                     b"",
-                    "\u00e1".encode("utf-8"),
+                    "\u00e1".encode(),
                     b"--1234567890",
-                    'Content-Disposition: form-data; name="files"; filename="\u00f3"'.encode(
-                        "utf8"
-                    ),
+                    'Content-Disposition: form-data; name="files"; filename="\u00f3"'.encode(),
                     b"",
-                    "\u00fa".encode("utf-8"),
+                    "\u00fa".encode(),
                     b"--1234567890--",
                     b"",
-                ]
+                ],
             ),
         )
         data = json_decode(response)
-        self.assertEqual("\u00e9", data["header"])
-        self.assertEqual("\u00e1", data["argument"])
-        self.assertEqual("\u00f3", data["filename"])
-        self.assertEqual("\u00fa", data["filebody"])
+        assert data["header"] == "é"
+        assert data["argument"] == "á"
+        assert data["filename"] == "ó"
+        assert data["filebody"] == "ú"
 
     def test_newlines(self):
         # We support both CRLF and bare LF as line separators.
         for newline in (b"\r\n", b"\n"):
             response = self.raw_fetch([b"GET /hello HTTP/1.0"], b"", newline=newline)
-            self.assertEqual(response, b"Hello world")
+            assert response == b"Hello world"
 
     @gen_test
     def test_100_continue(self):
@@ -321,18 +312,18 @@ class HTTPConnectionTest(AsyncHTTPTestCase):
                     b"Expect: 100-continue",
                     b"Connection: close",
                     b"\r\n",
-                ]
-            )
+                ],
+            ),
         )
         data = yield stream.read_until(b"\r\n\r\n")
-        self.assertTrue(data.startswith(b"HTTP/1.1 100 "), data)
+        assert data.startswith(b"HTTP/1.1 100 "), data
         stream.write(b"a" * 1024)
         first_line = yield stream.read_until(b"\r\n")
-        self.assertTrue(first_line.startswith(b"HTTP/1.1 200"), first_line)
+        assert first_line.startswith(b"HTTP/1.1 200"), first_line
         header_data = yield stream.read_until(b"\r\n\r\n")
         headers = HTTPHeaders.parse(native_str(header_data.decode("latin1")))
         body = yield stream.read_bytes(int(headers["Content-Length"]))
-        self.assertEqual(body, b"Got 1024 bytes in POST")
+        assert body == b"Got 1024 bytes in POST"
         stream.close()
 
 
@@ -360,17 +351,15 @@ class TypeCheckHandler(RequestHandler):
         for field, expected_type in fields:
             self.check_type(field, getattr(self.request, field), expected_type)
 
-        self.check_type("header_key", list(self.request.headers.keys())[0], str)
-        self.check_type("header_value", list(self.request.headers.values())[0], str)
+        self.check_type("header_key", next(iter(self.request.headers.keys())), str)
+        self.check_type("header_value", next(iter(self.request.headers.values())), str)
 
-        self.check_type("cookie_key", list(self.request.cookies.keys())[0], str)
-        self.check_type(
-            "cookie_value", list(self.request.cookies.values())[0].value, str
-        )
+        self.check_type("cookie_key", next(iter(self.request.cookies.keys())), str)
+        self.check_type("cookie_value", next(iter(self.request.cookies.values())).value, str)
         # secure cookies
 
-        self.check_type("arg_key", list(self.request.arguments.keys())[0], str)
-        self.check_type("arg_value", list(self.request.arguments.values())[0][0], bytes)
+        self.check_type("arg_key", next(iter(self.request.arguments.keys())), str)
+        self.check_type("arg_value", next(iter(self.request.arguments.values()))[0], bytes)
 
     def post(self):
         self.check_type("body", self.request.body, bytes)
@@ -382,12 +371,12 @@ class TypeCheckHandler(RequestHandler):
     def check_type(self, name, obj, expected_type):
         actual_type = type(obj)
         if expected_type != actual_type:
-            self.errors[name] = "expected %s, got %s" % (expected_type, actual_type)
+            self.errors[name] = f"expected {expected_type}, got {actual_type}"
 
 
 class PostEchoHandler(RequestHandler):
     def post(self, *path_args):
-        self.write(dict(echo=self.get_argument("data")))
+        self.write({"echo": self.get_argument("data")})
 
 
 class PostEchoGBKHandler(PostEchoHandler):
@@ -407,43 +396,41 @@ class HTTPServerTest(AsyncHTTPTestCase):
                 ("//doubleslash", EchoHandler),
                 ("/post_utf8", PostEchoHandler),
                 ("/post_gbk", PostEchoGBKHandler),
-            ]
+            ],
         )
 
     def test_query_string_encoding(self):
         response = self.fetch("/echo?foo=%C3%A9")
         data = json_decode(response.body)
-        self.assertEqual(data, {"foo": ["\u00e9"]})
+        assert data == {"foo": ["é"]}
 
     def test_empty_query_string(self):
         response = self.fetch("/echo?foo=&foo=")
         data = json_decode(response.body)
-        self.assertEqual(data, {"foo": ["", ""]})
+        assert data == {"foo": ["", ""]}
 
     def test_empty_post_parameters(self):
         response = self.fetch("/echo", method="POST", body="foo=&bar=")
         data = json_decode(response.body)
-        self.assertEqual(data, {"foo": [""], "bar": [""]})
+        assert data == {"foo": [""], "bar": [""]}
 
     def test_types(self):
         headers = {"Cookie": "foo=bar"}
         response = self.fetch("/typecheck?foo=bar", headers=headers)
         data = json_decode(response.body)
-        self.assertEqual(data, {})
+        assert data == {}
 
-        response = self.fetch(
-            "/typecheck", method="POST", body="foo=bar", headers=headers
-        )
+        response = self.fetch("/typecheck", method="POST", body="foo=bar", headers=headers)
         data = json_decode(response.body)
-        self.assertEqual(data, {})
+        assert data == {}
 
     def test_double_slash(self):
         # urlparse.urlsplit (which tornado.httpserver used to use
         # incorrectly) would parse paths beginning with "//" as
         # protocol-relative urls.
         response = self.fetch("//doubleslash")
-        self.assertEqual(200, response.code)
-        self.assertEqual(json_decode(response.body), {})
+        assert response.code == 200
+        assert json_decode(response.body) == {}
 
     def test_post_encodings(self):
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
@@ -460,7 +447,7 @@ class HTTPServerTest(AsyncHTTPTestCase):
                         headers=headers,
                         body=(b"data=" + bin_text),
                     )
-                    self.assertEqual(json_decode(response.body), {"echo": uni_text})
+                    assert json_decode(response.body) == {"echo": uni_text}
 
 
 class HTTPServerRawTest(AsyncHTTPTestCase):
@@ -470,9 +457,7 @@ class HTTPServerRawTest(AsyncHTTPTestCase):
     def setUp(self):
         super().setUp()
         self.stream = IOStream(socket.socket())
-        self.io_loop.run_sync(
-            lambda: self.stream.connect(("127.0.0.1", self.get_http_port()))
-        )
+        self.io_loop.run_sync(lambda: self.stream.connect(("127.0.0.1", self.get_http_port())))
 
     def tearDown(self):
         self.stream.close()
@@ -487,11 +472,11 @@ class HTTPServerRawTest(AsyncHTTPTestCase):
         with ExpectLog(gen_log, ".*Malformed HTTP request line", level=logging.INFO):
             self.stream.write(b"asdf\r\n\r\n")
             start_line, headers, response = self.io_loop.run_sync(
-                lambda: read_stream_body(self.stream)
+                lambda: read_stream_body(self.stream),
             )
-            self.assertEqual("HTTP/1.1", start_line.version)
-            self.assertEqual(400, start_line.code)
-            self.assertEqual("Bad Request", start_line.reason)
+            assert start_line.version == "HTTP/1.1"
+            assert start_line.code == 400
+            assert start_line.reason == "Bad Request"
 
     def test_malformed_first_line_log(self):
         with ExpectLog(gen_log, ".*Malformed HTTP request line", level=logging.INFO):
@@ -527,13 +512,12 @@ bar
 0
 
 """.replace(
-                b"\n", b"\r\n"
-            )
+                b"\n",
+                b"\r\n",
+            ),
         )
-        start_line, headers, response = self.io_loop.run_sync(
-            lambda: read_stream_body(self.stream)
-        )
-        self.assertEqual(json_decode(response), {"foo": ["bar"]})
+        start_line, headers, response = self.io_loop.run_sync(lambda: read_stream_body(self.stream))
+        assert json_decode(response) == {"foo": ["bar"]}
 
     def test_chunked_request_uppercase(self):
         # As per RFC 2616 section 3.6, "Transfer-Encoding" header's value is
@@ -551,13 +535,12 @@ bar
 0
 
 """.replace(
-                b"\n", b"\r\n"
-            )
+                b"\n",
+                b"\r\n",
+            ),
         )
-        start_line, headers, response = self.io_loop.run_sync(
-            lambda: read_stream_body(self.stream)
-        )
-        self.assertEqual(json_decode(response), {"foo": ["bar"]})
+        start_line, headers, response = self.io_loop.run_sync(lambda: read_stream_body(self.stream))
+        assert json_decode(response) == {"foo": ["bar"]}
 
     def test_chunked_request_body_invalid_size(self):
         # Only hex digits are allowed in chunk sizes. Python's int() function
@@ -572,14 +555,15 @@ Transfer-Encoding: chunked
 0
 
 """.replace(
-                b"\n", b"\r\n"
-            )
+                b"\n",
+                b"\r\n",
+            ),
         )
         with ExpectLog(gen_log, ".*invalid chunk size", level=logging.INFO):
             start_line, headers, response = self.io_loop.run_sync(
-                lambda: read_stream_body(self.stream)
+                lambda: read_stream_body(self.stream),
             )
-        self.assertEqual(400, start_line.code)
+        assert start_line.code == 400
 
     def test_chunked_request_body_duplicate_header(self):
         # Repeated Transfer-Encoding headers should be an error (and not confuse
@@ -594,7 +578,7 @@ Transfer-encoding: chunked
 ok
 0
 
-"""
+""",
         )
         with ExpectLog(
             gen_log,
@@ -602,9 +586,9 @@ ok
             level=logging.INFO,
         ):
             start_line, headers, response = self.io_loop.run_sync(
-                lambda: read_stream_body(self.stream)
+                lambda: read_stream_body(self.stream),
             )
-        self.assertEqual(400, start_line.code)
+        assert start_line.code == 400
 
     def test_chunked_request_body_unsupported_transfer_encoding(self):
         # We don't support transfer-encodings other than chunked.
@@ -617,15 +601,17 @@ Transfer-Encoding: gzip, chunked
 ok
 0
 
-"""
+""",
         )
         with ExpectLog(
-            gen_log, ".*Unsupported Transfer-Encoding gzip, chunked", level=logging.INFO
+            gen_log,
+            ".*Unsupported Transfer-Encoding gzip, chunked",
+            level=logging.INFO,
         ):
             start_line, headers, response = self.io_loop.run_sync(
-                lambda: read_stream_body(self.stream)
+                lambda: read_stream_body(self.stream),
             )
-        self.assertEqual(400, start_line.code)
+        assert start_line.code == 400
 
     def test_chunked_request_body_transfer_encoding_and_content_length(self):
         # Transfer-encoding and content-length are mutually exclusive
@@ -639,7 +625,7 @@ Content-Length: 2
 ok
 0
 
-"""
+""",
         )
         with ExpectLog(
             gen_log,
@@ -647,9 +633,9 @@ ok
             level=logging.INFO,
         ):
             start_line, headers, response = self.io_loop.run_sync(
-                lambda: read_stream_body(self.stream)
+                lambda: read_stream_body(self.stream),
             )
-        self.assertEqual(400, start_line.code)
+        assert start_line.code == 400
 
     @gen_test
     def test_invalid_content_length(self):
@@ -678,9 +664,9 @@ ok
                             Connection: close
 
                             1234567890
-                            """
-                            ).replace("\n", "\r\n")
-                        )
+                            """,
+                            ).replace("\n", "\r\n"),
+                        ),
                     )
                     yield stream.read_until_close()
 
@@ -690,54 +676,40 @@ class XHeaderTest(HandlerBaseTestCase):
         def get(self):
             self.set_header("request-version", self.request.version)
             self.write(
-                dict(
-                    remote_ip=self.request.remote_ip,
-                    remote_protocol=self.request.protocol,
-                )
+                {
+                    "remote_ip": self.request.remote_ip,
+                    "remote_protocol": self.request.protocol,
+                },
             )
 
     def get_httpserver_options(self):
-        return dict(xheaders=True, trusted_downstream=["5.5.5.5"])
+        return {"xheaders": True, "trusted_downstream": ["5.5.5.5"]}
 
     def test_ip_headers(self):
-        self.assertEqual(self.fetch_json("/")["remote_ip"], "127.0.0.1")
+        assert self.fetch_json("/")["remote_ip"] == "127.0.0.1"
 
         valid_ipv4 = {"X-Real-IP": "4.4.4.4"}
-        self.assertEqual(
-            self.fetch_json("/", headers=valid_ipv4)["remote_ip"], "4.4.4.4"
-        )
+        assert self.fetch_json("/", headers=valid_ipv4)["remote_ip"] == "4.4.4.4"
 
         valid_ipv4_list = {"X-Forwarded-For": "127.0.0.1, 4.4.4.4"}
-        self.assertEqual(
-            self.fetch_json("/", headers=valid_ipv4_list)["remote_ip"], "4.4.4.4"
-        )
+        assert self.fetch_json("/", headers=valid_ipv4_list)["remote_ip"] == "4.4.4.4"
 
         valid_ipv6 = {"X-Real-IP": "2620:0:1cfe:face:b00c::3"}
-        self.assertEqual(
-            self.fetch_json("/", headers=valid_ipv6)["remote_ip"],
-            "2620:0:1cfe:face:b00c::3",
-        )
+        assert self.fetch_json("/", headers=valid_ipv6)["remote_ip"] == "2620:0:1cfe:face:b00c::3"
 
         valid_ipv6_list = {"X-Forwarded-For": "::1, 2620:0:1cfe:face:b00c::3"}
-        self.assertEqual(
-            self.fetch_json("/", headers=valid_ipv6_list)["remote_ip"],
-            "2620:0:1cfe:face:b00c::3",
+        assert (
+            self.fetch_json("/", headers=valid_ipv6_list)["remote_ip"] == "2620:0:1cfe:face:b00c::3"
         )
 
         invalid_chars = {"X-Real-IP": "4.4.4.4<script>"}
-        self.assertEqual(
-            self.fetch_json("/", headers=invalid_chars)["remote_ip"], "127.0.0.1"
-        )
+        assert self.fetch_json("/", headers=invalid_chars)["remote_ip"] == "127.0.0.1"
 
         invalid_chars_list = {"X-Forwarded-For": "4.4.4.4, 5.5.5.5<script>"}
-        self.assertEqual(
-            self.fetch_json("/", headers=invalid_chars_list)["remote_ip"], "127.0.0.1"
-        )
+        assert self.fetch_json("/", headers=invalid_chars_list)["remote_ip"] == "127.0.0.1"
 
         invalid_host = {"X-Real-IP": "www.google.com"}
-        self.assertEqual(
-            self.fetch_json("/", headers=invalid_host)["remote_ip"], "127.0.0.1"
-        )
+        assert self.fetch_json("/", headers=invalid_host)["remote_ip"] == "127.0.0.1"
 
     def test_trusted_downstream(self):
         valid_ipv4_list = {"X-Forwarded-For": "127.0.0.1, 4.4.4.4, 5.5.5.5"}
@@ -747,37 +719,25 @@ class XHeaderTest(HandlerBaseTestCase):
             # here but tornado_http2 doesn't support it yet.
             self.skipTest("requires HTTP/1.x")
         result = json_decode(resp.body)
-        self.assertEqual(result["remote_ip"], "4.4.4.4")
+        assert result["remote_ip"] == "4.4.4.4"
 
     def test_scheme_headers(self):
-        self.assertEqual(self.fetch_json("/")["remote_protocol"], "http")
+        assert self.fetch_json("/")["remote_protocol"] == "http"
 
         https_scheme = {"X-Scheme": "https"}
-        self.assertEqual(
-            self.fetch_json("/", headers=https_scheme)["remote_protocol"], "https"
-        )
+        assert self.fetch_json("/", headers=https_scheme)["remote_protocol"] == "https"
 
         https_forwarded = {"X-Forwarded-Proto": "https"}
-        self.assertEqual(
-            self.fetch_json("/", headers=https_forwarded)["remote_protocol"], "https"
-        )
+        assert self.fetch_json("/", headers=https_forwarded)["remote_protocol"] == "https"
 
         https_multi_forwarded = {"X-Forwarded-Proto": "https , http"}
-        self.assertEqual(
-            self.fetch_json("/", headers=https_multi_forwarded)["remote_protocol"],
-            "http",
-        )
+        assert self.fetch_json("/", headers=https_multi_forwarded)["remote_protocol"] == "http"
 
         http_multi_forwarded = {"X-Forwarded-Proto": "http,https"}
-        self.assertEqual(
-            self.fetch_json("/", headers=http_multi_forwarded)["remote_protocol"],
-            "https",
-        )
+        assert self.fetch_json("/", headers=http_multi_forwarded)["remote_protocol"] == "https"
 
         bad_forwarded = {"X-Forwarded-Proto": "unknown"}
-        self.assertEqual(
-            self.fetch_json("/", headers=bad_forwarded)["remote_protocol"], "http"
-        )
+        assert self.fetch_json("/", headers=bad_forwarded)["remote_protocol"] == "http"
 
 
 class SSLXHeaderTest(AsyncHTTPSTestCase, HandlerBaseTestCase):
@@ -790,29 +750,25 @@ class SSLXHeaderTest(AsyncHTTPSTestCase, HandlerBaseTestCase):
         return output
 
     def test_request_without_xprotocol(self):
-        self.assertEqual(self.fetch_json("/")["remote_protocol"], "https")
+        assert self.fetch_json("/")["remote_protocol"] == "https"
 
         http_scheme = {"X-Scheme": "http"}
-        self.assertEqual(
-            self.fetch_json("/", headers=http_scheme)["remote_protocol"], "http"
-        )
+        assert self.fetch_json("/", headers=http_scheme)["remote_protocol"] == "http"
 
         bad_scheme = {"X-Scheme": "unknown"}
-        self.assertEqual(
-            self.fetch_json("/", headers=bad_scheme)["remote_protocol"], "https"
-        )
+        assert self.fetch_json("/", headers=bad_scheme)["remote_protocol"] == "https"
 
 
 class ManualProtocolTest(HandlerBaseTestCase):
     class Handler(RequestHandler):
         def get(self):
-            self.write(dict(protocol=self.request.protocol))
+            self.write({"protocol": self.request.protocol})
 
     def get_httpserver_options(self):
-        return dict(protocol="https")
+        return {"protocol": "https"}
 
     def test_manual_protocol(self):
-        self.assertEqual(self.fetch_json("/")["protocol"], "https")
+        assert self.fetch_json("/")["protocol"] == "https"
 
 
 @unittest.skipIf(
@@ -852,11 +808,11 @@ class UnixSocketTest(AsyncTestCase):
     def test_unix_socket(self):
         self.stream.write(b"GET /hello HTTP/1.0\r\n\r\n")
         response = yield self.stream.read_until(b"\r\n")
-        self.assertEqual(response, b"HTTP/1.1 200 OK\r\n")
+        assert response == b"HTTP/1.1 200 OK\r\n"
         header_data = yield self.stream.read_until(b"\r\n\r\n")
         headers = HTTPHeaders.parse(header_data.decode("latin1"))
         body = yield self.stream.read_bytes(int(headers["Content-Length"]))
-        self.assertEqual(body, b"Hello world")
+        assert body == b"Hello world"
 
     @gen_test
     def test_unix_socket_bad_request(self):
@@ -865,7 +821,7 @@ class UnixSocketTest(AsyncTestCase):
         with ExpectLog(gen_log, "Malformed HTTP message from", level=logging.INFO):
             self.stream.write(b"garbage\r\n\r\n")
             response = yield self.stream.read_until_close()
-        self.assertEqual(response, b"HTTP/1.1 400 Bad Request\r\n\r\n")
+        assert response == b"HTTP/1.1 400 Bad Request\r\n\r\n"
 
 
 class KeepAliveTest(AsyncHTTPTestCase):
@@ -919,9 +875,9 @@ class KeepAliveTest(AsyncHTTPTestCase):
                 (
                     "/finish_on_close",
                     FinishOnCloseHandler,
-                    dict(cleanup_event=self.cleanup_event),
+                    {"cleanup_event": self.cleanup_event},
                 ),
-            ]
+            ],
         )
 
     def setUp(self):
@@ -947,7 +903,7 @@ class KeepAliveTest(AsyncHTTPTestCase):
     @gen.coroutine
     def read_headers(self):
         first_line = yield self.stream.read_until(b"\r\n")
-        self.assertTrue(first_line.startswith(b"HTTP/1.1 200"), first_line)
+        assert first_line.startswith(b"HTTP/1.1 200"), first_line
         header_bytes = yield self.stream.read_until(b"\r\n\r\n")
         headers = HTTPHeaders.parse(header_bytes.decode("latin1"))
         raise gen.Return(headers)
@@ -956,7 +912,7 @@ class KeepAliveTest(AsyncHTTPTestCase):
     def read_response(self):
         self.headers = yield self.read_headers()
         body = yield self.stream.read_bytes(int(self.headers["Content-Length"]))
-        self.assertEqual(b"Hello world", body)
+        assert body == b"Hello world"
 
     def close(self):
         self.stream.close()
@@ -977,8 +933,8 @@ class KeepAliveTest(AsyncHTTPTestCase):
         self.stream.write(b"GET / HTTP/1.1\r\nConnection: close\r\n\r\n")
         yield self.read_response()
         data = yield self.stream.read_until_close()
-        self.assertTrue(not data)
-        self.assertEqual(self.headers["Connection"], "close")
+        assert not data
+        assert self.headers["Connection"] == "close"
         self.close()
 
     # keepalive is supported for http 1.0 too, but it's opt-in
@@ -989,8 +945,8 @@ class KeepAliveTest(AsyncHTTPTestCase):
         self.stream.write(b"GET / HTTP/1.0\r\n\r\n")
         yield self.read_response()
         data = yield self.stream.read_until_close()
-        self.assertTrue(not data)
-        self.assertTrue("Connection" not in self.headers)
+        assert not data
+        assert "Connection" not in self.headers
         self.close()
 
     @gen_test
@@ -999,10 +955,10 @@ class KeepAliveTest(AsyncHTTPTestCase):
         yield self.connect()
         self.stream.write(b"GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n")
         yield self.read_response()
-        self.assertEqual(self.headers["Connection"], "Keep-Alive")
+        assert self.headers["Connection"] == "Keep-Alive"
         self.stream.write(b"GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n")
         yield self.read_response()
-        self.assertEqual(self.headers["Connection"], "Keep-Alive")
+        assert self.headers["Connection"] == "Keep-Alive"
         self.close()
 
     @gen_test
@@ -1011,10 +967,10 @@ class KeepAliveTest(AsyncHTTPTestCase):
         yield self.connect()
         self.stream.write(b"GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n\r\n")
         yield self.read_response()
-        self.assertEqual(self.headers["Connection"], "Keep-Alive")
+        assert self.headers["Connection"] == "Keep-Alive"
         self.stream.write(b"GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n")
         yield self.read_response()
-        self.assertEqual(self.headers["Connection"], "Keep-Alive")
+        assert self.headers["Connection"] == "Keep-Alive"
         self.close()
 
     @gen_test
@@ -1060,13 +1016,13 @@ class KeepAliveTest(AsyncHTTPTestCase):
             b"Transfer-Encoding: chunked\r\n"
             b"\r\n"
             b"0\r\n"
-            b"\r\n"
+            b"\r\n",
         )
         yield self.read_response()
-        self.assertEqual(self.headers["Connection"], "Keep-Alive")
+        assert self.headers["Connection"] == "Keep-Alive"
         self.stream.write(b"GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n")
         yield self.read_response()
-        self.assertEqual(self.headers["Connection"], "Keep-Alive")
+        assert self.headers["Connection"] == "Keep-Alive"
         self.close()
 
     @gen_test
@@ -1099,16 +1055,16 @@ class GzipBaseTest(AsyncHTTPTestCase):
 
     def test_uncompressed(self):
         response = self.fetch("/", method="POST", body="foo=bar")
-        self.assertEqual(json_decode(response.body), {"foo": ["bar"]})
+        assert json_decode(response.body) == {"foo": ["bar"]}
 
 
 class GzipTest(GzipBaseTest, AsyncHTTPTestCase):
     def get_httpserver_options(self):
-        return dict(decompress_request=True)
+        return {"decompress_request": True}
 
     def test_gzip(self):
         response = self.post_gzip("foo=bar")
-        self.assertEqual(json_decode(response.body), {"foo": ["bar"]})
+        assert json_decode(response.body) == {"foo": ["bar"]}
 
     def test_gzip_case_insensitive(self):
         # https://datatracker.ietf.org/doc/html/rfc7231#section-3.1.2.1
@@ -1123,7 +1079,7 @@ class GzipTest(GzipBaseTest, AsyncHTTPTestCase):
             body=compressed_body,
             headers={"Content-Encoding": "GZIP"},
         )
-        self.assertEqual(json_decode(response.body), {"foo": ["bar"]})
+        assert json_decode(response.body) == {"foo": ["bar"]}
 
 
 class GzipUnsupportedTest(GzipBaseTest, AsyncHTTPTestCase):
@@ -1133,7 +1089,7 @@ class GzipUnsupportedTest(GzipBaseTest, AsyncHTTPTestCase):
         # not a fatal error).
         with ExpectLog(gen_log, "Unsupported Content-Encoding"):
             response = self.post_gzip("foo=bar")
-        self.assertEqual(json_decode(response.body), {})
+        assert json_decode(response.body) == {}
 
 
 class StreamingChunkSizeTest(AsyncHTTPTestCase):
@@ -1147,10 +1103,10 @@ class StreamingChunkSizeTest(AsyncHTTPTestCase):
         return SimpleAsyncHTTPClient()
 
     def get_httpserver_options(self):
-        return dict(chunk_size=self.CHUNK_SIZE, decompress_request=True)
+        return {"chunk_size": self.CHUNK_SIZE, "decompress_request": True}
 
     class MessageDelegate(HTTPMessageDelegate):
-        def __init__(self, connection):
+        def __init__(self, connection) -> None:
             self.connection = connection
 
         def headers_received(self, start_line, headers):
@@ -1179,12 +1135,10 @@ class StreamingChunkSizeTest(AsyncHTTPTestCase):
         response = self.fetch("/", method="POST", **kwargs)
         response.rethrow()
         chunks = json_decode(response.body)
-        self.assertEqual(len(self.BODY), sum(chunks))
+        assert len(self.BODY) == sum(chunks)
         for chunk_size in chunks:
-            self.assertLessEqual(
-                chunk_size, self.CHUNK_SIZE, "oversized chunk: " + str(chunks)
-            )
-            self.assertGreater(chunk_size, 0, "empty chunk: " + str(chunks))
+            assert chunk_size <= self.CHUNK_SIZE, "oversized chunk: " + str(chunks)
+            assert chunk_size > 0, "empty chunk: " + str(chunks)
         return chunks
 
     def compress(self, body):
@@ -1194,18 +1148,17 @@ class StreamingChunkSizeTest(AsyncHTTPTestCase):
         gzfile.close()
         compressed = bytesio.getvalue()
         if len(compressed) >= len(body):
-            raise Exception("body did not shrink when compressed")
+            msg = "body did not shrink when compressed"
+            raise Exception(msg)
         return compressed
 
     def test_regular_body(self):
         chunks = self.fetch_chunk_sizes(body=self.BODY)
         # Without compression we know exactly what to expect.
-        self.assertEqual([16, 16, 16, 2], chunks)
+        assert [16, 16, 16, 2] == chunks
 
     def test_compressed_body(self):
-        self.fetch_chunk_sizes(
-            body=self.compress(self.BODY), headers={"Content-Encoding": "gzip"}
-        )
+        self.fetch_chunk_sizes(body=self.compress(self.BODY), headers={"Content-Encoding": "gzip"})
         # Compression creates irregular boundaries so the assertions
         # in fetch_chunk_sizes are as specific as we can get.
 
@@ -1216,24 +1169,22 @@ class StreamingChunkSizeTest(AsyncHTTPTestCase):
 
         chunks = self.fetch_chunk_sizes(body_producer=body_producer)
         # HTTP chunk boundaries translate to application-visible breaks
-        self.assertEqual([16, 4, 16, 14], chunks)
+        assert [16, 4, 16, 14] == chunks
 
     def test_chunked_compressed(self):
         compressed = self.compress(self.BODY)
-        self.assertGreater(len(compressed), 20)
+        assert len(compressed) > 20
 
         def body_producer(write):
             write(compressed[:20])
             write(compressed[20:])
 
-        self.fetch_chunk_sizes(
-            body_producer=body_producer, headers={"Content-Encoding": "gzip"}
-        )
+        self.fetch_chunk_sizes(body_producer=body_producer, headers={"Content-Encoding": "gzip"})
 
 
 class InvalidOutputContentLengthTest(AsyncHTTPTestCase):
     class MessageDelegate(HTTPMessageDelegate):
-        def __init__(self, connection):
+        def __init__(self, connection) -> None:
             self.connection = connection
 
         def headers_received(self, start_line, headers):
@@ -1261,13 +1212,13 @@ class InvalidOutputContentLengthTest(AsyncHTTPTestCase):
         with self.subTest("normal"):
             response = self.fetch("/", method="GET", headers={"x-test": "normal"})
             response.rethrow()
-            self.assertEqual(response.body, b"1234567890")
+            assert response.body == b"1234567890"
         for test in ["alphabetic", "leading plus", "underscore"]:
             with self.subTest(test):
                 # This log matching could be tighter but I think I'm already
                 # over-testing here.
                 with ExpectLog(app_log, "Uncaught exception"):
-                    with self.assertRaises(HTTPError):
+                    with pytest.raises(HTTPError):
                         self.fetch("/", method="GET", headers={"x-test": test})
 
 
@@ -1276,12 +1227,12 @@ class MaxHeaderSizeTest(AsyncHTTPTestCase):
         return Application([("/", HelloWorldRequestHandler)])
 
     def get_httpserver_options(self):
-        return dict(max_header_size=1024)
+        return {"max_header_size": 1024}
 
     def test_small_headers(self):
         response = self.fetch("/", headers={"X-Filler": "a" * 100})
         response.rethrow()
-        self.assertEqual(response.body, b"Hello world")
+        assert response.body == b"Hello world"
 
     def test_large_headers(self):
         with ExpectLog(gen_log, "Unsatisfiable read", required=False):
@@ -1293,7 +1244,7 @@ class MaxHeaderSizeTest(AsyncHTTPTestCase):
                 # 6585. However, many implementations just close the
                 # connection in this case, resulting in a missing response.
                 if e.response is not None:
-                    self.assertIn(e.response.code, (431, 599))
+                    assert e.response.code in (431, 599)
 
 
 @skipOnTravis
@@ -1302,7 +1253,7 @@ class IdleTimeoutTest(AsyncHTTPTestCase):
         return Application([("/", HelloWorldRequestHandler)])
 
     def get_httpserver_options(self):
-        return dict(idle_connection_timeout=0.1)
+        return {"idle_connection_timeout": 0.1}
 
     def setUp(self):
         super().setUp()
@@ -1334,11 +1285,11 @@ class IdleTimeoutTest(AsyncHTTPTestCase):
         stream.set_close_callback(event.set)
 
         # Use the connection twice to make sure keep-alives are working
-        for i in range(2):
+        for _i in range(2):
             stream.write(b"GET / HTTP/1.1\r\n\r\n")
             yield stream.read_until(b"\r\n\r\n")
             data = yield stream.read_bytes(11)
-            self.assertEqual(data, b"Hello world")
+            assert data == b"Hello world"
 
         # Now let the timeout trigger and close the connection.
         yield event.wait()
@@ -1368,12 +1319,10 @@ class BodyLimitsTest(AsyncHTTPTestCase):
             def put(self):
                 self.write(str(self.bytes_read))
 
-        return Application(
-            [("/buffered", BufferedHandler), ("/streaming", StreamingHandler)]
-        )
+        return Application([("/buffered", BufferedHandler), ("/streaming", StreamingHandler)])
 
     def get_httpserver_options(self):
-        return dict(body_timeout=3600, max_body_size=4096)
+        return {"body_timeout": 3600, "max_body_size": 4096}
 
     def get_http_client(self):
         # body_producer doesn't work on curl_httpclient, so override the
@@ -1382,14 +1331,14 @@ class BodyLimitsTest(AsyncHTTPTestCase):
 
     def test_small_body(self):
         response = self.fetch("/buffered", method="PUT", body=b"a" * 4096)
-        self.assertEqual(response.body, b"4096")
+        assert response.body == b"4096"
         response = self.fetch("/streaming", method="PUT", body=b"a" * 4096)
-        self.assertEqual(response.body, b"4096")
+        assert response.body == b"4096"
 
     def test_large_body_buffered(self):
         with ExpectLog(gen_log, ".*Content-Length too long", level=logging.INFO):
             response = self.fetch("/buffered", method="PUT", body=b"a" * 10240)
-        self.assertEqual(response.code, 400)
+        assert response.code == 400
 
     @unittest.skipIf(os.name == "nt", "flaky on windows")
     def test_large_body_buffered_chunked(self):
@@ -1400,12 +1349,12 @@ class BodyLimitsTest(AsyncHTTPTestCase):
                 method="PUT",
                 body_producer=lambda write: write(b"a" * 10240),
             )
-        self.assertEqual(response.code, 400)
+        assert response.code == 400
 
     def test_large_body_streaming(self):
         with ExpectLog(gen_log, ".*Content-Length too long", level=logging.INFO):
             response = self.fetch("/streaming", method="PUT", body=b"a" * 10240)
-        self.assertEqual(response.code, 400)
+        assert response.code == 400
 
     @unittest.skipIf(os.name == "nt", "flaky on windows")
     def test_large_body_streaming_chunked(self):
@@ -1415,13 +1364,11 @@ class BodyLimitsTest(AsyncHTTPTestCase):
                 method="PUT",
                 body_producer=lambda write: write(b"a" * 10240),
             )
-        self.assertEqual(response.code, 400)
+        assert response.code == 400
 
     def test_large_body_streaming_override(self):
-        response = self.fetch(
-            "/streaming?expected_size=10240", method="PUT", body=b"a" * 10240
-        )
-        self.assertEqual(response.body, b"10240")
+        response = self.fetch("/streaming?expected_size=10240", method="PUT", body=b"a" * 10240)
+        assert response.body == b"10240"
 
     def test_large_body_streaming_chunked_override(self):
         response = self.fetch(
@@ -1429,7 +1376,7 @@ class BodyLimitsTest(AsyncHTTPTestCase):
             method="PUT",
             body_producer=lambda write: write(b"a" * 10240),
         )
-        self.assertEqual(response.body, b"10240")
+        assert response.body == b"10240"
 
     @gen_test
     def test_timeout(self):
@@ -1439,12 +1386,11 @@ class BodyLimitsTest(AsyncHTTPTestCase):
             # Use a raw stream because AsyncHTTPClient won't let us read a
             # response without finishing a body.
             stream.write(
-                b"PUT /streaming?body_timeout=0.1 HTTP/1.0\r\n"
-                b"Content-Length: 42\r\n\r\n"
+                b"PUT /streaming?body_timeout=0.1 HTTP/1.0\r\nContent-Length: 42\r\n\r\n",
             )
             with ExpectLog(gen_log, "Timeout reading body", level=logging.INFO):
                 response = yield stream.read_until_close()
-            self.assertEqual(response, b"")
+            assert response == b""
         finally:
             stream.close()
 
@@ -1456,19 +1402,16 @@ class BodyLimitsTest(AsyncHTTPTestCase):
             yield stream.connect(("127.0.0.1", self.get_http_port()))
             # Use a raw stream so we can make sure it's all on one connection.
             stream.write(
-                b"PUT /streaming?expected_size=10240 HTTP/1.1\r\n"
-                b"Content-Length: 10240\r\n\r\n"
+                b"PUT /streaming?expected_size=10240 HTTP/1.1\r\nContent-Length: 10240\r\n\r\n",
             )
             stream.write(b"a" * 10240)
             start_line, headers, response = yield read_stream_body(stream)
-            self.assertEqual(response, b"10240")
+            assert response == b"10240"
             # Without the ?expected_size parameter, we get the old default value
-            stream.write(
-                b"PUT /streaming HTTP/1.1\r\n" b"Content-Length: 10240\r\n\r\n"
-            )
+            stream.write(b"PUT /streaming HTTP/1.1\r\nContent-Length: 10240\r\n\r\n")
             with ExpectLog(gen_log, ".*Content-Length too long", level=logging.INFO):
                 data = yield stream.read_until_close()
-            self.assertEqual(data, b"HTTP/1.1 400 Bad Request\r\n\r\n")
+            assert data == b"HTTP/1.1 400 Bad Request\r\n\r\n"
         finally:
             stream.close()
 
@@ -1483,14 +1426,12 @@ class LegacyInterfaceTest(AsyncHTTPTestCase):
             if not self.http1:
                 # This test will be skipped if we're using HTTP/2,
                 # so just close it out cleanly using the modern interface.
-                request.connection.write_headers(
-                    ResponseStartLine("", 200, "OK"), HTTPHeaders()
-                )
+                request.connection.write_headers(ResponseStartLine("", 200, "OK"), HTTPHeaders())
                 request.connection.finish()
                 return
             message = b"Hello world"
             request.connection.write(
-                utf8("HTTP/1.1 200 OK\r\n" "Content-Length: %d\r\n\r\n" % len(message))
+                utf8("HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(message)),
             )
             request.connection.write(message)
             request.connection.finish()
@@ -1501,4 +1442,4 @@ class LegacyInterfaceTest(AsyncHTTPTestCase):
         response = self.fetch("/")
         if not self.http1:
             self.skipTest("requires HTTP/1.x")
-        self.assertEqual(response.body, b"Hello world")
+        assert response.body == b"Hello world"

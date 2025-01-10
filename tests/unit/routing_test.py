@@ -10,6 +10,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import typing  # noqa: F401
+
 from tornado.httputil import (
     HTTPHeaders,
     HTTPMessageDelegate,
@@ -28,13 +30,11 @@ from tornado.testing import AsyncHTTPTestCase
 from tornado.web import Application, HTTPError, RequestHandler
 from tornado.wsgi import WSGIContainer
 
-import typing  # noqa: F401
-
 
 class BasicRouter(Router):
     def find_handler(self, request, **kwargs):
         class MessageDelegate(HTTPMessageDelegate):
-            def __init__(self, connection):
+            def __init__(self, connection) -> None:
                 self.connection = connection
 
             def finish(self):
@@ -54,7 +54,7 @@ class BasicRouterTestCase(AsyncHTTPTestCase):
 
     def test_basic_router(self):
         response = self.fetch("/any_request")
-        self.assertEqual(response.body, b"OK")
+        assert response.body == b"OK"
 
 
 resources = {}  # type: typing.Dict[str, bytes]
@@ -74,7 +74,7 @@ class PostResource(RequestHandler):
 
 
 class HTTPMethodRouter(Router):
-    def __init__(self, app):
+    def __init__(self, app) -> None:
         self.app = app
 
     def find_handler(self, request, **kwargs):
@@ -88,14 +88,14 @@ class HTTPMethodRouterTestCase(AsyncHTTPTestCase):
 
     def test_http_method_router(self):
         response = self.fetch("/post_resource", method="POST", body="data")
-        self.assertEqual(response.code, 200)
+        assert response.code == 200
 
         response = self.fetch("/get_resource")
-        self.assertEqual(response.code, 404)
+        assert response.code == 404
 
         response = self.fetch("/post_resource")
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.body, b"data")
+        assert response.code == 200
+        assert response.body == b"data"
 
 
 def _get_named_handler(handler_name):
@@ -114,7 +114,7 @@ SecondHandler = _get_named_handler("second_handler")
 
 
 class CustomRouter(ReversibleRouter):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.routes = {}  # type: typing.Dict[str, typing.Any]
 
@@ -125,6 +125,7 @@ class CustomRouter(ReversibleRouter):
         if request.path in self.routes:
             app, handler = self.routes[request.path]
             return app.get_handler_delegate(request, handler)
+        return None
 
     def reverse_url(self, name, *args):
         handler_path = "/" + name
@@ -147,24 +148,24 @@ class CustomRouterTestCase(AsyncHTTPTestCase):
                 "/first_handler": (app1, FirstHandler),
                 "/second_handler": (app2, SecondHandler),
                 "/first_handler_second_app": (app2, FirstHandler),
-            }
+            },
         )
 
         return router
 
     def test_custom_router(self):
         response = self.fetch("/first_handler")
-        self.assertEqual(response.body, b"app1: first_handler: /first_handler")
+        assert response.body == b"app1: first_handler: /first_handler"
         response = self.fetch("/second_handler")
-        self.assertEqual(response.body, b"app2: second_handler: /second_handler")
+        assert response.body == b"app2: second_handler: /second_handler"
         response = self.fetch("/first_handler_second_app")
-        self.assertEqual(response.body, b"app2: first_handler: /first_handler")
+        assert response.body == b"app2: first_handler: /first_handler"
 
 
 class ConnectionDelegate(HTTPServerConnectionDelegate):
     def start_request(self, server_conn, request_conn):
         class MessageDelegate(HTTPMessageDelegate):
-            def __init__(self, connection):
+            def __init__(self, connection) -> None:
                 self.connection = connection
 
             def finish(self):
@@ -192,9 +193,7 @@ class RuleRouterTest(AsyncHTTPTestCase):
             request.connection.finish()
 
         router = CustomRouter()
-        router.add_routes(
-            {"/nested_handler": (app, _get_named_handler("nested_handler"))}
-        )
+        router.add_routes({"/nested_handler": (app, _get_named_handler("nested_handler"))})
 
         app.add_handlers(
             ".*",
@@ -207,7 +206,7 @@ class RuleRouterTest(AsyncHTTPTestCase):
                             "tornado.test.routing_test.SecondHandler",
                             {},
                             "second_handler",
-                        )
+                        ),
                     ],
                 ),
                 Rule(PathMatches("/.*handler"), router),
@@ -221,25 +220,25 @@ class RuleRouterTest(AsyncHTTPTestCase):
 
     def test_rule_based_router(self):
         response = self.fetch("/first_handler")
-        self.assertEqual(response.body, b"first_handler: /first_handler")
+        assert response.body == b"first_handler: /first_handler"
 
         response = self.fetch("/first_handler", headers={"Host": "www.example.com"})
-        self.assertEqual(response.body, b"second_handler: /first_handler")
+        assert response.body == b"second_handler: /first_handler"
 
         response = self.fetch("/nested_handler")
-        self.assertEqual(response.body, b"nested_handler: /nested_handler")
+        assert response.body == b"nested_handler: /nested_handler"
 
         response = self.fetch("/nested_not_found_handler")
-        self.assertEqual(response.code, 404)
+        assert response.code == 404
 
         response = self.fetch("/connection_delegate")
-        self.assertEqual(response.body, b"OK")
+        assert response.body == b"OK"
 
         response = self.fetch("/request_callable")
-        self.assertEqual(response.body, b"OK")
+        assert response.body == b"OK"
 
         response = self.fetch("/404")
-        self.assertEqual(response.code, 404)
+        assert response.code == 404
 
 
 class WSGIContainerTestCase(AsyncHTTPTestCase):
@@ -257,7 +256,7 @@ class WSGIContainerTestCase(AsyncHTTPTestCase):
                     Application([(r"/tornado/test", Handler, {}, "tornado")]),
                 ),
                 (PathMatches("/wsgi"), wsgi_app),
-            ]
+            ],
         )
 
     def wsgi_app(self, environ, start_response):
@@ -266,11 +265,11 @@ class WSGIContainerTestCase(AsyncHTTPTestCase):
 
     def test_wsgi_container(self):
         response = self.fetch("/tornado/test")
-        self.assertEqual(response.body, b"/tornado/test")
+        assert response.body == b"/tornado/test"
 
         response = self.fetch("/wsgi")
-        self.assertEqual(response.body, b"WSGI")
+        assert response.body == b"WSGI"
 
     def test_delegate_not_found(self):
         response = self.fetch("/404")
-        self.assertEqual(response.code, 404)
+        assert response.code == 404

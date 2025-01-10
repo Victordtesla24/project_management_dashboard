@@ -10,8 +10,7 @@ __all__ = [
 
 
 class PosixStdinReader:
-    """
-    Wrapper around stdin which reads (nonblocking) the next available 1024
+    """Wrapper around stdin which reads (nonblocking) the next available 1024
     bytes and decodes it.
 
     Note that you can't be sure that the input file is closed if the ``read``
@@ -36,7 +35,10 @@ class PosixStdinReader:
     # with "Option as Meta" checked (You should choose "Option as +Esc".)
 
     def __init__(
-        self, stdin_fd: int, errors: str = "surrogateescape", encoding: str = "utf-8"
+        self,
+        stdin_fd: int,
+        errors: str = "surrogateescape",
+        encoding: str = "utf-8",
     ) -> None:
         self.stdin_fd = stdin_fd
         self.errors = errors
@@ -55,8 +57,7 @@ class PosixStdinReader:
         # big amounts of input at once, causes the event loop to process
         # all these key bindings also at once without going back to the
         # loop. This will make the application feel unresponsive.
-        """
-        Read the input and return it as a string.
+        """Read the input and return it as a string.
 
         Return the text. Note that this can return an empty string, even when
         the input stream was not yet closed. This means that something went

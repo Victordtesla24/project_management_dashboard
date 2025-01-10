@@ -28,7 +28,8 @@ def image_array_to_data_uri(img, backend="pil", compression=4, ext="png"):
     """
     # PIL and pypng error messages are quite obscure so we catch invalid compression values
     if compression < 0 or compression > 9:
-        raise ValueError("compression level must be between 0 and 9.")
+        msg = "compression level must be between 0 and 9."
+        raise ValueError(msg)
     alpha = False
     if img.ndim == 2:
         mode = "L"
@@ -38,20 +39,20 @@ def image_array_to_data_uri(img, backend="pil", compression=4, ext="png"):
         mode = "RGBA"
         alpha = True
     else:
-        raise ValueError("Invalid image shape")
+        msg = "Invalid image shape"
+        raise ValueError(msg)
     if backend == "auto":
         backend = "pil" if pil_imported else "pypng"
     if ext != "png" and backend != "pil":
-        raise ValueError("jpg binary strings are only available with PIL backend")
+        msg = "jpg binary strings are only available with PIL backend"
+        raise ValueError(msg)
 
     if backend == "pypng":
         ndim = img.ndim
         sh = img.shape
         if ndim == 3:
             img = img.reshape((sh[0], sh[1] * sh[2]))
-        w = Writer(
-            sh[1], sh[0], greyscale=(ndim == 2), alpha=alpha, compression=compression
-        )
+        w = Writer(sh[1], sh[0], greyscale=(ndim == 2), alpha=alpha, compression=compression)
         img_png = from_array(img, mode=mode)
         prefix = "data:image/png;base64,"
         with BytesIO() as stream:
@@ -59,12 +60,12 @@ def image_array_to_data_uri(img, backend="pil", compression=4, ext="png"):
             base64_string = prefix + base64.b64encode(stream.getvalue()).decode("utf-8")
     else:  # pil
         if not pil_imported:
+            msg = "pillow needs to be installed to use `backend='pil'. Pleaseinstall pillow or use `backend='pypng'."
             raise ImportError(
-                "pillow needs to be installed to use `backend='pil'. Please"
-                "install pillow or use `backend='pypng'."
+                msg,
             )
         pil_img = Image.fromarray(img)
-        if ext == "jpg" or ext == "jpeg":
+        if ext in ("jpg", "jpeg"):
             prefix = "data:image/jpeg;base64,"
             ext = "jpeg"
         else:

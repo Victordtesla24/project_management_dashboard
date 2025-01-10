@@ -24,7 +24,7 @@ def get_dict(x: Any) -> dict[str, Any]:
 
 
 def get_function_dict(x: FuncIR) -> dict[str, Any]:
-    """Get a dict of function attributes safe to compare across serialization"""
+    """Get a dict of function attributes safe to compare across serialization."""
     d = get_dict(x)
     d.pop("blocks", None)
     d.pop("env", None)
@@ -46,25 +46,24 @@ def assert_blobs_same(x: Any, y: Any, trail: tuple[Any, ...]) -> None:
 
     The `trail` argument is used in error messages.
     """
-
     assert type(x) is type(y), (f"Type mismatch at {trail}", type(x), type(y))
     if isinstance(x, (FuncDecl, FuncIR, ClassIR)):
         assert x.fullname == y.fullname, f"Name mismatch at {trail}"
     elif isinstance(x, dict):
         assert len(x.keys()) == len(y.keys()), f"Keys mismatch at {trail}"
         for (xk, xv), (yk, yv) in zip(x.items(), y.items()):
-            assert_blobs_same(xk, yk, trail + ("keys",))
-            assert_blobs_same(xv, yv, trail + (xk,))
+            assert_blobs_same(xk, yk, (*trail, "keys"))
+            assert_blobs_same(xv, yv, (*trail, xk))
     elif isinstance(x, dict):
         assert x.keys() == y.keys(), f"Keys mismatch at {trail}"
-        for k in x.keys():
-            assert_blobs_same(x[k], y[k], trail + (k,))
+        for k in x:
+            assert_blobs_same(x[k], y[k], (*trail, k))
     elif isinstance(x, Iterable) and not isinstance(x, (str, set)):
         # Special case iterables to generate better assert error messages.
         # We can't use this for sets since the ordering is unpredictable,
         # and strings should be treated as atomic values.
         for i, (xv, yv) in enumerate(zip(x, y)):
-            assert_blobs_same(xv, yv, trail + (i,))
+            assert_blobs_same(xv, yv, (*trail, i))
     elif isinstance(x, RType):
         assert is_same_type(x, y), f"RType mismatch at {trail}"
     elif isinstance(x, FuncSignature):
@@ -89,7 +88,9 @@ def assert_modules_same(ir1: ModuleIR, ir2: ModuleIR) -> None:
 
     for fn1, fn2 in zip(ir1.functions, ir2.functions):
         assert_blobs_same(
-            get_function_dict(fn1), get_function_dict(fn2), (ir1.fullname, fn1.fullname)
+            get_function_dict(fn1),
+            get_function_dict(fn2),
+            (ir1.fullname, fn1.fullname),
         )
         assert_blobs_same(get_dict(fn1.decl), get_dict(fn2.decl), (ir1.fullname, fn1.fullname))
 

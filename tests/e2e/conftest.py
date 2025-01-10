@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_data():
     """Test data fixture."""
     return {
@@ -17,7 +17,7 @@ def test_data():
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def temp_test_dir(tmp_path):
     """Temporary test directory fixture."""
     test_dir = tmp_path / "test_dir"
@@ -25,7 +25,7 @@ def temp_test_dir(tmp_path):
     return test_dir
 
 
-@pytest.fixture
+@pytest.fixture()
 def metrics_dir(project_root):
     """Metrics directory fixture."""
     metrics_dir = Path(project_root) / "metrics" / "data"
@@ -33,7 +33,7 @@ def metrics_dir(project_root):
     return metrics_dir
 
 
-@pytest.fixture
+@pytest.fixture()
 def logs_dir(project_root):
     """Logs directory fixture."""
     logs_dir = Path(project_root) / "logs"

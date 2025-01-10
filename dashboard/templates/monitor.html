@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>System Monitor</title>
+</head>
+<body>
+    <div data-testid="stAppViewContainer">
+        <h1>System Monitor</h1>
+        
+        {% if error %}
+        <div class="element-container">
+            <div class="stAlert">Error fetching system metrics</div>
+        </div>
+        {% else %}
+        <div>
+            <div>CPU Usage: {{ metrics.cpu_percent }}%</div>
+            <div>Memory Usage: {{ metrics.memory_percent }}%</div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

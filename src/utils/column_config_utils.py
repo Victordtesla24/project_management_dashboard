@@ -14,21 +14,21 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, Final, Literal, Mapping, Union
 
-from typing_extensions import TypeAlias
-
+from streamlit.dataframe_util import DataFormat
 from streamlit.elements.lib.column_types import ColumnConfig, ColumnType
 from streamlit.elements.lib.dicttools import remove_none_values
 from streamlit.errors import StreamlitAPIException
-from streamlit.proto.Arrow_pb2 import Arrow as ArrowProto
-from streamlit.type_util import DataFormat, is_colum_type_arrow_incompatible
 
 if TYPE_CHECKING:
     import pyarrow as pa
     from pandas import DataFrame, Index, Series
+    from streamlit.proto.Arrow_pb2 import Arrow as ArrowProto
+    from typing_extensions import TypeAlias
 
 
 # The index identifier can be used to apply configuration options
@@ -124,7 +124,6 @@ def is_type_compatible(column_type: ColumnType, data_kind: ColumnDataKind) -> bo
     bool
         True if the column type is compatible with the data kind, False otherwise.
     """
-
     if column_type not in _EDITING_COMPATIBILITY_MAPPING:
         return True
 
@@ -139,7 +138,6 @@ def _determine_data_kind_via_arrow(field: pa.Field) -> ColumnDataKind:
 
     Parameters
     ----------
-
     field : pa.Field
         The arrow field from the arrow table schema.
 
@@ -242,9 +240,9 @@ def _determine_data_kind_via_pandas_dtype(
     if pd.api.types.is_complex_dtype(column_dtype):
         return ColumnDataKind.COMPLEX
 
-    if pd.api.types.is_object_dtype(
-        column_dtype
-    ) is False and pd.api.types.is_string_dtype(column_dtype):
+    if pd.api.types.is_object_dtype(column_dtype) is False and pd.api.types.is_string_dtype(
+        column_dtype,
+    ):
         # The is_string_dtype
         return ColumnDataKind.STRING
 
@@ -320,9 +318,7 @@ def _determine_data_kind_via_inferred_type(
     return ColumnDataKind.UNKNOWN
 
 
-def _determine_data_kind(
-    column: Series | Index, field: pa.Field | None = None
-) -> ColumnDataKind:
+def _determine_data_kind(column: Series | Index, field: pa.Field | None = None) -> ColumnDataKind:
     """Determine the data kind of a column.
 
     The column data kind refers to the shared data type of the values
@@ -358,9 +354,7 @@ def _determine_data_kind(
     return _determine_data_kind_via_pandas_dtype(column)
 
 
-def determine_dataframe_schema(
-    data_df: DataFrame, arrow_schema: pa.Schema
-) -> DataframeSchema:
+def determine_dataframe_schema(data_df: DataFrame, arrow_schema: pa.Schema) -> DataframeSchema:
     """Determine the schema of a dataframe.
 
     Parameters
@@ -372,12 +366,10 @@ def determine_dataframe_schema(
 
     Returns
     -------
-
     DataframeSchema
         A mapping that contains the detected data type for the index and columns.
         The key is the column name in the underlying dataframe or ``_index`` for index columns.
     """
-
     dataframe_schema: DataframeSchema = {}
 
     # Add type of index:
@@ -387,9 +379,7 @@ def determine_dataframe_schema(
     # Add types for all columns:
     for i, column in enumerate(data_df.items()):
         column_name, column_data = column
-        dataframe_schema[column_name] = _determine_data_kind(
-            column_data, arrow_schema.field(i)
-        )
+        dataframe_schema[column_name] = _determine_data_kind(column_data, arrow_schema.field(i))
     return dataframe_schema
 
 
@@ -427,23 +417,26 @@ def process_config_mapping(
         elif isinstance(config, str):
             transformed_column_config[column] = ColumnConfig(label=config)
         elif isinstance(config, dict):
-            transformed_column_config[column] = config
+            # Ensure that the column config objects are cloned
+            # since we will apply in-place changes to it.
+            transformed_column_config[column] = copy.deepcopy(config)
         else:
+            msg = f"Invalid column config for column `{column}`. Expected `None`, `str` or `dict`, but got `{type(config)}`."
             raise StreamlitAPIException(
-                f"Invalid column config for column `{column}`. "
-                f"Expected `None`, `str` or `dict`, but got `{type(config)}`."
+                msg,
             )
     return transformed_column_config
 
 
 def update_column_config(
-    column_config_mapping: ColumnConfigMapping, column: str, column_config: ColumnConfig
+    column_config_mapping: ColumnConfigMapping,
+    column: str,
+    column_config: ColumnConfig,
 ) -> None:
     """Updates the column config value for a single column within the mapping.
 
     Parameters
     ----------
-
     column_config_mapping : ColumnConfigMapping
         The column config mapping to update.
 
@@ -453,7 +446,6 @@ def update_column_config(
     column_config : ColumnConfig
         The column config to update.
     """
-
     if column not in column_config_mapping:
         column_config_mapping[column] = {}
 
@@ -462,9 +454,7 @@ def update_column_config(
 
 def apply_data_specific_configs(
     columns_config: ColumnConfigMapping,
-    data_df: DataFrame,
     data_format: DataFormat,
-    check_arrow_compatibility: bool = False,
 ) -> None:
     """Apply data specific configurations to the provided dataframe.
 
@@ -476,25 +466,9 @@ def apply_data_specific_configs(
     columns_config : ColumnConfigMapping
         A mapping of column names/ids to column configurations.
 
-    data_df : pd.DataFrame
-        The dataframe to apply the configurations to.
-
     data_format : DataFormat
         The format of the data.
-
-    check_arrow_compatibility : bool
-        Whether to check if the data is compatible with arrow.
     """
-    import pandas as pd
-
-    # Deactivate editing for columns that are not compatible with arrow
-    if check_arrow_compatibility:
-        for column_name, column_data in data_df.items():
-            if is_colum_type_arrow_incompatible(column_data):
-                update_column_config(columns_config, column_name, {"disabled": True})
-                # Convert incompatible type to string
-                data_df[column_name] = column_data.astype("string")
-
     # Pandas adds a range index as default to all datastructures
     # but for most of the non-pandas data objects it is unnecessary
     # to show this index to the user. Therefore, we will hide it as default.
@@ -507,25 +481,16 @@ def apply_data_specific_configs(
         DataFormat.LIST_OF_RECORDS,
         DataFormat.LIST_OF_ROWS,
         DataFormat.COLUMN_VALUE_MAPPING,
+        # Dataframe-like objects that don't have an index:
+        DataFormat.PANDAS_ARRAY,
+        DataFormat.PANDAS_INDEX,
+        DataFormat.POLARS_DATAFRAME,
+        DataFormat.POLARS_SERIES,
+        DataFormat.POLARS_LAZYFRAME,
+        DataFormat.PYARROW_ARRAY,
+        DataFormat.RAY_DATASET,
     ]:
         update_column_config(columns_config, INDEX_IDENTIFIER, {"hidden": True})
-
-    # Rename the first column to "value" for some of the data formats
-    if data_format in [
-        DataFormat.SET_OF_VALUES,
-        DataFormat.TUPLE_OF_VALUES,
-        DataFormat.LIST_OF_VALUES,
-        DataFormat.NUMPY_LIST,
-        DataFormat.KEY_VALUE_DICT,
-    ]:
-        # Pandas automatically names the first column "0"
-        # We rename it to "value" in selected cases to make it more descriptive
-        data_df.rename(columns={0: "value"}, inplace=True)
-
-    if not isinstance(data_df.index, pd.RangeIndex):
-        # If the index is not a range index, we will configure it as required
-        # since the user is required to provide a (unique) value for editing.
-        update_column_config(columns_config, INDEX_IDENTIFIER, {"required": True})
 
 
 def _convert_column_config_to_json(column_config_mapping: ColumnConfigMapping) -> str:
@@ -533,22 +498,19 @@ def _convert_column_config_to_json(column_config_mapping: ColumnConfigMapping) -
         # Ignore all None values and prefix columns specified by numerical index:
         return json.dumps(
             {
-                (
-                    f"{_NUMERICAL_POSITION_PREFIX}{str(k)}" if isinstance(k, int) else k
-                ): v
+                (f"{_NUMERICAL_POSITION_PREFIX}{k!s}" if isinstance(k, int) else k): v
                 for (k, v) in remove_none_values(column_config_mapping).items()
             },
             allow_nan=False,
         )
     except ValueError as ex:
+        msg = f"The provided column config cannot be serialized into JSON: {ex}"
         raise StreamlitAPIException(
-            f"The provided column config cannot be serialized into JSON: {ex}"
+            msg,
         ) from ex
 
 
-def marshall_column_config(
-    proto: ArrowProto, column_config_mapping: ColumnConfigMapping
-) -> None:
+def marshall_column_config(proto: ArrowProto, column_config_mapping: ColumnConfigMapping) -> None:
     """Marshall the column config into the Arrow proto.
 
     Parameters
@@ -559,5 +521,4 @@ def marshall_column_config(
     column_config_mapping : ColumnConfigMapping
         The column config to marshall.
     """
-
     proto.columns = _convert_column_config_to_json(column_config_mapping)

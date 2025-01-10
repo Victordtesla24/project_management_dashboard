@@ -1,5 +1,4 @@
-"""
-This module is for (more basic) type operations that should not depend on is_subtype(),
+"""This module is for (more basic) type operations that should not depend on is_subtype(),
 meet_types(), join_types() etc. We don't want to keep them in mypy/types.py for two reasons:
 * Reduce the size of that module.
 * Reduce use of get_proper_type() in types.py to avoid cyclic imports
@@ -93,7 +92,7 @@ def is_bad_type_type_item(item: Type) -> bool:
 
 
 def is_union_with_any(tp: Type) -> bool:
-    """Is this a union with Any or a plain Any type?"""
+    """Is this a union with Any or a plain Any type?."""
     tp = get_proper_type(tp)
     if isinstance(tp, AnyType):
         return True
@@ -118,14 +117,14 @@ def remove_optional(typ: Type) -> Type:
     typ = get_proper_type(typ)
     if isinstance(typ, UnionType):
         return UnionType.make_union(
-            [t for t in typ.items if not isinstance(get_proper_type(t), NoneType)]
+            [t for t in typ.items if not isinstance(get_proper_type(t), NoneType)],
         )
     else:
         return typ
 
 
 def is_self_type_like(typ: Type, *, is_classmethod: bool) -> bool:
-    """Does this look like a self-type annotation?"""
+    """Does this look like a self-type annotation?."""
     typ = get_proper_type(typ)
     if not is_classmethod:
         return isinstance(typ, TypeVarType)
@@ -135,7 +134,10 @@ def is_self_type_like(typ: Type, *, is_classmethod: bool) -> bool:
 
 
 def store_argument_type(
-    defn: FuncItem, i: int, typ: CallableType, named_type: Callable[[str, list[Type]], Instance]
+    defn: FuncItem,
+    i: int,
+    typ: CallableType,
+    named_type: Callable[[str, list[Type]], Instance],
 ) -> None:
     arg_type = typ.arg_types[i]
     if typ.arg_kinds[i] == ARG_STAR:

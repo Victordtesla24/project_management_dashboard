@@ -16,13 +16,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Mapping, TypeVar
 
-from streamlit import type_util
+from streamlit import dataframe_util
 from streamlit.errors import StreamlitAPIException
-from streamlit.proto.Arrow_pb2 import Arrow as ArrowProto
 
 if TYPE_CHECKING:
     from pandas import DataFrame
     from pandas.io.formats.style import Styler
+    from streamlit.proto.Arrow_pb2 import Arrow as ArrowProto
 
 
 def marshall_styler(proto: ArrowProto, styler: Styler, default_uuid: str) -> None:
@@ -44,12 +44,9 @@ def marshall_styler(proto: ArrowProto, styler: Styler, default_uuid: str) -> Non
 
     styler_data_df: pd.DataFrame = styler.data
     if styler_data_df.size > int(pd.options.styler.render.max_elements):
+        msg = f'The dataframe has `{styler_data_df.size}` cells, but the maximum number of cells allowed to be rendered by Pandas Styler is configured to `{pd.options.styler.render.max_elements}`. To allow more cells to be styled, you can change the `"styler.render.max_elements"` config. For example: `pd.set_option("styler.render.max_elements", {styler_data_df.size})`'
         raise StreamlitAPIException(
-            f"The dataframe has `{styler_data_df.size}` cells, but the maximum number "
-            "of cells allowed to be rendered by Pandas Styler is configured to "
-            f"`{pd.options.styler.render.max_elements}`. To allow more cells to be "
-            'styled, you can change the `"styler.render.max_elements"` config. For example: '
-            f'`pd.set_option("styler.render.max_elements", {styler_data_df.size})`'
+            msg,
         )
 
     # pandas.Styler uuid should be set before _compute is called.
@@ -103,9 +100,7 @@ def _marshall_caption(proto: ArrowProto, styler: Styler) -> None:
         proto.styler.caption = styler.caption
 
 
-def _marshall_styles(
-    proto: ArrowProto, styler: Styler, styles: Mapping[str, Any]
-) -> None:
+def _marshall_styles(proto: ArrowProto, styler: Styler, styles: Mapping[str, Any]) -> None:
     """Marshall pandas.Styler styles into an Arrow proto.
 
     Parameters
@@ -128,9 +123,7 @@ def _marshall_styles(
         for style in table_styles:
             # styles in "table_styles" have a space
             # between the uuid and selector.
-            rule = _pandas_style_to_css(
-                "table_styles", style, styler.uuid, separator=" "
-            )
+            rule = _pandas_style_to_css("table_styles", style, styler.uuid, separator=" ")
             css_rules.append(rule)
 
     if "cellstyle" in styles:
@@ -212,14 +205,10 @@ def _pandas_style_to_css(
     selector = ", ".join(selectors)
 
     declaration_block = "; ".join(declarations)
-    rule_set = selector + " { " + declaration_block + " }"
-
-    return rule_set
+    return selector + " { " + declaration_block + " }"
 
 
-def _marshall_display_values(
-    proto: ArrowProto, df: DataFrame, styles: Mapping[str, Any]
-) -> None:
+def _marshall_display_values(proto: ArrowProto, df: DataFrame, styles: Mapping[str, Any]) -> None:
     """Marshall pandas.Styler display values into an Arrow proto.
 
     Parameters
@@ -235,7 +224,7 @@ def _marshall_display_values(
 
     """
     new_df = _use_display_values(df, styles)
-    proto.styler.display_values = type_util.data_frame_to_bytes(new_df)
+    proto.styler.display_values = dataframe_util.convert_pandas_df_to_arrow_bytes(new_df)
 
 
 def _use_display_values(df: DataFrame, styles: Mapping[str, Any]) -> DataFrame:

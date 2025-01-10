@@ -1,21 +1,9 @@
-# testing/suite/test_unicode_ddl.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
-# <see AUTHORS file>
-#
-# This module is part of SQLAlchemy and is released under
-# the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
 
-from sqlalchemy import desc
-from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
-from sqlalchemy import MetaData
-from sqlalchemy import testing
-from sqlalchemy.testing import eq_
-from sqlalchemy.testing import fixtures
-from sqlalchemy.testing.schema import Column
-from sqlalchemy.testing.schema import Table
+from sqlalchemy import ForeignKey, Integer, MetaData, desc, testing
+from sqlalchemy.testing import eq_, fixtures
+from sqlalchemy.testing.schema import Column, Table
 
 
 class UnicodeSchemaTest(fixtures.TablesTest):
@@ -169,9 +157,7 @@ class UnicodeSchemaTest(fixtures.TablesTest):
             [(2, 2), (1, 1)],
         )
         eq_(
-            connection.execute(
-                tt3.select().order_by(desc("\u6e2c\u8a66_id"))
-            ).fetchall(),
+            connection.execute(tt3.select().order_by(desc("\u6e2c\u8a66_id"))).fetchall(),
             [(2, 7, 2, 2), (1, 5, 1, 1)],
         )
 

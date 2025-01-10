@@ -1,5 +1,4 @@
 import socket
-import typing  # noqa(F401)
 
 from tornado.http1connection import HTTP1Connection
 from tornado.httputil import HTTPMessageDelegate
@@ -57,5 +56,5 @@ class HTTP1ConnectionTest(AsyncTestCase):
 
         yield conn.read_response(Delegate())
         yield event.wait()
-        self.assertEqual(self.code, 200)
-        self.assertEqual(b"".join(body), b"hello")
+        assert self.code == 200
+        assert b"".join(body) == b"hello"

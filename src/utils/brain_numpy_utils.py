@@ -6,9 +6,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from astroid.builder import extract_node
-from astroid.context import InferenceContext
 from astroid.nodes.node_classes import Attribute, Import, Name
+
+if TYPE_CHECKING:
+    from astroid.context import InferenceContext
 
 # Class subscript is available in numpy starting with version 1.20.0
 NUMPY_VERSION_TYPE_HINTS_SUPPORT = ("1", "20", "0")
@@ -21,15 +25,14 @@ def numpy_supports_type_hints() -> bool:
 
 
 def _get_numpy_version() -> tuple[str, str, str]:
-    """
-    Return the numpy version number if numpy can be imported.
+    """Return the numpy version number if numpy can be imported.
 
     Otherwise returns ('0', '0', '0')
     """
     try:
-        import numpy  # pylint: disable=import-outside-toplevel
+        import numpy as np  # pylint: disable=import-outside-toplevel
 
-        return tuple(numpy.version.version.split("."))
+        return tuple(np.version.version.split("."))
     except (ImportError, AttributeError):
         return ("0", "0", "0")
 
@@ -40,8 +43,7 @@ def infer_numpy_member(src, node, context: InferenceContext | None = None):
 
 
 def _is_a_numpy_module(node: Name) -> bool:
-    """
-    Returns True if the node is a representation of a numpy module.
+    """Returns True if the node is a representation of a numpy module.
 
     For example in :
         import numpy as np
@@ -52,9 +54,7 @@ def _is_a_numpy_module(node: Name) -> bool:
     :return: True if the node is a representation of the numpy module.
     """
     module_nickname = node.name
-    potential_import_target = [
-        x for x in node.lookup(module_nickname)[1] if isinstance(x, Import)
-    ]
+    potential_import_target = [x for x in node.lookup(module_nickname)[1] if isinstance(x, Import)]
     return any(
         ("numpy", module_nickname) in target.names or ("numpy", None) in target.names
         for target in potential_import_target
@@ -62,16 +62,14 @@ def _is_a_numpy_module(node: Name) -> bool:
 
 
 def name_looks_like_numpy_member(member_name: str, node: Name) -> bool:
-    """
-    Returns True if the Name is a member of numpy whose
+    """Returns True if the Name is a member of numpy whose
     name is member_name.
     """
     return node.name == member_name and node.root().name.startswith("numpy")
 
 
 def attribute_looks_like_numpy_member(member_name: str, node: Attribute) -> bool:
-    """
-    Returns True if the Attribute is a member of numpy whose
+    """Returns True if the Attribute is a member of numpy whose
     name is member_name.
     """
     return (

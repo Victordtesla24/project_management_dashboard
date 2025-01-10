@@ -3,6 +3,7 @@ import subprocess
 import sys
 import textwrap
 import unittest
+from typing import Tuple
 
 from tornado import gen
 from tornado.iostream import IOStream
@@ -10,8 +11,6 @@ from tornado.log import app_log
 from tornado.tcpserver import TCPServer
 from tornado.test.util import skipIfNonUnix
 from tornado.testing import AsyncTestCase, ExpectLog, bind_unused_port, gen_test
-
-from typing import Tuple
 
 
 class TCPServerTest(AsyncTestCase):
@@ -58,7 +57,7 @@ class TCPServerTest(AsyncTestCase):
         client = IOStream(socket.socket())
         yield client.connect(("localhost", port))
         result = yield client.read_until_close()
-        self.assertEqual(result, b"data")
+        assert result == b"data"
         server.stop()
         client.close()
 
@@ -93,21 +92,20 @@ class TCPServerTest(AsyncTestCase):
         def connect(c):
             try:
                 yield c.connect(server_addr)
-            except EnvironmentError:
+            except OSError:
                 pass
             else:
                 connected_clients.append(c)
 
         yield [connect(c) for c in clients]
 
-        self.assertGreater(len(connected_clients), 0, "all clients failed connecting")
+        assert len(connected_clients) > 0, "all clients failed connecting"
         try:
             if len(connected_clients) == N:
                 # Ideally we'd make the test deterministic, but we're testing
                 # for a race condition in combination with the system's TCP stack...
                 self.skipTest(
-                    "at least one client should fail connecting "
-                    "for the test to be meaningful"
+                    "at least one client should fail connecting for the test to be meaningful",
                 )
         finally:
             for c in connected_clients:
@@ -133,8 +131,9 @@ class TestMultiprocess(unittest.TestCase):
                 check=True,
             )
         except subprocess.CalledProcessError as e:
+            msg = f"Process returned {e.returncode} stdout={e.stdout} stderr={e.stderr}"
             raise RuntimeError(
-                f"Process returned {e.returncode} stdout={e.stdout} stderr={e.stderr}"
+                msg,
             ) from e
         return result.stdout, result.stderr
 
@@ -152,11 +151,11 @@ class TestMultiprocess(unittest.TestCase):
 
             asyncio.run(main())
             print('012', end='')
-        """
+        """,
         )
         out, err = self.run_subproc(code)
-        self.assertEqual("".join(sorted(out)), "012")
-        self.assertEqual(err, "")
+        assert "".join(sorted(out)) == "012"
+        assert err == ""
 
     def test_bind_start(self):
         code = textwrap.dedent(
@@ -174,11 +173,11 @@ class TestMultiprocess(unittest.TestCase):
             server.start(3)
             IOLoop.current().run_sync(lambda: None)
             print(task_id(), end='')
-        """
+        """,
         )
         out, err = self.run_subproc(code)
-        self.assertEqual("".join(sorted(out)), "012")
-        self.assertEqual(err, "")
+        assert "".join(sorted(out)) == "012"
+        assert err == ""
 
     def test_add_sockets(self):
         code = textwrap.dedent(
@@ -196,11 +195,11 @@ class TestMultiprocess(unittest.TestCase):
                 server.add_sockets(sockets)
             asyncio.run(post_fork_main())
             print(task_id(), end='')
-        """
+        """,
         )
         out, err = self.run_subproc(code)
-        self.assertEqual("".join(sorted(out)), "012")
-        self.assertEqual(err, "")
+        assert "".join(sorted(out)) == "012"
+        assert err == ""
 
     def test_listen_multi_reuse_port(self):
         code = textwrap.dedent(
@@ -223,8 +222,8 @@ class TestMultiprocess(unittest.TestCase):
                 server.listen(port, address='127.0.0.1', reuse_port=True)
             asyncio.run(main())
             print(task_id(), end='')
-            """
+            """,
         )
         out, err = self.run_subproc(code)
-        self.assertEqual("".join(sorted(out)), "012")
-        self.assertEqual(err, "")
+        assert "".join(sorted(out)) == "012"
+        assert err == ""

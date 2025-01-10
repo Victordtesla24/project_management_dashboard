@@ -11,13 +11,12 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterator
 
 from mypy import build
 from mypy.errors import CompileError
-from mypy.options import Options
+from mypy.options import TYPE_VAR_TUPLE, UNPACK, Options
 from mypy.test.config import test_temp_dir
-from mypy.test.data import DataDrivenTestCase
 from mypy.test.helpers import assert_module_equivalence, perform_file_operations
 from mypyc.build import construct_groups
 from mypyc.codegen import emitmodule
@@ -33,6 +32,9 @@ from mypyc.test.testutil import (
     show_c,
     use_custom_builtins,
 )
+
+if TYPE_CHECKING:
+    from mypy.test.data import DataDrivenTestCase
 
 files = [
     "run-async.test",
@@ -63,7 +65,6 @@ files = [
     "run-bench.test",
     "run-mypy-sim.test",
     "run-dunders.test",
-    "run-dunders-special.test",
     "run-singledispatch.test",
     "run-attrs.test",
     "run-python37.test",
@@ -72,8 +73,6 @@ files = [
 
 if sys.version_info >= (3, 10):
     files.append("run-match.test")
-if sys.version_info >= (3, 12):
-    files.append("run-python312.test")
 
 setup_format = """\
 from setuptools import setup
@@ -141,13 +140,13 @@ class TestRun(MypycDataSuite):
     optional_out = True
     multi_file = False
     separate = False  # If True, using separate (incremental) compilation
-    strict_dunder_typing = False
 
     def run_case(self, testcase: DataDrivenTestCase) -> None:
         # setup.py wants to be run from the root directory of the package, which we accommodate
         # by chdiring into tmp/
         with use_custom_builtins(
-            os.path.join(self.data_prefix, ICODE_GEN_BUILTINS), testcase
+            os.path.join(self.data_prefix, ICODE_GEN_BUILTINS),
+            testcase,
         ), chdir_manager("tmp"):
             self.run_case_inner(testcase)
 
@@ -198,6 +197,7 @@ class TestRun(MypycDataSuite):
         options.preserve_asts = True
         options.allow_empty_bodies = True
         options.incremental = self.separate
+        options.enable_incomplete_feature = [TYPE_VAR_TUPLE, UNPACK]
 
         # Avoid checking modules/packages named 'unchecked', to provide a way
         # to test interacting with code we don't have types for.
@@ -210,7 +210,7 @@ class TestRun(MypycDataSuite):
 
         # Hard code another module name to compile in the same compilation unit.
         to_delete = []
-        for fn, text in testcase.files:
+        for fn, _text in testcase.files:
             fn = os.path.relpath(fn, test_temp_dir)
 
             if os.path.basename(fn).startswith("other") and fn.endswith(".py"):
@@ -234,11 +234,7 @@ class TestRun(MypycDataSuite):
         groups = construct_groups(sources, separate, len(module_names) > 1)
 
         try:
-            compiler_options = CompilerOptions(
-                multi_file=self.multi_file,
-                separate=self.separate,
-                strict_dunder_typing=self.strict_dunder_typing,
-            )
+            compiler_options = CompilerOptions(multi_file=self.multi_file, separate=self.separate)
             result = emitmodule.parse_and_typecheck(
                 sources=sources,
                 options=options,
@@ -248,15 +244,20 @@ class TestRun(MypycDataSuite):
             )
             errors = Errors(options)
             ir, cfiles = emitmodule.compile_modules_to_c(
-                result, compiler_options=compiler_options, errors=errors, groups=groups
+                result,
+                compiler_options=compiler_options,
+                errors=errors,
+                groups=groups,
             )
             if errors.num_errors:
                 errors.flush_errors()
-                assert False, "Compile error"
+                msg = "Compile error"
+                raise AssertionError(msg)
         except CompileError as e:
             for line in e.messages:
                 print(fix_native_line_number(line, testcase.file, testcase.line))
-            assert False, "Compile error"
+            msg = "Compile error"
+            raise AssertionError(msg)
 
         # Check that serialization works on this IR. (Only on the first
         # step because the returned ir only includes updated code.)
@@ -271,14 +272,20 @@ class TestRun(MypycDataSuite):
         with open(setup_file, "w", encoding="utf-8") as f:
             f.write(
                 setup_format.format(
-                    module_paths, separate, cfiles, self.multi_file, opt_level, debug_level
-                )
+                    module_paths,
+                    separate,
+                    cfiles,
+                    self.multi_file,
+                    opt_level,
+                    debug_level,
+                ),
             )
 
         if not run_setup(setup_file, ["build_ext", "--inplace"]):
             if testcase.config.getoption("--mypyc-showc"):
                 show_c(cfiles)
-            assert False, "Compilation failed"
+            msg = "Compilation failed"
+            raise AssertionError(msg)
 
         # Assert that an output file got created
         suffix = "pyd" if sys.platform == "win32" else "so"
@@ -290,7 +297,11 @@ class TestRun(MypycDataSuite):
             # (mypyc/test-data/driver/driver.py) that calls each
             # function named test_*.
             default_driver = os.path.join(
-                os.path.dirname(__file__), "..", "test-data", "driver", "driver.py"
+                os.path.dirname(__file__),
+                "..",
+                "test-data",
+                "driver",
+                "driver.py",
             )
             shutil.copy(default_driver, driver_path)
         env = os.environ.copy()
@@ -303,13 +314,12 @@ class TestRun(MypycDataSuite):
             elif debugger == "gdb":
                 subprocess.check_call(["gdb", "--args", sys.executable, driver_path], env=env)
             else:
-                assert False, "Unsupported debugger"
+                msg = "Unsupported debugger"
+                raise AssertionError(msg)
             # TODO: find a way to automatically disable capturing
             # stdin/stdout when in debugging mode
-            assert False, (
-                "Test can't pass in debugging mode. "
-                "(Make sure to pass -s to pytest to interact with the debugger)"
-            )
+            msg = "Test can't pass in debugging mode. (Make sure to pass -s to pytest to interact with the debugger)"
+            raise AssertionError(msg)
         proc = subprocess.Popen(
             [sys.executable, driver_path],
             stdout=subprocess.PIPE,
@@ -353,12 +363,16 @@ class TestRun(MypycDataSuite):
             expected_rechecked = testcase.expected_rechecked_modules.get(incremental_step - 1)
             if expected_rechecked is not None:
                 assert_module_equivalence(
-                    "rechecked" + suffix, expected_rechecked, result.manager.rechecked_modules
+                    "rechecked" + suffix,
+                    expected_rechecked,
+                    result.manager.rechecked_modules,
                 )
             expected_stale = testcase.expected_stale_modules.get(incremental_step - 1)
             if expected_stale is not None:
                 assert_module_equivalence(
-                    "stale" + suffix, expected_stale, result.manager.stale_modules
+                    "stale" + suffix,
+                    expected_stale,
+                    result.manager.stale_modules,
                 )
 
         assert proc.returncode == 0
@@ -407,14 +421,6 @@ class TestRunSeparate(TestRun):
     files = ["run-multimodule.test", "run-mypy-sim.test"]
 
 
-class TestRunStrictDunderTyping(TestRun):
-    """Run the tests with strict dunder typing."""
-
-    strict_dunder_typing = True
-    test_name_suffix = "_dunder_typing"
-    files = ["run-dunders.test", "run-floats.test"]
-
-
 def fix_native_line_number(message: str, fnam: str, delta: int) -> str:
     """Update code locations in test case output to point to the .test file.
 
@@ -424,6 +430,7 @@ def fix_native_line_number(message: str, fnam: str, delta: int) -> str:
     description, and also updates the file name to the .test file name.
 
     Args:
+    ----
         message: message to update
         fnam: path of the .test file
         delta: line number of the beginning of the test case in the .test file
@@ -432,11 +439,12 @@ def fix_native_line_number(message: str, fnam: str, delta: int) -> str:
     """
     fnam = os.path.basename(fnam)
     message = re.sub(
-        r"native\.py:([0-9]+):", lambda m: "%s:%d:" % (fnam, int(m.group(1)) + delta), message
+        r"native\.py:([0-9]+):",
+        lambda m: "%s:%d:" % (fnam, int(m.group(1)) + delta),
+        message,
     )
-    message = re.sub(
+    return re.sub(
         r'"native.py", line ([0-9]+),',
         lambda m: '"%s", line %d,' % (fnam, int(m.group(1)) + delta),
         message,
     )
-    return message

@@ -1,27 +1,29 @@
 import asyncio
-from concurrent import futures
-import gc
 import datetime
+import gc
 import platform
 import sys
 import time
-import weakref
 import unittest
-
-from tornado.concurrent import Future
-from tornado.log import app_log
-from tornado.testing import AsyncHTTPTestCase, AsyncTestCase, ExpectLog, gen_test
-from tornado.test.util import skipOnTravis, skipNotCPython
-from tornado.web import Application, RequestHandler, HTTPError
+import weakref
+from concurrent import futures
 
 from tornado import gen
+from tornado.concurrent import Future
+from tornado.log import app_log
+from tornado.test.util import skipNotCPython, skipOnTravis
+from tornado.testing import AsyncHTTPTestCase, AsyncTestCase, ExpectLog, gen_test
+from tornado.web import Application, HTTPError, RequestHandler
 
 try:
     import contextvars
 except ImportError:
     contextvars = None  # type: ignore
 
+import contextlib
 import typing
+
+import pytest
 
 if typing.TYPE_CHECKING:
     from typing import List, Optional  # noqa: F401
@@ -31,7 +33,7 @@ class GenBasicTest(AsyncTestCase):
     @gen.coroutine
     def delay(self, iterations, arg):
         """Returns arg after a number of IOLoop iterations."""
-        for i in range(iterations):
+        for _i in range(iterations):
             yield gen.moment
         raise gen.Return(arg)
 
@@ -105,15 +107,15 @@ class GenBasicTest(AsyncTestCase):
         @gen.coroutine
         def f():
             results = yield [self.add_one_async(1), self.add_one_async(2)]
-            self.assertEqual(results, [2, 3])
+            assert results == [2, 3]
 
         self.io_loop.run_sync(f)
 
     def test_multi_dict(self):
         @gen.coroutine
         def f():
-            results = yield dict(foo=self.add_one_async(1), bar=self.add_one_async(2))
-            self.assertEqual(results, dict(foo=2, bar=3))
+            results = yield {"foo": self.add_one_async(1), "bar": self.add_one_async(2)}
+            assert results == {"foo": 2, "bar": 3}
 
         self.io_loop.run_sync(f)
 
@@ -121,10 +123,8 @@ class GenBasicTest(AsyncTestCase):
         @gen.coroutine
         def f():
             # callbacks run at different times
-            responses = yield gen.multi_future(
-                [self.delay(3, "v1"), self.delay(1, "v2")]
-            )
-            self.assertEqual(responses, ["v1", "v2"])
+            responses = yield gen.multi_future([self.delay(3, "v1"), self.delay(1, "v2")])
+            assert responses == ["v1", "v2"]
 
         self.io_loop.run_sync(f)
 
@@ -133,9 +133,9 @@ class GenBasicTest(AsyncTestCase):
         def f():
             # callbacks run at different times
             responses = yield gen.multi_future(
-                dict(foo=self.delay(3, "v1"), bar=self.delay(1, "v2"))
+                {"foo": self.delay(3, "v1"), "bar": self.delay(1, "v2")},
             )
-            self.assertEqual(responses, dict(foo="v1", bar="v2"))
+            assert responses == {"foo": "v1", "bar": "v2"}
 
         self.io_loop.run_sync(f)
 
@@ -148,25 +148,25 @@ class GenBasicTest(AsyncTestCase):
         start = time.time()
         yield [gen.moment for i in range(2000)]
         end = time.time()
-        self.assertLess(end - start, 1.0)
+        assert end - start < 1.0
 
     @gen_test
     def test_multi_empty(self):
         # Empty lists or dicts should return the same type.
         x = yield []
-        self.assertTrue(isinstance(x, list))
+        assert isinstance(x, list)
         y = yield {}
-        self.assertTrue(isinstance(y, dict))
+        assert isinstance(y, dict)
 
     @gen_test
     def test_future(self):
         result = yield self.async_future(1)
-        self.assertEqual(result, 1)
+        assert result == 1
 
     @gen_test
     def test_multi_future(self):
         results = yield [self.async_future(1), self.async_future(2)]
-        self.assertEqual(results, [1, 2])
+        assert results == [1, 2]
 
     @gen_test
     def test_multi_future_duplicate(self):
@@ -174,33 +174,31 @@ class GenBasicTest(AsyncTestCase):
         # decorated coroutines.
         f = self.async_future(2)
         results = yield [self.async_future(1), f, self.async_future(3), f]
-        self.assertEqual(results, [1, 2, 3, 2])
+        assert results == [1, 2, 3, 2]
 
     @gen_test
     def test_multi_dict_future(self):
-        results = yield dict(foo=self.async_future(1), bar=self.async_future(2))
-        self.assertEqual(results, dict(foo=1, bar=2))
+        results = yield {"foo": self.async_future(1), "bar": self.async_future(2)}
+        assert results == {"foo": 1, "bar": 2}
 
     @gen_test
     def test_multi_exceptions(self):
         with ExpectLog(app_log, "Multiple exceptions in yield list"):
-            with self.assertRaises(RuntimeError) as cm:
+            with pytest.raises(RuntimeError) as cm:
                 yield gen.Multi(
                     [
                         self.async_exception(RuntimeError("error 1")),
                         self.async_exception(RuntimeError("error 2")),
-                    ]
+                    ],
                 )
-        self.assertEqual(str(cm.exception), "error 1")
+        assert str(cm.exception) == "error 1"
 
         # With only one exception, no error is logged.
-        with self.assertRaises(RuntimeError):
-            yield gen.Multi(
-                [self.async_exception(RuntimeError("error 1")), self.async_future(2)]
-            )
+        with pytest.raises(RuntimeError):
+            yield gen.Multi([self.async_exception(RuntimeError("error 1")), self.async_future(2)])
 
         # Exception logging may be explicitly quieted.
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             yield gen.Multi(
                 [
                     self.async_exception(RuntimeError("error 1")),
@@ -212,19 +210,19 @@ class GenBasicTest(AsyncTestCase):
     @gen_test
     def test_multi_future_exceptions(self):
         with ExpectLog(app_log, "Multiple exceptions in yield list"):
-            with self.assertRaises(RuntimeError) as cm:
+            with pytest.raises(RuntimeError) as cm:
                 yield [
                     self.async_exception(RuntimeError("error 1")),
                     self.async_exception(RuntimeError("error 2")),
                 ]
-        self.assertEqual(str(cm.exception), "error 1")
+        assert str(cm.exception) == "error 1"
 
         # With only one exception, no error is logged.
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             yield [self.async_exception(RuntimeError("error 1")), self.async_future(2)]
 
         # Exception logging may be explicitly quieted.
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             yield gen.multi_future(
                 [
                     self.async_exception(RuntimeError("error 1")),
@@ -236,7 +234,7 @@ class GenBasicTest(AsyncTestCase):
     def test_sync_raise_return(self):
         @gen.coroutine
         def f():
-            raise gen.Return()
+            raise gen.Return
 
         self.io_loop.run_sync(f)
 
@@ -244,7 +242,7 @@ class GenBasicTest(AsyncTestCase):
         @gen.coroutine
         def f():
             yield gen.moment
-            raise gen.Return()
+            raise gen.Return
 
         self.io_loop.run_sync(f)
 
@@ -253,14 +251,14 @@ class GenBasicTest(AsyncTestCase):
         def f():
             raise gen.Return(42)
 
-        self.assertEqual(42, self.io_loop.run_sync(f))
+        assert self.io_loop.run_sync(f) == 42
 
     def test_sync_raise_return_value_tuple(self):
         @gen.coroutine
         def f():
             raise gen.Return((1, 2))
 
-        self.assertEqual((1, 2), self.io_loop.run_sync(f))
+        assert self.io_loop.run_sync(f) == (1, 2)
 
     def test_async_raise_return_value(self):
         @gen.coroutine
@@ -268,7 +266,7 @@ class GenBasicTest(AsyncTestCase):
             yield gen.moment
             raise gen.Return(42)
 
-        self.assertEqual(42, self.io_loop.run_sync(f))
+        assert self.io_loop.run_sync(f) == 42
 
     def test_async_raise_return_value_tuple(self):
         @gen.coroutine
@@ -276,7 +274,7 @@ class GenBasicTest(AsyncTestCase):
             yield gen.moment
             raise gen.Return((1, 2))
 
-        self.assertEqual((1, 2), self.io_loop.run_sync(f))
+        assert self.io_loop.run_sync(f) == (1, 2)
 
 
 class GenCoroutineTest(AsyncTestCase):
@@ -298,9 +296,9 @@ class GenCoroutineTest(AsyncTestCase):
             yield gen.moment
 
         coro = gen.coroutine(f)
-        self.assertEqual(coro.__name__, f.__name__)
-        self.assertEqual(coro.__module__, f.__module__)
-        self.assertIs(coro.__wrapped__, f)  # type: ignore
+        assert coro.__name__ == f.__name__
+        assert coro.__module__ == f.__module__
+        assert coro.__wrapped__ is f  # type: ignore
 
     def test_is_coroutine_function(self):
         self.finished = True
@@ -309,9 +307,9 @@ class GenCoroutineTest(AsyncTestCase):
             yield gen.moment
 
         coro = gen.coroutine(f)
-        self.assertFalse(gen.is_coroutine_function(f))
-        self.assertTrue(gen.is_coroutine_function(coro))
-        self.assertFalse(gen.is_coroutine_function(coro()))
+        assert not gen.is_coroutine_function(f)
+        assert gen.is_coroutine_function(coro)
+        assert not gen.is_coroutine_function(coro())
 
     @gen_test
     def test_sync_gen_return(self):
@@ -320,7 +318,7 @@ class GenCoroutineTest(AsyncTestCase):
             raise gen.Return(42)
 
         result = yield f()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -331,7 +329,7 @@ class GenCoroutineTest(AsyncTestCase):
             raise gen.Return(42)
 
         result = yield f()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -341,7 +339,7 @@ class GenCoroutineTest(AsyncTestCase):
             return 42
 
         result = yield f()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -352,7 +350,7 @@ class GenCoroutineTest(AsyncTestCase):
             return 42
 
         result = yield f()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -367,7 +365,7 @@ class GenCoroutineTest(AsyncTestCase):
             yield gen.Task(self.io_loop.add_callback)
 
         result = yield f()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -381,11 +379,10 @@ class GenCoroutineTest(AsyncTestCase):
         # yield-based gen.coroutine, and that a gen.coroutine
         # (the test method itself) can yield an async function.
         async def f2():
-            result = await f1()
-            return result
+            return await f1()
 
         result = yield f2()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -399,7 +396,7 @@ class GenCoroutineTest(AsyncTestCase):
             return 42
 
         result = yield f()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -418,7 +415,7 @@ class GenCoroutineTest(AsyncTestCase):
             raise gen.Return(43)
 
         results = yield [f2(), f3()]
-        self.assertEqual(results, [42, 43])
+        assert results == [42, 43]
         self.finished = True
 
     @gen_test
@@ -427,7 +424,7 @@ class GenCoroutineTest(AsyncTestCase):
             return 42
 
         result = yield gen.with_timeout(datetime.timedelta(hours=1), f1())
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -437,7 +434,7 @@ class GenCoroutineTest(AsyncTestCase):
             return
 
         result = yield f()
-        self.assertEqual(result, None)
+        assert result is None
         self.finished = True
 
     @gen_test
@@ -446,10 +443,9 @@ class GenCoroutineTest(AsyncTestCase):
         @gen.coroutine
         def f():
             yield gen.moment
-            return
 
         result = yield f()
-        self.assertEqual(result, None)
+        assert result is None
         self.finished = True
 
     @gen_test
@@ -462,7 +458,7 @@ class GenCoroutineTest(AsyncTestCase):
         # (or equivalently when its result method is called),
         # not when the function itself is called).
         future = f()
-        with self.assertRaises(ZeroDivisionError):
+        with pytest.raises(ZeroDivisionError):
             yield future
         self.finished = True
 
@@ -474,7 +470,7 @@ class GenCoroutineTest(AsyncTestCase):
             1 / 0
 
         future = f()
-        with self.assertRaises(ZeroDivisionError):
+        with pytest.raises(ZeroDivisionError):
             yield future
         self.finished = True
 
@@ -491,10 +487,10 @@ class GenCoroutineTest(AsyncTestCase):
             try:
                 yield f1()
             except ZeroDivisionError:
-                raise KeyError()
+                raise KeyError
 
         future = f2()
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             yield future
         self.finished = True
 
@@ -514,7 +510,7 @@ class GenCoroutineTest(AsyncTestCase):
                 raise gen.Return(42)
 
         result = yield f2()
-        self.assertEqual(result, 42)
+        assert result == 42
         self.finished = True
 
     @gen_test
@@ -523,7 +519,7 @@ class GenCoroutineTest(AsyncTestCase):
 
         @gen.coroutine
         def f(name, yieldable):
-            for i in range(5):
+            for _i in range(5):
                 calls.append(name)
                 yield yieldable
 
@@ -532,17 +528,17 @@ class GenCoroutineTest(AsyncTestCase):
         immediate = Future()  # type: Future[None]
         immediate.set_result(None)
         yield [f("a", immediate), f("b", immediate)]
-        self.assertEqual("".join(calls), "aaaaabbbbb")
+        assert "".join(calls) == "aaaaabbbbb"
 
         # With moment, they take turns.
         calls = []
         yield [f("a", gen.moment), f("b", gen.moment)]
-        self.assertEqual("".join(calls), "ababababab")
+        assert "".join(calls) == "ababababab"
         self.finished = True
 
         calls = []
         yield [f("a", gen.moment), f("b", immediate)]
-        self.assertEqual("".join(calls), "abbbbbaaaa")
+        assert "".join(calls) == "abbbbbaaaa"
 
     @gen_test
     def test_sleep(self):
@@ -561,27 +557,25 @@ class GenCoroutineTest(AsyncTestCase):
         try:
             yield inner(1)
         except LeakedException as e:
-            self.assertEqual(str(e), "1")
-            self.assertIsNone(e.__context__)
+            assert str(e) == "1"
+            assert e.__context__ is None
 
         try:
             yield inner(2)
         except LeakedException as e:
-            self.assertEqual(str(e), "2")
-            self.assertIsNone(e.__context__)
+            assert str(e) == "2"
+            assert e.__context__ is None
 
         self.finished = True
 
     @skipNotCPython
-    @unittest.skipIf(
-        (3,) < sys.version_info < (3, 6), "asyncio.Future has reference cycles"
-    )
+    @unittest.skipIf((3,) < sys.version_info < (3, 6), "asyncio.Future has reference cycles")
     def test_coroutine_refcounting(self):
         # On CPython, tasks and their arguments should be released immediately
         # without waiting for garbage collection.
         @gen.coroutine
         def inner():
-            class Foo(object):
+            class Foo:
                 pass
 
             local_var = Foo()
@@ -591,18 +585,17 @@ class GenCoroutineTest(AsyncTestCase):
                 pass
 
             yield gen.coroutine(dummy)()
-            raise ValueError("Some error")
+            msg = "Some error"
+            raise ValueError(msg)
 
         @gen.coroutine
         def inner2():
-            try:
+            with contextlib.suppress(ValueError):
                 yield inner()
-            except ValueError:
-                pass
 
         self.io_loop.run_sync(inner2, timeout=3)
 
-        self.assertIs(self.local_ref(), None)
+        assert self.local_ref() is None
         self.finished = True
 
     def test_asyncio_future_debug_info(self):
@@ -616,12 +609,12 @@ class GenCoroutineTest(AsyncTestCase):
             yield gen.moment
 
         coro = gen.coroutine(f)()
-        self.assertIsInstance(coro, asyncio.Future)
+        assert isinstance(coro, asyncio.Future)
         # We expect the coroutine repr() to show the place where
         # it was instantiated
         expected = "created at %s:%d" % (__file__, f.__code__.co_firstlineno + 3)
         actual = repr(coro)
-        self.assertIn(expected, actual)
+        assert expected in actual
 
     @gen_test
     def test_asyncio_gather(self):
@@ -633,7 +626,7 @@ class GenCoroutineTest(AsyncTestCase):
             raise gen.Return(1)
 
         ret = yield asyncio.gather(f(), f())
-        self.assertEqual(ret, [1, 1])
+        assert ret == [1, 1]
         self.finished = True
 
 
@@ -705,45 +698,43 @@ class GenWebTest(AsyncHTTPTestCase):
                 ("/undecorated_coroutine", UndecoratedCoroutinesHandler),
                 ("/async_prepare_error", AsyncPrepareErrorHandler),
                 ("/native_coroutine", NativeCoroutineHandler),
-            ]
+            ],
         )
 
     def test_coroutine_sequence_handler(self):
         response = self.fetch("/coroutine_sequence")
-        self.assertEqual(response.body, b"123")
+        assert response.body == b"123"
 
     def test_coroutine_unfinished_sequence_handler(self):
         response = self.fetch("/coroutine_unfinished_sequence")
-        self.assertEqual(response.body, b"123")
+        assert response.body == b"123"
 
     def test_undecorated_coroutines(self):
         response = self.fetch("/undecorated_coroutine")
-        self.assertEqual(response.body, b"123")
+        assert response.body == b"123"
 
     def test_async_prepare_error_handler(self):
         response = self.fetch("/async_prepare_error")
-        self.assertEqual(response.code, 403)
+        assert response.code == 403
 
     def test_native_coroutine_handler(self):
         response = self.fetch("/native_coroutine")
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.body, b"ok")
+        assert response.code == 200
+        assert response.body == b"ok"
 
 
 class WithTimeoutTest(AsyncTestCase):
     @gen_test
     def test_timeout(self):
-        with self.assertRaises(gen.TimeoutError):
+        with pytest.raises(gen.TimeoutError):
             yield gen.with_timeout(datetime.timedelta(seconds=0.1), Future())
 
     @gen_test
     def test_completes_before_timeout(self):
         future = Future()  # type: Future[str]
-        self.io_loop.add_timeout(
-            datetime.timedelta(seconds=0.1), lambda: future.set_result("asdf")
-        )
+        self.io_loop.add_timeout(datetime.timedelta(seconds=0.1), lambda: future.set_result("asdf"))
         result = yield gen.with_timeout(datetime.timedelta(seconds=3600), future)
-        self.assertEqual(result, "asdf")
+        assert result == "asdf"
 
     @gen_test
     def test_fails_before_timeout(self):
@@ -752,7 +743,7 @@ class WithTimeoutTest(AsyncTestCase):
             datetime.timedelta(seconds=0.1),
             lambda: future.set_exception(ZeroDivisionError()),
         )
-        with self.assertRaises(ZeroDivisionError):
+        with pytest.raises(ZeroDivisionError):
             yield gen.with_timeout(datetime.timedelta(seconds=3600), future)
 
     @gen_test
@@ -760,16 +751,14 @@ class WithTimeoutTest(AsyncTestCase):
         future = Future()  # type: Future[str]
         future.set_result("asdf")
         result = yield gen.with_timeout(datetime.timedelta(seconds=3600), future)
-        self.assertEqual(result, "asdf")
+        assert result == "asdf"
 
     @gen_test
     def test_timeout_concurrent_future(self):
         # A concurrent future that does not resolve before the timeout.
         with futures.ThreadPoolExecutor(1) as executor:
-            with self.assertRaises(gen.TimeoutError):
-                yield gen.with_timeout(
-                    self.io_loop.time(), executor.submit(time.sleep, 0.1)
-                )
+            with pytest.raises(gen.TimeoutError):
+                yield gen.with_timeout(self.io_loop.time(), executor.submit(time.sleep, 0.1))
 
     @gen_test
     def test_completed_concurrent_future(self):
@@ -798,13 +787,13 @@ class WaitIteratorTest(AsyncTestCase):
     @gen_test
     def test_empty_iterator(self):
         g = gen.WaitIterator()
-        self.assertTrue(g.done(), "empty generator iterated")
+        assert g.done(), "empty generator iterated"
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             g = gen.WaitIterator(Future(), bar=Future())
 
-        self.assertEqual(g.current_index, None, "bad nil current index")
-        self.assertEqual(g.current_future, None, "bad nil current future")
+        assert g.current_index is None, "bad nil current index"
+        assert g.current_future is None, "bad nil current future"
 
     @gen_test
     def test_already_done(self):
@@ -822,43 +811,37 @@ class WaitIteratorTest(AsyncTestCase):
             # Order is not guaranteed, but the current implementation
             # preserves ordering of already-done Futures.
             if i == 0:
-                self.assertEqual(g.current_index, 0)
-                self.assertIs(g.current_future, f1)
-                self.assertEqual(r, 24)
+                assert g.current_index == 0
+                assert g.current_future is f1
+                assert r == 24
             elif i == 1:
-                self.assertEqual(g.current_index, 1)
-                self.assertIs(g.current_future, f2)
-                self.assertEqual(r, 42)
+                assert g.current_index == 1
+                assert g.current_future is f2
+                assert r == 42
             elif i == 2:
-                self.assertEqual(g.current_index, 2)
-                self.assertIs(g.current_future, f3)
-                self.assertEqual(r, 84)
+                assert g.current_index == 2
+                assert g.current_future is f3
+                assert r == 84
             i += 1
 
-        self.assertEqual(g.current_index, None, "bad nil current index")
-        self.assertEqual(g.current_future, None, "bad nil current future")
+        assert g.current_index is None, "bad nil current index"
+        assert g.current_future is None, "bad nil current future"
 
         dg = gen.WaitIterator(f1=f1, f2=f2)
 
         while not dg.done():
             dr = yield dg.next()
             if dg.current_index == "f1":
-                self.assertTrue(
-                    dg.current_future == f1 and dr == 24,
-                    "WaitIterator dict status incorrect",
-                )
+                assert dg.current_future == f1 and dr == 24, "WaitIterator dict status incorrect"
             elif dg.current_index == "f2":
-                self.assertTrue(
-                    dg.current_future == f2 and dr == 42,
-                    "WaitIterator dict status incorrect",
-                )
+                assert dg.current_future == f2 and dr == 42, "WaitIterator dict status incorrect"
             else:
-                self.fail("got bad WaitIterator index {}".format(dg.current_index))
+                self.fail(f"got bad WaitIterator index {dg.current_index}")
 
             i += 1
 
-        self.assertEqual(dg.current_index, None, "bad nil current index")
-        self.assertEqual(dg.current_future, None, "bad nil current future")
+        assert dg.current_index is None, "bad nil current index"
+        assert dg.current_future is None, "bad nil current future"
 
     def finish_coroutines(self, iteration, futures):
         if iteration == 3:
@@ -885,17 +868,17 @@ class WaitIteratorTest(AsyncTestCase):
             try:
                 r = yield g.next()
             except ZeroDivisionError:
-                self.assertIs(g.current_future, futures[0], "exception future invalid")
+                assert g.current_future is futures[0], "exception future invalid"
             else:
                 if i == 0:
-                    self.assertEqual(r, 24, "iterator value incorrect")
-                    self.assertEqual(g.current_index, 2, "wrong index")
+                    assert r == 24, "iterator value incorrect"
+                    assert g.current_index == 2, "wrong index"
                 elif i == 2:
-                    self.assertEqual(r, 42, "iterator value incorrect")
-                    self.assertEqual(g.current_index, 1, "wrong index")
+                    assert r == 42, "iterator value incorrect"
+                    assert g.current_index == 1, "wrong index"
                 elif i == 3:
-                    self.assertEqual(r, 84, "iterator value incorrect")
-                    self.assertEqual(g.current_index, 3, "wrong index")
+                    assert r == 84, "iterator value incorrect"
+                    assert g.current_index == 3, "wrong index"
             i += 1
 
     @gen_test
@@ -913,27 +896,28 @@ class WaitIteratorTest(AsyncTestCase):
             try:
                 async for r in g:
                     if i == 0:
-                        self.assertEqual(r, 24, "iterator value incorrect")
-                        self.assertEqual(g.current_index, 2, "wrong index")
+                        assert r == 24, "iterator value incorrect"
+                        assert g.current_index == 2, "wrong index"
                     else:
-                        raise Exception("expected exception on iteration 1")
+                        msg = "expected exception on iteration 1"
+                        raise Exception(msg)
                     i += 1
             except ZeroDivisionError:
                 i += 1
             async for r in g:
                 if i == 2:
-                    self.assertEqual(r, 42, "iterator value incorrect")
-                    self.assertEqual(g.current_index, 1, "wrong index")
+                    assert r == 42, "iterator value incorrect"
+                    assert g.current_index == 1, "wrong index"
                 elif i == 3:
-                    self.assertEqual(r, 84, "iterator value incorrect")
-                    self.assertEqual(g.current_index, 3, "wrong index")
+                    assert r == 84, "iterator value incorrect"
+                    assert g.current_index == 3, "wrong index"
                 else:
                     raise Exception("didn't expect iteration %d" % i)
                 i += 1
             self.finished = True
 
         yield f()
-        self.assertTrue(self.finished)
+        assert self.finished
 
     @gen_test
     def test_no_ref(self):
@@ -942,7 +926,8 @@ class WaitIteratorTest(AsyncTestCase):
         # WaitIterator uses weak references internally to improve GC
         # performance, this used to cause problems.
         yield gen.with_timeout(
-            datetime.timedelta(seconds=0.1), gen.WaitIterator(gen.sleep(0)).next()
+            datetime.timedelta(seconds=0.1),
+            gen.WaitIterator(gen.sleep(0)).next(),
         )
 
 
@@ -998,12 +983,12 @@ class RunnerGCTest(AsyncTestCase):
         loop.close()
         gc.collect()
         # Future was collected
-        self.assertIs(wfut[0](), None)
+        assert wfut[0]() is None
         # At least one wakeup
-        self.assertGreaterEqual(len(result), 2)
+        assert len(result) >= 2
         if not self.is_pypy3():
             # coroutine finalizer was called (not on PyPy3 apparently)
-            self.assertIs(result[-1], None)
+            assert result[-1] is None
 
     def test_gc_infinite_async_await(self):
         # Same as test_gc_infinite_coro, but with a `async def` function
@@ -1034,12 +1019,12 @@ class RunnerGCTest(AsyncTestCase):
             loop.close()
             gc.collect()
         # Future was collected
-        self.assertIs(wfut[0](), None)
+        assert wfut[0]() is None
         # At least one wakeup and one finally
-        self.assertGreaterEqual(len(result), 2)
+        assert len(result) >= 2
         if not self.is_pypy3():
             # coroutine finalizer was called (not on PyPy3 apparently)
-            self.assertIs(result[-1], None)
+            assert result[-1] is None
 
     def test_multi_moment(self):
         # Test gen.multi with moment
@@ -1051,7 +1036,7 @@ class RunnerGCTest(AsyncTestCase):
 
         loop = self.get_new_ioloop()
         result = loop.run_sync(wait_a_moment)
-        self.assertEqual(result, [None, None])
+        assert result == [None, None]
 
 
 if contextvars is not None:
@@ -1071,29 +1056,27 @@ class ContextVarsTest(AsyncTestCase):
         yield self.inner(x)
 
     async def inner(self, x):
-        self.assertEqual(ctx_var.get(), x)
+        assert ctx_var.get() == x
         await self.gen_inner(x)
-        self.assertEqual(ctx_var.get(), x)
+        assert ctx_var.get() == x
 
         # IOLoop.run_in_executor doesn't automatically copy context
         ctx = contextvars.copy_context()
         await self.io_loop.run_in_executor(None, lambda: ctx.run(self.thread_inner, x))
-        self.assertEqual(ctx_var.get(), x)
+        assert ctx_var.get() == x
 
         # Neither does asyncio's run_in_executor.
-        await asyncio.get_event_loop().run_in_executor(
-            None, lambda: ctx.run(self.thread_inner, x)
-        )
-        self.assertEqual(ctx_var.get(), x)
+        await asyncio.get_event_loop().run_in_executor(None, lambda: ctx.run(self.thread_inner, x))
+        assert ctx_var.get() == x
 
     @gen.coroutine
     def gen_inner(self, x):
-        self.assertEqual(ctx_var.get(), x)
+        assert ctx_var.get() == x
         yield
-        self.assertEqual(ctx_var.get(), x)
+        assert ctx_var.get() == x
 
     def thread_inner(self, x):
-        self.assertEqual(ctx_var.get(), x)
+        assert ctx_var.get() == x
 
     @gen_test
     def test_propagate(self):
@@ -1119,7 +1102,7 @@ class ContextVarsTest(AsyncTestCase):
         x = 10
 
         async def native_async_function():
-            self.assertEqual(ctx_var.get(), x)
+            assert ctx_var.get() == x
 
         ctx_var.set(x)
         yield native_async_function()

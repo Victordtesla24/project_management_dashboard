@@ -12,7 +12,7 @@ from flask import Response, current_app, redirect, request, session, url_for
 def create_token(payload: dict[str, Any]) -> str:
 """\1"""
 secret_key = current_app.config.get(
-"SECRET_KEY", os.environ.get("SECRET_KEY", "default-secret-key")
+"SECRET_KEY", os.environ.get("SECRET_KEY", "default-secret-key"),
     )
 if not payload.get("exp"):
 payload["exp"] = datetime.utcnow() + timedelta(hours=24)
@@ -21,7 +21,7 @@ def verify_token(token: str) -> Optional[dict[str, Any]]:
 """\1"""
 try:
 secret_key = current_app.config.get(
-"SECRET_KEY", os.environ.get("SECRET_KEY", "default-secret-key")
+"SECRET_KEY", os.environ.get("SECRET_KEY", "default-secret-key"),
     )
 payload = jwt.decode(token, secret_key, algorithms=["HS256"])
 return payload

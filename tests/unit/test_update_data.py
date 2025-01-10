@@ -1,16 +1,13 @@
-"""
-A "meta test" which tests the `--update-data` feature for updating .test files.
+"""A "meta test" which tests the `--update-data` feature for updating .test files.
 Updating the expected output, especially when it's in the form of inline (comment) assertions,
 can be brittle, which is why we're "meta-testing" here.
 """
-
 from mypy.test.helpers import Suite
 from mypy.test.meta._pytest import PytestResult, dedent_docstring, run_pytest_data_suite
 
 
 def _run_pytest_update_data(data_suite: str) -> PytestResult:
-    """
-    Runs a suite of data test cases through 'pytest --update-data' until either tests pass
+    """Runs a suite of data test cases through 'pytest --update-data' until either tests pass
     or until a maximum number of attempts (needed for incremental tests).
     """
     return run_pytest_data_suite(data_suite, extra_args=["--update-data"], max_attempts=3)
@@ -74,7 +71,7 @@ class UpdateDataSuite(Suite):
             [file b.py]
             s2: str = 43  # E: baz
             [builtins fixtures/list.pyi]
-            """
+            """,
         )
 
         # Assert
@@ -130,6 +127,6 @@ class UpdateDataSuite(Suite):
         [file b.py]
         s2: str = 43  # E: Incompatible types in assignment (expression has type "int", variable has type "str")
         [builtins fixtures/list.pyi]
-        """
+        """,
         )
         assert result.input_updated == expected

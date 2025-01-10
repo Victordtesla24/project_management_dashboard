@@ -9,19 +9,24 @@ from .metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
+
 def load_config() -> Tuple[int, list[str]]:
     """Load dashboard configuration.
-    
-    Returns:
+
+    Returns
+    -------
         Tuple containing update interval and list of metrics to show.
     """
     try:
         update_interval = int(os.getenv("UPDATE_INTERVAL", "5"))
-        metrics_to_show = os.getenv("METRICS_TO_SHOW", "CPU Usage,Memory Usage,Disk Usage").split(",")
+        metrics_to_show = os.getenv("METRICS_TO_SHOW", "CPU Usage,Memory Usage,Disk Usage").split(
+            ",",
+        )
         return update_interval, metrics_to_show
     except ValueError as e:
         logger.error(f"Error loading config: {e}")
         return 5, ["CPU Usage", "Memory Usage", "Disk Usage"]
+
 
 def setup_page() -> None:
     """Configure Streamlit page settings."""
@@ -32,13 +37,16 @@ def setup_page() -> None:
         initial_sidebar_state="expanded",
     )
 
+
 def update_metrics(session_state: dict[str, Any]) -> dict[str, Any]:
     """Update metrics in session state.
-    
+
     Args:
+    ----
         session_state: Streamlit session state.
-        
+
     Returns:
+    -------
         Dictionary containing processed metrics.
     """
     collector = MetricsCollector()
@@ -54,10 +62,12 @@ def update_metrics(session_state: dict[str, Any]) -> dict[str, Any]:
 
     return metrics
 
+
 def display_metrics(session_state: dict[str, Any], metrics_to_show: list[str]) -> None:
     """Display metrics visualization.
-    
+
     Args:
+    ----
         session_state: Streamlit session state.
         metrics_to_show: List of metrics to display.
     """
@@ -94,6 +104,7 @@ def display_metrics(session_state: dict[str, Any], metrics_to_show: list[str]) -
                 delta=None,
             )
 
+
 def main() -> None:
     """Main entry point for the dashboard application."""
     setup_page()
@@ -104,8 +115,9 @@ def main() -> None:
         st.session_state["metrics_history"] = []
 
     # Update and display metrics
-    metrics = update_metrics(st.session_state)
+    update_metrics(st.session_state)
     display_metrics(st.session_state, metrics_to_show)
+
 
 if __name__ == "__main__":
     main()

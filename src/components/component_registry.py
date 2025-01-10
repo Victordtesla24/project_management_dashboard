@@ -106,9 +106,7 @@ def declare_component(
     component_name = f"{module_name}.{name}"
 
     # Create our component object, and register it.
-    component = CustomComponent(
-        name=component_name, path=path, url=url, module_name=module_name
-    )
+    component = CustomComponent(name=component_name, path=path, url=url, module_name=module_name)
     # the ctx can be None if a custom component script is run outside of Streamlit, e.g. via 'python ...'
     ctx = get_script_run_ctx()
     if ctx is not None:
@@ -126,5 +124,4 @@ class ComponentRegistry:
     @classmethod
     def instance(cls) -> BaseComponentRegistry:
         """Returns the ComponentRegistry of the runtime instance."""
-
         return get_instance().component_registry

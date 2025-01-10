@@ -3,7 +3,9 @@ import logging
 import os
 import sys
 
-from wsgi import app
+from dashboard.app import create_app
+
+app = create_app()
 
 # Configure logging
 logging.basicConfig(

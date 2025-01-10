@@ -1,4 +1,4 @@
-"""Test exporting line-level reference information (undocumented feature)"""
+"""Test exporting line-level reference information (undocumented feature)."""
 
 from __future__ import annotations
 
@@ -26,7 +26,9 @@ class RefInfoSuite(DataSuite):
 
         src = "\n".join(testcase.input)
         result = build.build(
-            sources=[BuildSource("main", None, src)], options=options, alt_lib_path=test_temp_dir
+            sources=[BuildSource("main", None, src)],
+            options=options,
+            alt_lib_path=test_temp_dir,
         )
         assert not result.errors
 
@@ -41,5 +43,7 @@ class RefInfoSuite(DataSuite):
             a.append(f"{item['line']}:{item['column']}:{item['target']}")
 
         assert_string_arrays_equal(
-            testcase.output, a, f"Invalid output ({testcase.file}, line {testcase.line})"
+            testcase.output,
+            a,
+            f"Invalid output ({testcase.file}, line {testcase.line})",
         )
