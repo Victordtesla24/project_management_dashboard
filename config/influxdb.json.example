@@ -1,0 +1,27 @@
+{
+    "url": "http://localhost:8086",
+    "token": "your-token-here",
+    "org": "your-org",
+    "bucket": "metrics",
+    "write_options": {
+        "batch_size": 1000,
+        "flush_interval": 1000,
+        "retry_interval": 5000,
+        "max_retries": 3,
+        "max_retry_delay": 30000,
+        "exponential_base": 2
+    },
+    "query_options": {
+        "max_rows": 10000,
+        "query_timeout": 30000
+    },
+    "tags": {
+        "host": "localhost",
+        "environment": "development"
+    },
+    "retention_policy": {
+        "name": "metrics_retention",
+        "duration": "30d",
+        "replication": 1
+    }
+}

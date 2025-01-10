@@ -1,18 +1,19 @@
 """Metrics collector module for the dashboard."""
 
-import logging
-import time
-import psutil
-from typing import Dict, Any
-from datetime import datetime, timedelta
-
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, start_http_server
-import os
 import json
+import logging
+import os
+import time
+from datetime import datetime, timedelta
+from typing import Any, Dict
+
+import psutil
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, start_http_server
+
 
 def get_config():
     """Get configuration from config file."""
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'dashboard.json')
+    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "dashboard.json")
     try:
         with open(config_path) as f:
             return json.load(f)
@@ -32,7 +33,7 @@ class MetricsCollector:
         # Load configuration
         try:
             self.config = get_config()
-            self.retention_days = self.config.get('retention_days', retention_days)
+            self.retention_days = self.config.get("retention_days", retention_days)
         except Exception as e:
             self.logger.warning(f"Failed to load config, using defaults: {e}")
             self.retention_days = retention_days
@@ -46,7 +47,7 @@ class MetricsCollector:
 
         # Start Prometheus HTTP server
         try:
-            metrics_port = self.config.get('metrics_port', port)
+            metrics_port = self.config.get("metrics_port", port)
             start_http_server(metrics_port, registry=self.registry)
             self.logger.info(f"Metrics server started on port {port}")
         except Exception as e:
@@ -102,7 +103,7 @@ class MetricsCollector:
             registry=self.registry,
         )
 
-    def collect_system_metrics(self) -> Dict[str, Any]:
+    def collect_system_metrics(self) -> dict[str, Any]:
         """Collect system metrics."""
         try:
             # CPU usage
@@ -114,20 +115,20 @@ class MetricsCollector:
             self.memory_usage.set(memory.percent)
 
             # Disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             self.disk_usage.set(disk.percent)
 
             return {
-                'cpu_usage': cpu_percent,
-                'memory_usage': memory.percent,
-                'disk_usage': disk.percent,
-                'timestamp': datetime.now().isoformat()
+                "cpu_usage": cpu_percent,
+                "memory_usage": memory.percent,
+                "disk_usage": disk.percent,
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             self.logger.error(f"Error collecting system metrics: {e}")
             return {}
 
-    def collect_project_metrics(self) -> Dict[str, Any]:
+    def collect_project_metrics(self) -> dict[str, Any]:
         """Collect project metrics."""
         try:
             # Here you would integrate with your project management system
@@ -143,11 +144,11 @@ class MetricsCollector:
             self.sprint_progress.set(progress)
 
             return {
-                'active_tasks': active,
-                'completed_tasks': completed,
-                'team_velocity': velocity,
-                'sprint_progress': progress,
-                'timestamp': datetime.now().isoformat()
+                "active_tasks": active,
+                "completed_tasks": completed,
+                "team_velocity": velocity,
+                "sprint_progress": progress,
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             self.logger.error(f"Error collecting project metrics: {e}")

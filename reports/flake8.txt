@@ -1,0 +1,262 @@
+/Users/Shared/cursor/project_management_dashboard/dashboard/__init__.py:28:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/app.py:25:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/auth/middleware.py:7:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/auth/middleware.py:17:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/auth/middleware.py:28:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/auth/routes.py:1:1: F401 'flask.flash' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/auth/routes.py:20:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/cache/metrics.py:1:1: F401 'time' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/__init__.py:70:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/__init__.py:88:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/__init__.py:89:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/__init__.py:109:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/__init__.py:110:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/__init__.py:148:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/config.py:2:1: F401 'os' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/config.py:3:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/config.py:3:1: F401 'typing.List' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/config.py:5:1: F401 '.schema.SchemaValidationError' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/config.py:121:17: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/config.py:122:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:11:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:15:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:22:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:23:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:27:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:28:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:33:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:40:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:45:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:53:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:54:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/defaults.py:55:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:1:1: F401 'json' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:2:1: F401 'logging' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:5:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:5:1: F401 'typing.List' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:43:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:48:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:58:9: F811 redefinition of unused 'json' from line 1
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:79:5: C901 'ConfigManager._validate_config_structure' is too complex (20)
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:92:21: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:107:21: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:111:21: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:125:29: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:134:21: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:138:21: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:146:9: F811 redefinition of unused 'json' from line 1
+/Users/Shared/cursor/project_management_dashboard/dashboard/config/schema.py:183:17: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:4:1: F401 'time' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:6:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:51:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:56:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:61:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:66:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:73:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:78:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:83:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:91:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:113:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/core_scripts/metrics_collector.py:139:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:7:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:7:1: F401 'typing.List' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:7:1: F401 'typing.Tuple' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:10:1: F401 'flask.g' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:36:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:44:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:56:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:97:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:102:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:108:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:126:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:131:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:135:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:143:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/main.py:221:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:7:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:7:1: F401 'typing.List' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:37:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:42:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:47:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:48:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:64:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/metrics.py:79:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/models.py:1:1: F401 'json' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/routes.py:6:1: F401 'dashboard.auth.middleware.create_token' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/run.py:12:101: E501 line too long (109 > 100 characters)
+/Users/Shared/cursor/project_management_dashboard/dashboard/run.py:37:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/run.py:38:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:4:1: F401 'tempfile' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:5:1: F401 'datetime.timedelta' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:6:1: F401 'pathlib.Path' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:9:1: F401 'flask.Flask' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:9:1: F401 'flask.current_app' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:10:1: F401 'flask.testing.FlaskClient' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:11:1: F401 'werkzeug.security.generate_password_hash' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:24:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:74:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:141:13: F401 'dashboard.routes' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:204:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/conftest.py:244:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:24:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:25:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:26:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:29:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:32:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:88:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:95:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:96:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:199:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/e2e/test_dashboard_e2e.py:235:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/fixtures/conftest.py:4:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/fixtures/conftest.py:10:1: F401 'dashboard.config.get_config' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/fixtures/conftest.py:25:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/fixtures/conftest.py:31:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/fixtures/conftest.py:34:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/fixtures/conftest.py:59:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/fixtures/conftest.py:85:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:9:1: F401 'websockets' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:12:1: F401 'dashboard.auth.middleware.auth_required' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:13:1: F401 'dashboard.config.schema.ConfigManager' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:27:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:31:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:110:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:163:17: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:164:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:207:17: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:212:17: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:213:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/integration/test_dashboard_integration.py:282:17: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/test_core.py:1:1: F401 'asyncio' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/test_core.py:2:1: F401 'json' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/test_core.py:7:1: F401 'dashboard.core_scripts.metrics_collector.MetricsCollector' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/test_core.py:8:1: F401 'dashboard.websocket.server.MetricsWebSocket' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/test_core.py:17:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_app.py:1:1: F401 'pytest' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_app.py:2:1: F401 'flask.url_for' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_app.py:4:1: F401 'dashboard.app.create_app' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_app.py:30:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_app.py:39:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:2:1: F401 'os' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:3:1: F401 'unittest.mock.mock_open' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:3:1: F401 'unittest.mock.patch' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:7:1: F401 'dashboard.config.config.ConfigurationError' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:7:1: F401 'dashboard.config.config.get_alert_rules' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:7:1: F401 'dashboard.config.config.update_alert_rules' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:7:1: F401 'dashboard.config.config.update_config' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:15:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:29:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:36:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:43:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:48:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:52:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:53:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:128:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:166:5: F811 redefinition of unused 'ConfigurationError' from line 7
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:166:5: F811 redefinition of unused 'get_alert_rules' from line 7
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:166:5: F811 redefinition of unused 'update_alert_rules' from line 7
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:166:5: F811 redefinition of unused 'update_config' from line 7
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config.py:172:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config_schema.py:2:1: F401 'tempfile' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config_schema.py:3:1: F401 'pathlib.Path' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config_schema.py:7:1: F401 'dashboard.config.schema.ValidationResult' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config_schema.py:12:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config_schema.py:25:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_config_schema.py:27:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:2:1: F401 'unittest.mock.Mock' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:4:1: F401 'pandas as pd' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:6:1: F401 'streamlit as st' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:15:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:52:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:55:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:74:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:139:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_main.py:167:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_metrics.py:16:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_metrics.py:47:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_metrics.py:84:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_metrics.py:109:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_metrics.py:148:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_routes.py:3:1: F401 'pytest' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_routes.py:4:1: F401 'flask.url_for' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_routes.py:12:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_routes.py:28:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_routes.py:74:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_routes.py:158:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_utils.py:1:1: F401 'datetime.timezone' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_utils.py:15:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_utils.py:94:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_websocket_server.py:1:1: F401 'asyncio' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/tests/unit/test_websocket_server.py:2:1: F401 'json' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/utils.py:6:1: F401 'pathlib.Path' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/utils.py:7:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/utils.py:7:1: F401 'typing.Union' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/utils.py:148:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/utils.py:156:1: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/websocket/server.py:3:1: F401 'typing.Dict' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/websocket/server.py:3:1: F401 'typing.Set' imported but unused
+/Users/Shared/cursor/project_management_dashboard/dashboard/websocket/server.py:34:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/dashboard/websocket/server.py:59:5: C901 'MetricsWebSocket.handle_client' is too complex (16)
+/Users/Shared/cursor/project_management_dashboard/dashboard/websocket/server.py:99:25: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:6:1: F401 'datetime.datetime' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:10:1: F401 'flask.Flask' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:67:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:69:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:77:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:82:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:88:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:89:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/conftest.py:109:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/e2e/test_monitor_e2e.py:10:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/e2e/test_monitor_e2e.py:19:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/e2e/test_monitor_e2e.py:30:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/e2e/test_monitor_e2e.py:60:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/e2e/test_monitor_e2e.py:81:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/e2e/test_monitor_e2e.py:105:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/e2e/test_workflow.py:21:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/fixtures/base.py:27:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/fixtures/conftest.py:1:1: F401 'os' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/fixtures/conftest.py:28:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/fixtures/conftest.py:34:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/fixtures/conftest.py:36:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_integration.py:3:1: F401 'asyncio' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_integration.py:4:1: F401 'datetime.datetime' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_integration.py:85:17: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_monitor_integration.py:9:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_monitor_integration.py:14:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_monitor_integration.py:50:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_monitor_integration.py:76:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/integration/test_monitor_integration.py:87:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_dashboard.py:17:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_dashboard.py:22:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_dashboard.py:44:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_dashboard.py:47:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_dashboard.py:48:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_metrics_collector.py:3:1: F401 'unittest.mock.MagicMock' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_metrics_collector.py:8:1: F401 'tests.fixtures.base.mock_metrics' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_metrics_collector.py:29:39: F811 redefinition of unused 'mock_metrics' from line 8
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:4:1: F401 'os' imported but unused
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:9:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:23:13: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:24:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:25:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:38:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:43:9: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:44:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:50:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:55:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:62:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:70:31: E128 continuation line under-indented for visual indent
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:71:31: E128 continuation line under-indented for visual indent
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:80:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:83:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:87:5: E133 closing bracket is missing indentation
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:105:1: E302 expected 2 blank lines, found 1
+/Users/Shared/cursor/project_management_dashboard/tests/unit/test_monitor.py:126:1: E302 expected 2 blank lines, found 1
+2     C901 'ConfigManager._validate_config_structure' is too complex (20)
+2     E128 continuation line under-indented for visual indent
+157   E133 closing bracket is missing indentation
+14    E302 expected 2 blank lines, found 1
+1     E501 line too long (109 > 100 characters)
+72    F401 'typing.Dict' imported but unused
+7     F811 redefinition of unused 'json' from line 1

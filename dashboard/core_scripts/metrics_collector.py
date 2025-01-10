@@ -2,11 +2,12 @@
 
 import logging
 import time
-import psutil
-from typing import Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict
 
+import psutil
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, start_http_server
+
 from ..config import get_config
 
 
@@ -21,7 +22,9 @@ class MetricsCollector:
 
         # Load configuration
         self.config = get_config()
-        self.retention_days = retention_days or self.config.get('metrics', {}).get('retention_days', 30)
+        metrics_config = self.config.get("metrics", {})
+        retention_config = metrics_config.get("retention", {})
+        self.retention_days = retention_days or retention_config.get("days", 30)
         self.last_cleanup = datetime.now()
 
         # Create a custom registry for this instance
@@ -87,7 +90,7 @@ class MetricsCollector:
             registry=self.registry,
         )
 
-    def collect_system_metrics(self) -> Dict[str, Any]:
+    def collect_system_metrics(self) -> dict[str, Any]:
         """Collect system metrics."""
         try:
             # CPU usage
@@ -99,20 +102,20 @@ class MetricsCollector:
             self.memory_usage.set(memory.percent)
 
             # Disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             self.disk_usage.set(disk.percent)
 
             return {
-                'cpu_usage': cpu_percent,
-                'memory_usage': memory.percent,
-                'disk_usage': disk.percent,
-                'timestamp': datetime.now().isoformat()
+                "cpu_usage": cpu_percent,
+                "memory_usage": memory.percent,
+                "disk_usage": disk.percent,
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             self.logger.error(f"Error collecting system metrics: {e}")
             return {}
 
-    def collect_project_metrics(self) -> Dict[str, Any]:
+    def collect_project_metrics(self) -> dict[str, Any]:
         """Collect project metrics."""
         try:
             # Here you would integrate with your project management system
@@ -128,11 +131,11 @@ class MetricsCollector:
             self.sprint_progress.set(progress)
 
             return {
-                'active_tasks': active,
-                'completed_tasks': completed,
-                'team_velocity': velocity,
-                'sprint_progress': progress,
-                'timestamp': datetime.now().isoformat()
+                "active_tasks": active,
+                "completed_tasks": completed,
+                "team_velocity": velocity,
+                "sprint_progress": progress,
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             self.logger.error(f"Error collecting project metrics: {e}")

@@ -1,28 +1,50 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Project root directory
 PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
-# Source utility functions
-source "${PROJECT_ROOT}/scripts/utils/progress_bar.sh"
+# Error handling
+handle_error() {
+    echo "❌ Error: $1"
+    exit 1
+}
 
-# Initialize progress bar (5 steps)
-init_progress 5
+# Validation function
+validate_tool() {
+    local tool=$1
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "⚠️  Warning: $tool not found, skipping related documentation"
+        return 1
+    fi
+    return 0
+}
 
-echo "📚 Creating/updating documentation..."
+# Create documentation directory structure
+echo "Setting up documentation directory structure..."
+directories=(
+    "build"
+    "build/html"
+    "source/_static"
+    "source/_templates"
+    "source/api"
+    "source/guides"
+    "source/tutorials"
+    "source/examples"
+)
 
-# Create documentation structure
-run_with_spinner "Creating documentation structure" "
-    mkdir -p \"${PROJECT_ROOT}/docs/source\" &&
-    mkdir -p \"${PROJECT_ROOT}/docs/build/html\" &&
-    mkdir -p \"${PROJECT_ROOT}/docs/source/_static\" &&
-    mkdir -p \"${PROJECT_ROOT}/docs/source/_templates\"
-"
+for dir in "${directories[@]}"; do
+    full_path="${PROJECT_ROOT}/docs/${dir}"
+    mkdir -p "$full_path" || handle_error "Failed to create $dir directory"
+    touch "$full_path/.gitkeep" 2>/dev/null || true
+done
 
-# Create Sphinx configuration
-run_with_spinner "Creating Sphinx configuration" "
-    cat > \"${PROJECT_ROOT}/docs/source/conf.py\" << 'EOF'
+# Create default Sphinx configuration if it doesn't exist
+if [ ! -f "${PROJECT_ROOT}/docs/source/conf.py" ]; then
+    echo "Creating Sphinx configuration..."
+    cat > "${PROJECT_ROOT}/docs/source/conf.py" << 'EOF' || handle_error "Failed to create conf.py"
+# Configuration file for Sphinx documentation builder
+
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
@@ -30,6 +52,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 project = 'Project Management Dashboard'
 copyright = '2024, Your Organization'
 author = 'Your Organization'
+release = '1.0.0'
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -44,9 +67,7 @@ exclude_patterns = []
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
-html_title = 'Project Management Dashboard'
-html_logo = '_static/logo.png'
-html_favicon = '_static/favicon.ico'
+html_title = 'Project Management Dashboard Documentation'
 
 autodoc_default_options = {
     'members': True,
@@ -56,133 +77,89 @@ autodoc_default_options = {
     'exclude-members': '__weakref__'
 }
 EOF
-"
+fi
 
-# Create documentation index
-run_with_spinner "Creating documentation index" "
-    cat > \"${PROJECT_ROOT}/docs/source/index.rst\" << 'EOF'
+# Create index file if it doesn't exist
+if [ ! -f "${PROJECT_ROOT}/docs/source/index.rst" ]; then
+    echo "Creating documentation index..."
+    cat > "${PROJECT_ROOT}/docs/source/index.rst" << 'EOF' || handle_error "Failed to create index.rst"
 Welcome to Project Management Dashboard
-=====================================
+====================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   installation
-   usage
-   api
-   development
-   changelog
-
-Introduction
------------
-The Project Management Dashboard is a comprehensive monitoring and management solution
-that provides real-time insights into system metrics, test coverage, and project status.
-
-Features
---------
-* Real-time system metrics monitoring
-* Test coverage tracking and reporting
-* Project status visualization
-* Automated documentation generation
-* Continuous integration support
-
-Quick Start
-----------
-1. Clone the repository
-2. Run \`setup.sh\` to initialize the environment
-3. Start the dashboard using \`run_dashboard.sh\`
-4. Access the dashboard at http://localhost:8501
-
-For more detailed information, please refer to the installation and usage guides.
+   guides/index
+   tutorials/index
+   api/index
+   examples/index
 
 Indices and tables
 ==================
-* :ref:\`genindex\`
-* :ref:\`modindex\`
-* :ref:\`search\`
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 EOF
-"
+fi
 
-# Create additional documentation files
-run_with_spinner "Creating additional documentation" "
-    # Installation guide
-    cat > \"${PROJECT_ROOT}/docs/source/installation.rst\" << 'EOF'
-Installation Guide
-================
+# Generate API documentation
+echo "Generating API documentation..."
+if validate_tool "sphinx-apidoc"; then
+    sphinx-apidoc -f -o "${PROJECT_ROOT}/docs/source/api" "${PROJECT_ROOT}/dashboard" \
+        -H "API Reference" \
+        -A "Your Organization" \
+        -V "1.0.0" \
+        --separate \
+        --module-first \
+        --full || handle_error "Failed to generate API documentation"
+fi
 
-Prerequisites
-------------
-* Python 3.8 or higher
-* pip package manager
-* Git
+# Build HTML documentation
+echo "Building HTML documentation..."
+if validate_tool "sphinx-build"; then
+    sphinx-build -b html \
+        -d "${PROJECT_ROOT}/docs/build/doctrees" \
+        -W \
+        --color \
+        -n \
+        "${PROJECT_ROOT}/docs/source" \
+        "${PROJECT_ROOT}/docs/build/html" || handle_error "Failed to build documentation"
+fi
 
-Installation Steps
-----------------
-1. Clone the repository:
-   \`\`\`bash
-   git clone https://github.com/your-org/project-management-dashboard.git
-   cd project-management-dashboard
-   \`\`\`
+# Create PDF documentation if available
+if validate_tool "sphinx-build" && validate_tool "latexmk"; then
+    echo "Building PDF documentation..."
+    sphinx-build -b latex \
+        -d "${PROJECT_ROOT}/docs/build/doctrees" \
+        "${PROJECT_ROOT}/docs/source" \
+        "${PROJECT_ROOT}/docs/build/latex" || true
 
-2. Run the setup script:
-   \`\`\`bash
-   ./scripts/setup.sh
-   \`\`\`
+    # Build PDF if latex build succeeded
+    if [ -f "${PROJECT_ROOT}/docs/build/latex/projectmanagementdashboard.tex" ]; then
+        (cd "${PROJECT_ROOT}/docs/build/latex" && make) || true
+    fi
+fi
 
-3. Verify the installation:
-   \`\`\`bash
-   ./scripts/verify_and_fix.sh
-   \`\`\`
+# Set permissions
+echo "Setting documentation permissions..."
+find "${PROJECT_ROOT}/docs" -type d -exec chmod 755 {} \;
+find "${PROJECT_ROOT}/docs" -type f -exec chmod 644 {} \;
 
-Configuration
-------------
-The dashboard can be configured by editing the following files:
-* \`config/dashboard.json\` - Dashboard settings
-* \`config/metrics.json\` - Metrics collection settings
-* \`.env\` - Environment variables
-EOF
+# Verify documentation
+echo "Verifying documentation..."
+if [ -f "${PROJECT_ROOT}/docs/build/html/index.html" ]; then
+    echo "✓ HTML documentation built successfully"
+else
+    echo "⚠️  HTML documentation build failed"
+fi
 
-    # Usage guide
-    cat > \"${PROJECT_ROOT}/docs/source/usage.rst\" << 'EOF'
-Usage Guide
-==========
+if [ -f "${PROJECT_ROOT}/docs/build/latex/projectmanagementdashboard.pdf" ]; then
+    echo "✓ PDF documentation built successfully"
+else
+    echo "⚠️  PDF documentation not available"
+fi
 
-Starting the Dashboard
--------------------
-1. Activate the virtual environment:
-   \`\`\`bash
-   source .venv/bin/activate
-   \`\`\`
-
-2. Start the dashboard:
-   \`\`\`bash
-   ./scripts/run_dashboard.sh
-   \`\`\`
-
-3. Open your browser and navigate to http://localhost:8501
-
-Features
--------
-* **System Metrics**: Monitor CPU, memory, and disk usage
-* **Test Coverage**: Track test coverage and quality metrics
-* **Project Status**: View project health and progress
-* **Documentation**: Access auto-generated documentation
-
-Customization
------------
-The dashboard can be customized by:
-* Adding new metrics collectors
-* Creating custom visualizations
-* Modifying the update frequency
-* Configuring alert thresholds
-EOF
-"
-
-# Generate documentation
-run_with_spinner "Generating documentation" "
-    cd \"${PROJECT_ROOT}/docs\" &&
-    sphinx-build -b html source build/html
-"
-
-echo "✨ Documentation created/updated successfully!"
+echo "✓ Documentation update completed"
+exit 0

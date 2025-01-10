@@ -1,0 +1,62 @@
+{
+    "tasks": [
+        {
+            "id": "TASK-001",
+            "name": "Project Setup",
+            "description": "Initial project configuration and environment setup",
+            "progress": 100,
+            "status": "completed",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-02",
+            "assignee": "John Doe"
+        },
+        {
+            "id": "TASK-002",
+            "name": "Database Implementation",
+            "description": "Set up and configure database schemas",
+            "progress": 75,
+            "status": "in_progress",
+            "start_date": "2024-01-03",
+            "end_date": "2024-01-07",
+            "assignee": "Jane Smith"
+        },
+        {
+            "id": "TASK-003",
+            "name": "API Development",
+            "description": "Implement REST API endpoints",
+            "progress": 50,
+            "status": "in_progress",
+            "start_date": "2024-01-04",
+            "end_date": "2024-01-08",
+            "assignee": "Bob Wilson"
+        },
+        {
+            "id": "TASK-004",
+            "name": "Frontend Development",
+            "description": "Build user interface components",
+            "progress": 25,
+            "status": "in_progress",
+            "start_date": "2024-01-05",
+            "end_date": "2024-01-10",
+            "assignee": "Alice Brown"
+        },
+        {
+            "id": "TASK-005",
+            "name": "Testing",
+            "description": "Implement test suites and run QA",
+            "progress": 0,
+            "status": "pending",
+            "start_date": "2024-01-11",
+            "end_date": "2024-01-15",
+            "assignee": "Charlie Davis"
+        }
+    ],
+    "metadata": {
+        "total_tasks": 5,
+        "completed_tasks": 1,
+        "in_progress_tasks": 3,
+        "pending_tasks": 1,
+        "overall_progress": 50,
+        "last_updated": "2024-01-15T12:00:00Z"
+    }
+}

@@ -1,0 +1,65 @@
+Mypy Type Check Coverage Summary
+================================
+
+Script: index
+
++--------------------------------------------------------+-------------------+----------+
+| Module                                                 | Imprecision       | Lines    |
++--------------------------------------------------------+-------------------+----------+
+| dashboard                                              |  29.82% imprecise |   57 LOC |
+| dashboard.app                                          |  28.57% imprecise |   49 LOC |
+| dashboard.auth                                         |   0.00% imprecise |    1 LOC |
+| dashboard.auth.middleware                              |  20.62% imprecise |   97 LOC |
+| dashboard.auth.routes                                  |  46.88% imprecise |   32 LOC |
+| dashboard.cache.metrics                                |  12.50% imprecise |    8 LOC |
+| dashboard.config                                       |  20.95% imprecise |  148 LOC |
+| dashboard.config.config                                |  31.18% imprecise |  170 LOC |
+| dashboard.config.defaults                              |   0.00% imprecise |   55 LOC |
+| dashboard.config.schema                                |  21.98% imprecise |  232 LOC |
+| dashboard.core_scripts                                 |   0.00% imprecise |    1 LOC |
+| dashboard.core_scripts.metrics_collector               |  10.63% imprecise |  160 LOC |
+| dashboard.main                                         |  32.02% imprecise |  228 LOC |
+| dashboard.metrics                                      |  32.04% imprecise |  103 LOC |
+| dashboard.models                                       |  46.34% imprecise |   82 LOC |
+| dashboard.routes                                       |  35.00% imprecise |   60 LOC |
+| dashboard.run                                          |   2.22% imprecise |   45 LOC |
+| dashboard.tests                                        |   0.00% imprecise |    1 LOC |
+| dashboard.tests.conftest                               |  35.52% imprecise |  259 LOC |
+| dashboard.tests.e2e.test_dashboard_e2e                 |  38.49% imprecise |  239 LOC |
+| dashboard.tests.fixtures.conftest                      |  24.21% imprecise |   95 LOC |
+| dashboard.tests.integration.test_dashboard_integration |  46.39% imprecise |  291 LOC |
+| dashboard.tests.test_core                              |  45.21% imprecise |  146 LOC |
+| dashboard.tests.unit.test_app                          |  51.47% imprecise |   68 LOC |
+| dashboard.tests.unit.test_auth_middleware              |   0.00% imprecise |    0 LOC |
+| dashboard.tests.unit.test_config                       |  50.00% imprecise |  190 LOC |
+| dashboard.tests.unit.test_config_schema                |  52.94% imprecise |  102 LOC |
+| dashboard.tests.unit.test_main                         |  46.35% imprecise |  192 LOC |
+| dashboard.tests.unit.test_metrics                      |  46.55% imprecise |  174 LOC |
+| dashboard.tests.unit.test_routes                       |  53.94% imprecise |  165 LOC |
+| dashboard.tests.unit.test_utils                        |  42.74% imprecise |  117 LOC |
+| dashboard.tests.unit.test_websocket_server             |  45.21% imprecise |  146 LOC |
+| dashboard.utils                                        |  12.73% imprecise |  220 LOC |
+| dashboard.websocket                                    |   0.00% imprecise |    1 LOC |
+| dashboard.websocket.server                             |  29.48% imprecise |  173 LOC |
+| tests                                                  |   0.00% imprecise |    1 LOC |
+| tests.conftest                                         |  44.96% imprecise |  129 LOC |
+| tests.e2e                                              |   0.00% imprecise |    0 LOC |
+| tests.e2e.test_monitor_e2e                             |  45.53% imprecise |  123 LOC |
+| tests.e2e.test_workflow                                |  58.06% imprecise |   31 LOC |
+| tests.fixtures                                         |   0.00% imprecise |    1 LOC |
+| tests.fixtures.base                                    |  33.33% imprecise |   27 LOC |
+| tests.fixtures.conftest                                |  47.27% imprecise |   55 LOC |
+| tests.integration                                      |   0.00% imprecise |    0 LOC |
+| tests.integration.test_dashboard                       |  62.96% imprecise |   27 LOC |
+| tests.integration.test_integration                     |  44.44% imprecise |  117 LOC |
+| tests.integration.test_monitor_integration             |  51.46% imprecise |  103 LOC |
+| tests.unit                                             |   0.00% imprecise |    0 LOC |
+| tests.unit.test_dashboard                              |  51.90% imprecise |   79 LOC |
+| tests.unit.test_metrics                                |  75.86% imprecise |   29 LOC |
+| tests.unit.test_metrics_collector                      |  53.33% imprecise |   45 LOC |
+| tests.unit.test_monitor                                |  56.16% imprecise |  146 LOC |
+| tests.unit.test_sample                                 |  45.16% imprecise |   31 LOC |
+| tests.unit.test_utils                                  |   0.00% imprecise |    0 LOC |
++--------------------------------------------------------+-------------------+----------+
+| Total                                                  |  37.68% imprecise | 5051 LOC |
++--------------------------------------------------------+-------------------+----------+

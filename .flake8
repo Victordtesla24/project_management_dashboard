@@ -2,9 +2,6 @@
 # Maximum line length
 max-line-length = 100
 
-# Maximum complexity for functions
-max-complexity = 10
-
 # Ignore specific error codes
 ignore =
     # E203: Whitespace before ':' (conflicts with Black)
@@ -83,14 +80,11 @@ multiline-quotes = double
 docstring-quotes = double
 avoid-escape = True
 
-# flake8-bugbear
-extend-select = B950
+# flake8-bugbear, flake8-simplify
+extend-select = B950,SIM
 
 # flake8-comprehensions
 extend-ignore = C408
-
-# flake8-simplify
-extend-select = SIM
 
 # Statistics configuration
 statistics = True

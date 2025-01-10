@@ -1,81 +1,45 @@
-# Custom Instructions
+# System Configuration
+architecture: "arm64-darwin"
+memory_limit: "8GB"
+gpu_utilization: "enabled"
+thread_count:4
 
-# Command Execution
-execution:
-  verify_before_run: true
-  rollback_on_failure: true
-  logging_level: "detailed"
-  error_reporting: "verbose"
+# AI Model Configuration
+model_preferences:
+  primary: "Anthropic Claude 3-5 Sonnet 20241022"
+  fallback: "deepseek-coder"
 
-# Integration Settings
-integration:
-  cursor_sync: true
-  shared_context: true
-  resource_sharing: enabled
-  token_pooling: true
-  request_batching:
-    enabled: true
-    max_size: 5
-    timeout_ms: 100
-
-# Response Format
-output:
-  format: "structured"
-  verbosity: "minimal"
-  error_details: "comprehensive"
-  progress_indicators: true
-  completeness: "full"
-
-# Resource Management
-resources:
-  token_budget: "optimized"
-  context_retention: "comprehensive"
+# Token Management
+token_optimization:
+  max_context: 8000
+  response_limit: 4000
   cache_strategy: "aggressive"
-  memory_optimization: true
-  cost_control:
-    enabled: true
-    budget_tracking: true
-    optimization_level: "balanced"
+  budget_management: "strict"
+  compression: true
 
-# Performance Optimization
-performance:
-  response_time_target: "5s"
-  batch_operations: true
-  parallel_processing: enabled
-  cache_invalidation: "smart"
-  token_management:
-    compression: true
-    deduplication: true
-    context_pruning: true
-    complete_response: true
+# Cost Management
+cost_management:
+  strategy: "minimal"
+  budget_control:
+    daily_limit: 0.95
+    cost_per_token: 0.0000010
 
-# ✓ DO: Minimal, clear implementation
-def process_data(data: List[Dict]) -> Dict:
-    return {item['id']: item['value'] for item in data}
+# Code Generation Rules
+code_generation:
+  style: "minimal"
+  documentation: "essential"
+  testing: "basic"
+  patterns:
+    minimal_code: true
+    performance_first: true
 
-# × DON'T: Unnecessary complexity
-def process_data(data: List[Dict]) -> Dict:
-    result = {}
-    for item in data:
-        if 'id' in item and 'value' in item:
-            result[item['id']] = item['value']
-    return result
+# Quality Standards
+quality:
+  complexity_threshold: "low"
+  lint_level: "low"
 
-# ✓ DO: Comprehensive error handling
-async def fetch_data(url: str) -> Dict:
-    try:
-        async with ClientSession() as session:
-            async with session.get(url) as response:
-                return await response.json()
-    except ClientError as e:
-        logger.error(f"Network error: {e}")
-        raise ServiceException(f"Failed to fetch data: {e}")
-
-# ✓ DO: Efficient resource usage
-@lru_cache(maxsize=100)
-def compute_expensive_operation(data: str) -> str:
-    return expensive_computation(data)
-
-# × DON'T: Inefficient resource usage
-def compute_expensive_operation(data: str) -> str:
-    return expensive_computation(data)  # No caching
+# Security
+security:
+  input_validation: "basic"
+  output_sanitization: true
+  workspace_boundary: "cursor/project_management_dashboard"

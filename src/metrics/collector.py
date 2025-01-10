@@ -1,8 +1,9 @@
-import psutil
 import json
+import logging
 import time
 from pathlib import Path
-import logging
+
+import psutil
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("metrics_collector")

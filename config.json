@@ -3,23 +3,38 @@
         "collection_interval": 60,
         "enabled_metrics": ["cpu", "memory", "disk"],
         "thresholds": {
-            "cpu_percent": 80,
-            "memory_percent": 85,
-            "disk_percent": 90
+            "cpu": 80,
+            "memory": 85,
+            "disk": 90
         },
-        "retention_days": 30
+        "retention": {
+            "days": 30,
+            "max_datapoints": 10000
+        },
+        "alert_rules": [
+            {
+                "metric": "cpu",
+                "threshold": 80,
+                "duration": 300,
+                "severity": "warning"
+            }
+        ],
+        "aggregation": {
+            "interval": 300,
+            "functions": ["avg", "max", "min"]
+        }
     },
     "websocket": {
-        "host": "127.0.0.1",
+        "host": "localhost",
         "port": 8765,
         "ssl": false
     },
     "database": {
         "host": "localhost",
         "port": 5432,
-        "name": "dashboard_db",
-        "user": "dashboard_user",
-        "password": "dashboard_pass"
+        "name": "dashboard",
+        "user": "dashboard",
+        "password": ""
     },
     "logging": {
         "level": "INFO",
@@ -28,11 +43,11 @@
     },
     "ui": {
         "theme": "light",
-        "refresh_interval": 5,
+        "refresh_interval": 10,
         "max_datapoints": 100,
         "layout": {
-            "sidebar_width": 250,
-            "chart_height": 300
+            "sidebar": true,
+            "charts": ["cpu", "memory", "disk"]
         }
     }
 }

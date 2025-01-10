@@ -1,0 +1,17 @@
+{
+    "collection_interval": 60,
+    "retention_days": 30,
+    "metrics": {
+        "system": ["cpu", "memory", "disk", "network"],
+        "application": ["requests", "errors", "response_time"]
+    },
+    "alerts": {
+        "cpu_threshold": 80,
+        "memory_threshold": 90,
+        "disk_threshold": 85
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    }
+}

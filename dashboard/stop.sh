@@ -9,11 +9,11 @@ source "$SCRIPT_DIR/../scripts/utils/logger.sh"
 stop_service() {
     local pid_file=$1
     local service_name=$2
-    
+
     if [ -f "$pid_file" ]; then
         log_info "Stopping $service_name..."
         pid=$(cat "$pid_file")
-        
+
         if ps -p $pid > /dev/null 2>&1; then
             kill $pid
             # Wait for process to stop
@@ -32,7 +32,7 @@ stop_service() {
         else
             log_warning "$service_name is not running"
         fi
-        
+
         rm -f "$pid_file"
     else
         log_warning "$service_name is not running (no PID file)"
@@ -65,15 +65,15 @@ stop_influxdb() {
 # Function to clean up temporary files
 cleanup_temp_files() {
     log_info "Cleaning up temporary files..."
-    
+
     # Backup logs before cleaning
     local backup_dir="logs/backup_$(date +%Y%m%d_%H%M%S)"
     ensure_directory "$backup_dir"
-    
+
     if [ -d "logs" ]; then
         cp -r logs/*.log "$backup_dir/" 2>/dev/null || true
     fi
-    
+
     # Clean up directories
     rm -rf logs/*.log
     rm -rf instance/*
@@ -81,31 +81,31 @@ cleanup_temp_files() {
     rm -rf .pytest_cache
     rm -rf htmlcov
     rm -f .coverage
-    
+
     log_success "Cleanup complete (logs backed up to $backup_dir)"
 }
 
 # Main function
 main() {
     log_info "Stopping all services..."
-    
+
     # Stop services
     stop_service ".implementation.pid" "Flask application"
     stop_service ".websocket.pid" "WebSocket server"
     stop_service ".monitor.pid" "Monitoring service"
     stop_influxdb
-    
+
     # Clean up PID files
     rm -f .implementation.pid .websocket.pid .monitor.pid
-    
+
     # Deactivate virtual environment if active
     if [ -n "$VIRTUAL_ENV" ]; then
         log_info "Deactivating virtual environment..."
         deactivate
     fi
-    
+
     log_success "All services stopped successfully"
-    
+
     # Optional cleanup
     read -p "Do you want to clean up temporary files? (y/n) " -n 1 -r
     echo

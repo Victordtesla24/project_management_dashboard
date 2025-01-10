@@ -15,23 +15,23 @@ WS_PORT=${WS_PORT:-8765}
 # Function to check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     # Check Python version
     check_python_version "3.9" || exit 1
-    
+
     # Check virtual environment
     check_venv || exit 1
-    
+
     # Check required commands
     check_requirements "python3" "pip" "curl" "nc" || exit 1
-    
+
     # Check ports
     check_port "$PORT" || exit 1
     check_port "$WS_PORT" || exit 1
-    
+
     # Check disk space
     check_disk_space 1 || log_warning "Low disk space"
-    
+
     # Check memory
     check_memory 90 || log_warning "High memory usage"
 }
@@ -39,34 +39,34 @@ check_prerequisites() {
 # Function to setup environment
 setup_environment() {
     log_info "Setting up environment..."
-    
+
     # Load environment variables
     load_env
-    
+
     # Create necessary directories
     ensure_directory "logs"
     ensure_directory "instance"
-    
+
     # Validate configuration
     if [ ! -f "$CONFIG_PATH" ]; then
         log_error "Configuration file not found at $CONFIG_PATH"
         exit 1
     fi
-    
+
     validate_json "$CONFIG_PATH" || exit 1
 }
 
 # Function to start services
 start_services() {
     log_info "Starting services..."
-    
+
     # Start InfluxDB if not running
     if ! curl -s http://localhost:8086/health > /dev/null; then
         log_info "Starting InfluxDB..."
         influxd &
         sleep 5  # Wait for InfluxDB to start
     fi
-    
+
     # Start WebSocket server
     log_info "Starting WebSocket server..."
     python3 -c "
@@ -83,7 +83,7 @@ asyncio.run(main())
 " &
     echo $! > .websocket.pid
     log_success "WebSocket server started (PID: $(cat .websocket.pid))"
-    
+
     # Start monitoring service
     log_info "Starting monitoring service..."
     python3 -c "
@@ -95,13 +95,13 @@ while True:
 " &
     echo $! > .monitor.pid
     log_success "Monitoring service started (PID: $(cat .monitor.pid))"
-    
+
     # Start Flask application
     log_info "Starting Flask application..."
     export FLASK_APP=dashboard.app
     export FLASK_ENV=development
     export FLASK_DEBUG=1
-    
+
     flask run --host=0.0.0.0 --port=$PORT &
     echo $! > .implementation.pid
     log_success "Flask application started (PID: $(cat .implementation.pid))"
@@ -139,16 +139,16 @@ cleanup() {
 main() {
     # Set up trap for cleanup
     trap cleanup INT TERM
-    
+
     # Run setup steps
     check_prerequisites
     setup_environment
     start_services
     show_status
-    
+
     # Wait for any process to exit
     wait -n
-    
+
     # Cleanup if any process exits
     cleanup
 }

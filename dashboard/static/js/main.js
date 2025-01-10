@@ -10,7 +10,7 @@ function connectWebSocket() {
     if (!token) return;
 
     const ws = new WebSocket();
-    
+
     ws.onopen = () => {
         console.log('Connected to WebSocket');
         // Subscribe to metrics

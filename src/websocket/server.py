@@ -13,12 +13,8 @@ async def send_metrics(websocket):
     metrics_dir = Path("metrics")
     while True:
         try:
-            system_metrics = json.loads(
-                (metrics_dir / "system_metrics.json").read_text()
-            )
-            process_metrics = json.loads(
-                (metrics_dir / "process_metrics.json").read_text()
-            )
+            system_metrics = json.loads((metrics_dir / "system_metrics.json").read_text())
+            process_metrics = json.loads((metrics_dir / "process_metrics.json").read_text())
 
             await websocket.send(
                 json.dumps({"system": system_metrics, "processes": process_metrics})

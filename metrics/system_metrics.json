@@ -1,1 +1,15 @@
-{"cpu": 9.7, "memory": 26.9, "disk": 5.8, "network": {"bytes_sent": 562545693, "bytes_recv": 8716051248}}
+{
+    "collection_interval": 300,
+    "metrics": {
+        "cpu": true,
+        "memory": true,
+        "disk": true,
+        "network": true,
+        "load": true
+    },
+    "thresholds": {
+        "cpu_percent": 80,
+        "memory_percent": 85,
+        "disk_percent": 90
+    }
+}

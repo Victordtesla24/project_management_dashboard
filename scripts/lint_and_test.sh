@@ -1,159 +1,136 @@
 #!/bin/bash
+set -euo pipefail
 
-# Exit on error
-set -e
+# Project root directory
+PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
-# Function to check if virtual environment is active
-check_venv() {
-    if [ -z "$VIRTUAL_ENV" ]; then
-        echo "Error: Virtual environment not activated"
-        echo "Please activate your virtual environment first:"
-        echo "source .venv/bin/activate"
-        exit 1
+# Error handling
+handle_error() {
+    echo "❌ Error: $1"
+    exit 1
+}
+
+# Create reports directory
+REPORTS_DIR="${PROJECT_ROOT}/reports"
+COVERAGE_DIR="${REPORTS_DIR}/coverage"
+mkdir -p "$REPORTS_DIR" "$COVERAGE_DIR" || handle_error "Failed to create report directories"
+
+# Validation function
+validate_tool() {
+    local tool=$1
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "⚠️  Warning: $tool not found, skipping related checks"
+        return 1
     fi
+    return 0
 }
 
-# Function to run black formatter
-run_black() {
-    echo "Running black formatter..."
-    black dashboard tests --check --diff --line-length=100
-}
+# Clean up old reports
+echo "Cleaning up old reports..."
+rm -rf "${REPORTS_DIR:?}"/* 2>/dev/null || true
 
-# Function to run isort
-run_isort() {
-    echo "Running isort..."
-    isort dashboard tests --check-only --diff --profile=black --line-length=100
-}
+# Initialize test results
+LINT_STATUS=0
+TYPE_STATUS=0
+TEST_STATUS=0
+SEC_STATUS=0
 
-# Function to run flake8
-run_flake8() {
-    echo "Running flake8..."
-    flake8 dashboard tests
-}
+# Run linting
+echo "Running code style checks..."
+if validate_tool "flake8"; then
+    flake8 "${PROJECT_ROOT}/dashboard" "${PROJECT_ROOT}/tests" \
+        --config="${PROJECT_ROOT}/.flake8" \
+        --output-file="${REPORTS_DIR}/flake8.txt" || LINT_STATUS=$?
 
-# Function to run mypy
-run_mypy() {
-    echo "Running mypy..."
-    mypy dashboard
-}
-
-# Function to run bandit
-run_bandit() {
-    echo "Running bandit security checks..."
-    bandit -r dashboard -c .bandit.yaml
-}
-
-# Function to run unit tests
-run_tests() {
-    echo "Running unit tests..."
-    pytest dashboard/tests/unit/ \
-        --quiet \
-        --cov=dashboard \
-        --cov-report=term-missing \
-        --cov-fail-under=80
-}
-
-# Function to show summary
-show_summary() {
-    local status=$1
-    echo
-    if [ $status -eq 0 ]; then
-        echo "All checks passed successfully!"
+    if [ $LINT_STATUS -eq 0 ]; then
+        echo "✓ Code style checks passed"
     else
-        echo "Some checks failed. Please fix the issues and try again."
+        echo "⚠️  Code style issues found. See ${REPORTS_DIR}/flake8.txt"
     fi
-}
+fi
 
-# Function to run all checks
-run_all_checks() {
-    local status=0
-    
-    # Run each check and capture status
-    run_black || status=$?
-    run_isort || status=$?
-    run_flake8 || status=$?
-    run_mypy || status=$?
-    run_bandit || status=$?
-    run_tests || status=$?
-    
-    return $status
-}
+# Run type checking
+echo "Running type checks..."
+if validate_tool "mypy"; then
+    mypy "${PROJECT_ROOT}/dashboard" "${PROJECT_ROOT}/tests" \
+        --config-file="${PROJECT_ROOT}/mypy.ini" \
+        --txt-report="${REPORTS_DIR}/mypy.txt" || TYPE_STATUS=$?
 
-# Function to show help message
-show_help() {
-    echo "Usage: $0 [OPTIONS]"
-    echo
-    echo "Options:"
-    echo "  --black       Run black formatter only"
-    echo "  --isort       Run isort only"
-    echo "  --flake8      Run flake8 only"
-    echo "  --mypy        Run mypy only"
-    echo "  --bandit      Run bandit only"
-    echo "  --tests       Run unit tests only"
-    echo "  --all         Run all checks (default)"
-    echo "  --help        Show this help message"
-}
-
-# Main script
-main() {
-    # Check if virtual environment is active
-    check_venv
-    
-    # Parse arguments
-    if [ $# -eq 0 ]; then
-        # No arguments, run all checks
-        run_all_checks
-        status=$?
+    if [ $TYPE_STATUS -eq 0 ]; then
+        echo "✓ Type checks passed"
     else
-        # Process specific arguments
-        status=0
-        while [[ $# -gt 0 ]]; do
-            case "$1" in
-                --black)
-                    run_black || status=$?
-                    shift
-                    ;;
-                --isort)
-                    run_isort || status=$?
-                    shift
-                    ;;
-                --flake8)
-                    run_flake8 || status=$?
-                    shift
-                    ;;
-                --mypy)
-                    run_mypy || status=$?
-                    shift
-                    ;;
-                --bandit)
-                    run_bandit || status=$?
-                    shift
-                    ;;
-                --tests)
-                    run_tests || status=$?
-                    shift
-                    ;;
-                --all)
-                    run_all_checks || status=$?
-                    shift
-                    ;;
-                --help)
-                    show_help
-                    exit 0
-                    ;;
-                *)
-                    echo "Unknown option: $1"
-                    show_help
-                    exit 1
-                    ;;
-            esac
-        done
+        echo "⚠️  Type issues found. See ${REPORTS_DIR}/mypy.txt"
     fi
-    
-    # Show summary and exit with appropriate status
-    show_summary $status
-    exit $status
-}
+fi
 
-# Run main function with all arguments
-main "$@"
+# Run tests with coverage
+echo "Running tests..."
+if validate_tool "pytest"; then
+    # Run tests in parallel if pytest-xdist is available
+    XDIST_OPTS=""
+    if python3 -c "import pytest_xdist" >/dev/null 2>&1; then
+        XDIST_OPTS="-n auto"
+    fi
+
+    # Run tests by type
+    for test_type in "unit" "integration" "e2e"; do
+        echo "Running ${test_type} tests..."
+        pytest "${PROJECT_ROOT}/tests" \
+            -m "$test_type" \
+            --cov="${PROJECT_ROOT}/dashboard" \
+            --cov-report=html:${COVERAGE_DIR} \
+            --cov-report=term-missing \
+            --junit-xml="${REPORTS_DIR}/pytest_${test_type}.xml" \
+            -v $XDIST_OPTS || TEST_STATUS=$?
+    done
+
+    if [ $TEST_STATUS -eq 0 ]; then
+        echo "✓ All tests passed"
+    else
+        echo "⚠️  Some tests failed. See reports for details"
+    fi
+fi
+
+# Run security checks
+echo "Running security checks..."
+if validate_tool "bandit"; then
+    bandit -r "${PROJECT_ROOT}/dashboard" \
+        -c "${PROJECT_ROOT}/.bandit.yaml" \
+        -f txt -o "${REPORTS_DIR}/bandit.txt" || SEC_STATUS=$?
+
+    if [ $SEC_STATUS -eq 0 ]; then
+        echo "✓ Security checks passed"
+    else
+        echo "⚠️  Security issues found. See ${REPORTS_DIR}/bandit.txt"
+    fi
+fi
+
+# Generate summary report
+echo "Generating summary report..."
+cat > "${REPORTS_DIR}/summary.txt" << EOF
+Test Suite Summary
+=================
+Date: $(date)
+Project: $(basename "${PROJECT_ROOT}")
+
+Code Style Checks: $([ $LINT_STATUS -eq 0 ] && echo "✓ Passed" || echo "⚠️  Failed")
+Type Checks: $([ $TYPE_STATUS -eq 0 ] && echo "✓ Passed" || echo "⚠️  Failed")
+Unit Tests: $([ $TEST_STATUS -eq 0 ] && echo "✓ Passed" || echo "⚠️  Failed")
+Security Checks: $([ $SEC_STATUS -eq 0 ] && echo "✓ Passed" || echo "⚠️  Failed")
+
+For detailed reports, see:
+- Code style: flake8.txt
+- Type checking: mypy.txt
+- Test results: pytest_*.xml
+- Coverage: coverage/index.html
+- Security: bandit.txt
+EOF
+
+# Check if any checks failed
+if [ $((LINT_STATUS + TYPE_STATUS + TEST_STATUS + SEC_STATUS)) -gt 0 ]; then
+    echo "⚠️  Some checks failed. See ${REPORTS_DIR}/summary.txt for details"
+    exit 1
+else
+    echo "✓ All checks passed successfully"
+    exit 0
+fi

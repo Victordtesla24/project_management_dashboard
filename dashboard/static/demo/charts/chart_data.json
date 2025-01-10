@@ -1,0 +1,16 @@
+{
+    "daily_progress": [
+        {"date": "2024-01-01", "completed": 5, "pending": 15},
+        {"date": "2024-01-02", "completed": 8, "pending": 12},
+        {"date": "2024-01-03", "completed": 12, "pending": 8},
+        {"date": "2024-01-04", "completed": 15, "pending": 5},
+        {"date": "2024-01-05", "completed": 18, "pending": 2}
+    ],
+    "resource_usage": [
+        {"timestamp": "2024-01-01T00:00:00Z", "cpu": 45, "memory": 65, "disk": 55},
+        {"timestamp": "2024-01-02T00:00:00Z", "cpu": 50, "memory": 70, "disk": 58},
+        {"timestamp": "2024-01-03T00:00:00Z", "cpu": 48, "memory": 68, "disk": 60},
+        {"timestamp": "2024-01-04T00:00:00Z", "cpu": 52, "memory": 72, "disk": 62},
+        {"timestamp": "2024-01-05T00:00:00Z", "cpu": 55, "memory": 75, "disk": 65}
+    ]
+}

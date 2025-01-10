@@ -69,7 +69,7 @@
                     <div>Frequency: <span id="cpu-freq">-</span> MHz</div>
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-header">
                     <span class="metric-title">Memory Usage</span>
@@ -80,7 +80,7 @@
                     <div>Used: <span id="memory-used">-</span></div>
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-header">
                     <span class="metric-title">Disk Usage</span>
@@ -183,61 +183,61 @@
                 .then(response => response.json())
                 .then(data => {
                     // System metrics
-                    document.getElementById('cpu-percent').textContent = 
+                    document.getElementById('cpu-percent').textContent =
                         data.metrics.system.cpu.percent.toFixed(1) + '%';
-                    document.getElementById('cpu-count').textContent = 
+                    document.getElementById('cpu-count').textContent =
                         data.metrics.system.cpu.count;
-                    document.getElementById('cpu-freq').textContent = 
+                    document.getElementById('cpu-freq').textContent =
                         (data.metrics.system.cpu.frequency / 1000).toFixed(2);
 
-                    document.getElementById('memory-percent').textContent = 
+                    document.getElementById('memory-percent').textContent =
                         data.metrics.system.memory.percent.toFixed(1) + '%';
-                    document.getElementById('memory-total').textContent = 
+                    document.getElementById('memory-total').textContent =
                         formatBytes(data.metrics.system.memory.total);
-                    document.getElementById('memory-used').textContent = 
+                    document.getElementById('memory-used').textContent =
                         formatBytes(data.metrics.system.memory.used);
 
-                    document.getElementById('disk-percent').textContent = 
+                    document.getElementById('disk-percent').textContent =
                         data.metrics.system.disk.percent.toFixed(1) + '%';
-                    document.getElementById('disk-total').textContent = 
+                    document.getElementById('disk-total').textContent =
                         formatBytes(data.metrics.system.disk.total);
-                    document.getElementById('disk-used').textContent = 
+                    document.getElementById('disk-used').textContent =
                         formatBytes(data.metrics.system.disk.used);
 
                     // Test metrics
-                    document.getElementById('unit-coverage').textContent = 
+                    document.getElementById('unit-coverage').textContent =
                         data.metrics.tests.coverage.unit + '%';
-                    document.getElementById('integration-coverage').textContent = 
+                    document.getElementById('integration-coverage').textContent =
                         data.metrics.tests.coverage.integration + '%';
-                    document.getElementById('e2e-coverage').textContent = 
+                    document.getElementById('e2e-coverage').textContent =
                         data.metrics.tests.coverage.e2e + '%';
-                    document.getElementById('test-total').textContent = 
+                    document.getElementById('test-total').textContent =
                         data.metrics.tests.tests.total;
-                    document.getElementById('test-passed').textContent = 
+                    document.getElementById('test-passed').textContent =
                         data.metrics.tests.tests.passed;
-                    document.getElementById('test-failed').textContent = 
+                    document.getElementById('test-failed').textContent =
                         data.metrics.tests.tests.failed;
 
                     // Performance metrics
-                    document.getElementById('response-time-avg').textContent = 
+                    document.getElementById('response-time-avg').textContent =
                         data.metrics.performance.response_time.avg + ' ms';
-                    document.getElementById('response-time-p95').textContent = 
+                    document.getElementById('response-time-p95').textContent =
                         data.metrics.performance.response_time.p95 + ' ms';
-                    document.getElementById('response-time-p99').textContent = 
+                    document.getElementById('response-time-p99').textContent =
                         data.metrics.performance.response_time.p99 + ' ms';
-                    document.getElementById('websocket-latency').textContent = 
+                    document.getElementById('websocket-latency').textContent =
                         data.metrics.performance.websocket_latency + ' ms';
-                    document.getElementById('update-frequency').textContent = 
+                    document.getElementById('update-frequency').textContent =
                         (data.metrics.performance.update_frequency / 1000).toFixed(1) + ' s';
 
                     // Error metrics
-                    document.getElementById('error-total').textContent = 
+                    document.getElementById('error-total').textContent =
                         data.metrics.errors.last_24h.total;
-                    document.getElementById('error-critical').textContent = 
+                    document.getElementById('error-critical').textContent =
                         data.metrics.errors.last_24h.critical;
-                    document.getElementById('error-warning').textContent = 
+                    document.getElementById('error-warning').textContent =
                         data.metrics.errors.last_24h.warning;
-                    document.getElementById('error-info').textContent = 
+                    document.getElementById('error-info').textContent =
                         data.metrics.errors.last_24h.info;
                 })
                 .catch(error => console.error('Error fetching metrics:', error));

@@ -19,17 +19,17 @@ check_db_connection() {
         log_error "PostgreSQL client (psql) not found"
         return 1
     fi
-    
+
     if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" > /dev/null 2>&1; then
         log_error "PostgreSQL server is not running"
         return 1
     fi
-    
+
     if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' > /dev/null 2>&1; then
         log_error "Could not connect to database"
         return 1
     fi
-    
+
     log_success "Database connection successful"
     return 0
 }
@@ -37,12 +37,12 @@ check_db_connection() {
 # Function to create database
 create_database() {
     log_info "Creating database..."
-    
+
     if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
         log_warning "Database $DB_NAME already exists"
         return 0
     fi
-    
+
     if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -c "CREATE DATABASE $DB_NAME;" > /dev/null 2>&1; then
         log_success "Database created successfully"
         return 0
@@ -55,14 +55,14 @@ create_database() {
 # Function to create migrations directory
 create_migrations_dir() {
     log_info "Setting up migrations directory..."
-    
+
     ensure_directory "$MIGRATIONS_DIR"
     ensure_directory "$MIGRATIONS_DIR/versions"
-    
+
     # Create __init__.py files
     touch "$MIGRATIONS_DIR/__init__.py"
     touch "$MIGRATIONS_DIR/versions/__init__.py"
-    
+
     log_success "Migrations directory created"
 }
 
@@ -73,9 +73,9 @@ create_migration() {
     timestamp=$(date +%Y%m%d_%H%M%S)
     local filename="${timestamp}_${description// /_}.py"
     local filepath="$MIGRATIONS_DIR/versions/$filename"
-    
+
     log_info "Creating new migration: $description"
-    
+
     cat > "$filepath" << EOL
 """${description}
 
@@ -93,7 +93,7 @@ def downgrade():
     # Implement your downgrade steps here
     pass
 EOL
-    
+
     log_success "Created migration file: $filepath"
 }
 
@@ -101,15 +101,15 @@ EOL
 apply_migrations() {
     local direction=${1:-"upgrade"}
     local version=${2:-"head"}
-    
+
     log_info "Applying migrations ($direction to $version)..."
-    
+
     if [ "$direction" = "upgrade" ]; then
         alembic upgrade "$version"
     else
         alembic downgrade "$version"
     fi
-    
+
     log_success "Migrations applied successfully"
 }
 
@@ -128,17 +128,17 @@ show_current() {
 # Function to verify database schema
 verify_schema() {
     log_info "Verifying database schema..."
-    
+
     # Check if all tables exist
     local required_tables=("users" "metrics" "alerts" "configurations")
     local missing_tables=()
-    
+
     for table in "${required_tables[@]}"; do
         if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "\dt $table" > /dev/null 2>&1; then
             missing_tables+=("$table")
         fi
     done
-    
+
     if [ ${#missing_tables[@]} -eq 0 ]; then
         log_success "All required tables exist"
     else
@@ -151,11 +151,11 @@ verify_schema() {
 backup_database() {
     local backup_dir="backups"
     local backup_file="$backup_dir/${DB_NAME}_$(date +%Y%m%d_%H%M%S).sql"
-    
+
     ensure_directory "$backup_dir"
-    
+
     log_info "Backing up database to $backup_file..."
-    
+
     if pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -F p > "$backup_file"; then
         log_success "Database backup created successfully"
         return 0
@@ -168,14 +168,14 @@ backup_database() {
 # Function to restore database
 restore_database() {
     local backup_file=$1
-    
+
     if [ ! -f "$backup_file" ]; then
         log_error "Backup file not found: $backup_file"
         return 1
     fi
-    
+
     log_info "Restoring database from $backup_file..."
-    
+
     if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" < "$backup_file"; then
         log_success "Database restored successfully"
         return 0

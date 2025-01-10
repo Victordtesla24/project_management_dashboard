@@ -1,0 +1,40 @@
+{
+    "server": {
+        "host": "localhost",
+        "port": 9090,
+        "metrics_path": "/metrics",
+        "timeout": 30
+    },
+    "scrape_configs": {
+        "interval": "15s",
+        "timeout": "10s",
+        "targets": [
+            {
+                "name": "dashboard",
+                "url": "http://localhost:3000/metrics"
+            },
+            {
+                "name": "websocket",
+                "url": "http://localhost:8080/metrics"
+            },
+            {
+                "name": "monitor",
+                "url": "http://localhost:9100/metrics"
+            }
+        ]
+    },
+    "alerting": {
+        "enabled": true,
+        "rules_path": "config/prometheus/rules",
+        "alertmanager_url": "http://localhost:9093"
+    },
+    "storage": {
+        "tsdb_path": "data/prometheus",
+        "retention_time": "15d",
+        "max_block_duration": "2h"
+    },
+    "logging": {
+        "level": "info",
+        "format": "logfmt"
+    }
+}

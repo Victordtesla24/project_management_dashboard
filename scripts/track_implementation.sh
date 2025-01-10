@@ -1,66 +1,116 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Project root directory
 PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
-# Source utility functions
-source "${PROJECT_ROOT}/scripts/utils/progress_bar.sh"
+# Error handling
+handle_error() {
+    echo "❌ Error: $1"
+    exit 1
+}
 
-# Save original progress values
-_ORIG_CURRENT_STEP=$CURRENT_STEP
-_ORIG_TOTAL_STEPS=$TOTAL_STEPS
+# Create tracking directory structure
+echo "Setting up tracking directory structure..."
+directories=(
+    "tracking/metrics"
+    "tracking/logs"
+    "tracking/reports"
+    "tracking/history"
+)
 
-# Initialize local progress tracking
-CURRENT_STEP=0
-TOTAL_STEPS=5
-init_progress $TOTAL_STEPS
+for dir in "${directories[@]}"; do
+    full_path="${PROJECT_ROOT}/${dir}"
+    mkdir -p "$full_path" || handle_error "Failed to create $dir directory"
+done
 
-echo "📊 Setting up implementation tracking..."
+# Initialize metrics file if it doesn't exist
+METRICS_FILE="${PROJECT_ROOT}/tracking/metrics/implementation_metrics.json"
+if [ ! -f "$METRICS_FILE" ]; then
+    echo "Initializing metrics file..."
+    cat > "$METRICS_FILE" << 'EOF' || handle_error "Failed to create metrics file"
+{
+    "metrics": {
+        "code_coverage": 0,
+        "test_count": 0,
+        "bug_count": 0,
+        "feature_count": 0,
+        "last_updated": "",
+        "complexity": {
+            "cyclomatic": 0,
+            "cognitive": 0
+        },
+        "quality": {
+            "maintainability": 0,
+            "technical_debt": 0
+        }
+    },
+    "features": [],
+    "bugs": [],
+    "tests": [],
+    "history": []
+}
+EOF
+fi
 
-# Create tracking directories
-run_with_spinner "Creating tracking directories" "
-    mkdir -p \"${PROJECT_ROOT}/metrics/tracking\" &&
-    mkdir -p \"${PROJECT_ROOT}/logs/tracking\"
-"
+# Update metrics from coverage report
+echo "Updating code coverage metrics..."
+COVERAGE_FILE="${PROJECT_ROOT}/reports/coverage/index.html"
+if [ -f "$COVERAGE_FILE" ]; then
+    coverage=$(grep -o '[0-9]\+%' "$COVERAGE_FILE" | head -1 | tr -d '%')
+    if [ -n "$coverage" ]; then
+        # Use temporary file for atomic update
+        tmp_file=$(mktemp)
+        jq --arg cov "$coverage" --arg date "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '
+            .metrics.code_coverage = ($cov|tonumber) |
+            .metrics.last_updated = $date
+        ' "$METRICS_FILE" > "$tmp_file" && mv "$tmp_file" "$METRICS_FILE"
+    fi
+fi
 
-# Create tracking service
-run_with_spinner "Creating tracking service" "
-    cat > \"${PROJECT_ROOT}/metrics/tracking/track.service\" << EOL
-[Unit]
-Description=Project Management Dashboard Implementation Tracking
-After=network.target
+# Update test count
+echo "Updating test metrics..."
+TEST_COUNT=$(find "${PROJECT_ROOT}/tests" -name "test_*.py" -exec grep -l "def test_" {} \; | wc -l)
+if [ -n "$TEST_COUNT" ]; then
+    tmp_file=$(mktemp)
+    jq --arg count "$TEST_COUNT" '
+        .metrics.test_count = ($count|tonumber)
+    ' "$METRICS_FILE" > "$tmp_file" && mv "$tmp_file" "$METRICS_FILE"
+fi
 
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 -m dashboard.track
-WorkingDirectory=${PROJECT_ROOT}
-Restart=always
+# Create historical snapshot
+echo "Creating historical snapshot..."
+SNAPSHOT_FILE="${PROJECT_ROOT}/tracking/history/metrics_$(date +%Y%m%d_%H%M%S).json"
+cp "$METRICS_FILE" "$SNAPSHOT_FILE" || handle_error "Failed to create snapshot"
 
-[Install]
-WantedBy=multi-user.target
-EOL
-"
+# Clean up old snapshots (keep last 30 days)
+find "${PROJECT_ROOT}/tracking/history" -name "metrics_*.json" -type f -mtime +30 -delete
 
-# Install dependencies
-run_with_spinner "Installing dependencies" "
-    python3 -m pip install -q prometheus_client psutil || true
-"
+# Generate metrics report
+echo "Generating metrics report..."
+REPORT_FILE="${PROJECT_ROOT}/tracking/reports/metrics_report.txt"
+{
+    echo "Implementation Metrics Report"
+    echo "==========================="
+    echo "Generated: $(date)"
+    echo
+    echo "Code Coverage: $(jq -r '.metrics.code_coverage' "$METRICS_FILE")%"
+    echo "Test Count: $(jq -r '.metrics.test_count' "$METRICS_FILE")"
+    echo "Bug Count: $(jq -r '.metrics.bug_count' "$METRICS_FILE")"
+    echo "Feature Count: $(jq -r '.metrics.feature_count' "$METRICS_FILE")"
+    echo "Last Updated: $(jq -r '.metrics.last_updated' "$METRICS_FILE")"
+} > "$REPORT_FILE"
 
-# Start tracking service
-run_with_spinner "Starting tracking service" "
-    python3 -m dashboard.track &>/dev/null &
-"
+# Set permissions
+echo "Setting permissions..."
+find "${PROJECT_ROOT}/tracking" -type d -exec chmod 755 {} \;
+find "${PROJECT_ROOT}/tracking" -type f -exec chmod 644 {} \;
 
-# Verify service status
-run_with_spinner "Verifying service status" "
-    sleep 2 &&
-    pgrep -f 'python3 -m dashboard.track' >/dev/null
-"
+# Verify metrics file
+echo "Verifying metrics file..."
+if ! jq empty "$METRICS_FILE" 2>/dev/null; then
+    handle_error "Invalid JSON in metrics file"
+fi
 
-# Restore original progress values
-CURRENT_STEP=$_ORIG_CURRENT_STEP
-TOTAL_STEPS=$_ORIG_TOTAL_STEPS
-export CURRENT_STEP TOTAL_STEPS
-
+echo "✓ Implementation tracking completed"
 exit 0

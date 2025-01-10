@@ -1,59 +1,87 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Project root directory
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "${PROJECT_ROOT}"
+PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
-# Source utility functions
-if [ ! -f "${PROJECT_ROOT}/scripts/utils/progress_bar.sh" ]; then
-    echo "Error: progress_bar.sh not found" >&2
+# Error handling
+handle_error() {
+    echo "❌ Error: Failed to set permissions for $1"
     exit 1
+}
+
+# Logging function
+log_message() {
+    local level=$1
+    local message=$2
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $message"
+}
+
+# Set directory permissions recursively
+log_message "INFO" "Setting directory permissions..."
+find "${PROJECT_ROOT}" -type d -exec chmod 755 {} \; 2>/dev/null || {
+    log_message "ERROR" "Failed to set directory permissions"
+    handle_error "directory permissions"
+}
+
+# Set file permissions with error handling and logging
+set_permissions() {
+    local pattern=$1
+    local perms=$2
+    local type=$3
+    log_message "INFO" "Setting $type files ($pattern) to $perms..."
+    find "${PROJECT_ROOT}" -type f -name "$pattern" -exec chmod "$perms" {} + 2>/dev/null || {
+        log_message "ERROR" "Failed to set permissions for $pattern files"
+        handle_error "$pattern files"
+    }
+}
+
+# Executable files
+set_permissions "*.sh" 755 "script"
+set_permissions "*.py" 644 "python"
+
+# Configuration files
+set_permissions "*.json" 644 "configuration"
+set_permissions "*.yaml" 644 "configuration"
+set_permissions "*.yml" 644 "configuration"
+set_permissions "*.ini" 644 "configuration"
+set_permissions "*.conf" 644 "configuration"
+
+# Documentation files
+set_permissions "*.md" 644 "documentation"
+set_permissions "*.rst" 644 "documentation"
+
+# Log files
+set_permissions "*.log" 644 "log"
+
+# Special files with logging
+log_message "INFO" "Setting permissions for special files..."
+
+# Environment files
+if [ -f "${PROJECT_ROOT}/.env" ]; then
+    chmod 600 "${PROJECT_ROOT}/.env" 2>/dev/null || {
+        log_message "ERROR" "Failed to set permissions for .env file"
+        handle_error ".env"
+    }
+    log_message "INFO" "Set .env permissions to 600"
 fi
-source "${PROJECT_ROOT}/scripts/utils/progress_bar.sh"
 
-# Save original progress values
-_ORIG_CURRENT_STEP=$CURRENT_STEP
-_ORIG_TOTAL_STEPS=$TOTAL_STEPS
+if [ -f "${PROJECT_ROOT}/.env.example" ]; then
+    chmod 644 "${PROJECT_ROOT}/.env.example" 2>/dev/null || {
+        log_message "ERROR" "Failed to set permissions for .env.example file"
+        handle_error ".env.example"
+    }
+    log_message "INFO" "Set .env.example permissions to 644"
+fi
 
-# Initialize local progress tracking
-CURRENT_STEP=0
-TOTAL_STEPS=5
-init_progress $TOTAL_STEPS
+# Ensure log directory is writable
+if [ -d "${PROJECT_ROOT}/logs" ]; then
+    chmod 775 "${PROJECT_ROOT}/logs" 2>/dev/null || {
+        log_message "ERROR" "Failed to set permissions for logs directory"
+        handle_error "logs directory"
+    }
+    log_message "INFO" "Set logs directory permissions to 775"
+fi
 
-echo "🚀 Setting up permissions..."
-
-# Set base directory permissions
-run_with_spinner "Setting base permissions" "chmod 755 \"${PROJECT_ROOT}\" 2>/dev/null || true"
-
-# Set directory permissions
-run_with_spinner "Setting directory permissions" "find \"${PROJECT_ROOT}\" -type d -exec chmod 755 {} + 2>/dev/null || true"
-
-# Set Python file permissions
-run_with_spinner "Setting Python file permissions" "find \"${PROJECT_ROOT}\" -type f -name '*.py' -exec chmod 644 {} + 2>/dev/null || true"
-
-# Set shell script permissions
-run_with_spinner "Setting script permissions" "find \"${PROJECT_ROOT}/scripts\" -type f -name '*.sh' -exec chmod 755 {} + 2>/dev/null || true"
-
-# Set configuration file permissions
-run_with_spinner "Setting config permissions" "find \"${PROJECT_ROOT}\" -type f \( -name '*.yml' -o -name '*.yaml' -o -name '*.json' -o -name '*.md' -o -name '*.rst' -o -name '*.txt' \) -exec chmod 644 {} + 2>/dev/null || true"
-
-# Set API server permissions
-run_with_spinner "Setting API server permissions" "
-    chmod 755 \"${PROJECT_ROOT}/dashboard/run.sh\" 2>/dev/null || true
-    chmod 755 \"${PROJECT_ROOT}/dashboard/stop.sh\" 2>/dev/null || true
-    chmod 600 \"${PROJECT_ROOT}/config/env\"/*.json 2>/dev/null || true
-"
-
-# Set authentication file permissions
-run_with_spinner "Setting auth permissions" "
-    find \"${PROJECT_ROOT}/dashboard/auth\" -type f -name '*.py' -exec chmod 644 {} + 2>/dev/null || true
-    find \"${PROJECT_ROOT}/config\" -type f -name '*auth*.json' -exec chmod 600 {} + 2>/dev/null || true
-"
-
-# Restore original progress values
-CURRENT_STEP=$_ORIG_CURRENT_STEP
-TOTAL_STEPS=$_ORIG_TOTAL_STEPS
-export CURRENT_STEP TOTAL_STEPS
-
-echo "✨ Permissions setup completed successfully!"
+log_message "INFO" "All permissions set successfully"
+exit 0

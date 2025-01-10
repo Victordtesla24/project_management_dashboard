@@ -1,0 +1,38 @@
+Run started:2025-01-10 06:26:58.354897
+
+Test results:
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'dev'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.6/plugins/b106_hardcoded_password_funcarg.html
+   Location: /Users/Shared/cursor/project_management_dashboard/dashboard/__init__.py:21:4
+20	    # Default configuration
+21	    app.config.update(
+22	        SECRET_KEY="dev",
+23	        SQLALCHEMY_DATABASE_URI="sqlite:///dashboard.db",
+24	        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+25	        JSON_SORT_KEYS=False,
+26	        SESSION_TYPE="filesystem",
+27	        CORS_HEADERS="Content-Type",
+28	    )
+29
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 1443
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 1
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 1
+		High: 0
+Files skipped (0):

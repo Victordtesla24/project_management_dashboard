@@ -55,7 +55,7 @@ check_python_version() {
     local required_version=$1
     local python_version
     python_version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-    
+
     if [ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" != "$required_version" ]; then
         print_error "Python $required_version or higher is required (found $python_version)"
         return 1
@@ -78,7 +78,7 @@ check_port() {
 check_process() {
     local pid_file=$1
     local service_name=$2
-    
+
     if [ -f "$pid_file" ]; then
         local pid
         pid=$(cat "$pid_file")
@@ -148,12 +148,12 @@ get_absolute_path() {
 check_permissions() {
     local file=$1
     local required_perms=$2
-    
+
     if [ ! -e "$file" ]; then
         print_error "File not found: $file"
         return 1
     fi
-    
+
     local actual_perms
     actual_perms=$(stat -f "%Lp" "$file")
     if [ "$actual_perms" != "$required_perms" ]; then
@@ -168,7 +168,7 @@ cleanup_temp_files() {
     local dir=${1:-/tmp}
     local pattern=${2:-*}
     local days=${3:-7}
-    
+
     find "$dir" -name "$pattern" -type f -mtime +"$days" -delete
     print_success "Cleaned up temporary files in $dir older than $days days"
 }
@@ -189,7 +189,7 @@ check_disk_space() {
     local min_space=${1:-10} # minimum space in GB
     local disk_space
     disk_space=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
-    
+
     if [ "$disk_space" -lt "$min_space" ]; then
         print_warning "Low disk space: ${disk_space}GB available (minimum: ${min_space}GB)"
         return 1
@@ -202,7 +202,7 @@ check_memory() {
     local threshold=${1:-90} # percentage
     local memory_usage
     memory_usage=$(free | grep Mem | awk '{print int($3/$2 * 100)}')
-    
+
     if [ "$memory_usage" -gt "$threshold" ]; then
         print_warning "High memory usage: ${memory_usage}% (threshold: ${threshold}%)"
         return 1

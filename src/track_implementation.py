@@ -12,7 +12,7 @@ logger = logging.getLogger("implementation_tracker")
 
 def count_lines(file_path):
     try:
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             return len(f.readlines())
     except:
         return 0
@@ -24,9 +24,7 @@ def get_git_stats():
         commits = list(repo.iter_commits())
         return {
             "total_commits": len(commits),
-            "last_commit": (
-                commits[0].committed_datetime.isoformat() if commits else None
-            ),
+            "last_commit": (commits[0].committed_datetime.isoformat() if commits else None),
             "active_branch": repo.active_branch.name,
         }
     except:

@@ -1,0 +1,29 @@
+{
+    "tasks": [
+        {
+            "name": "Task 1",
+            "progress": 100,
+            "status": "completed"
+        },
+        {
+            "name": "Task 2",
+            "progress": 75,
+            "status": "in_progress"
+        },
+        {
+            "name": "Task 3",
+            "progress": 50,
+            "status": "in_progress"
+        },
+        {
+            "name": "Task 4",
+            "progress": 25,
+            "status": "in_progress"
+        },
+        {
+            "name": "Task 5",
+            "progress": 0,
+            "status": "pending"
+        }
+    ]
+}

@@ -1,271 +1,161 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Project root directory
 PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
-# Source utility functions
-source "${PROJECT_ROOT}/scripts/utils/progress_bar.sh"
+# Error handling
+handle_error() {
+    echo "❌ Error: $1"
+    exit 1
+}
 
-# Save original progress values
-_ORIG_CURRENT_STEP=$CURRENT_STEP
-_ORIG_TOTAL_STEPS=$TOTAL_STEPS
+# Check for dashboard config example
+if [ ! -f "${PROJECT_ROOT}/config/dashboard.json.example" ]; then
+    handle_error "dashboard.json.example not found"
+fi
 
-# Initialize local progress tracking
-CURRENT_STEP=0
-TOTAL_STEPS=5
-init_progress $TOTAL_STEPS
+# Create dashboard config if it doesn't exist
+if [ ! -f "${PROJECT_ROOT}/config/dashboard.json" ]; then
+    echo "Creating dashboard configuration..."
+    cp "${PROJECT_ROOT}/config/dashboard.json.example" "${PROJECT_ROOT}/config/dashboard.json" || \
+        handle_error "Failed to create dashboard.json"
+else
+    # Check if example config is newer
+    if [ "${PROJECT_ROOT}/config/dashboard.json.example" -nt "${PROJECT_ROOT}/config/dashboard.json" ]; then
+        echo "Warning: dashboard.json.example is newer than dashboard.json"
+        echo "You may want to review and update your configuration"
+    fi
+fi
 
-echo "🚀 Setting up dashboard..."
+# Validate dashboard config
+if [ ! -s "${PROJECT_ROOT}/config/dashboard.json" ]; then
+    handle_error "dashboard.json is empty"
+fi
 
-# Create dashboard directories
-run_with_spinner "Creating dashboard directories" "
-    mkdir -p \"${PROJECT_ROOT}/dashboard/static/css\" &&
-    mkdir -p \"${PROJECT_ROOT}/dashboard/static/js\" &&
-    mkdir -p \"${PROJECT_ROOT}/dashboard/templates\" &&
-    mkdir -p \"${PROJECT_ROOT}/dashboard/components\" &&
-    mkdir -p \"${PROJECT_ROOT}/dashboard/pages\"
-"
+# Create and validate required directories
+echo "Setting up dashboard directory structure..."
+directories=(
+    "static/css"
+    "static/js"
+    "static/img"
+    "static/fonts"
+    "templates"
+    "templates/partials"
+    "templates/layouts"
+)
 
-# Create base templates
-run_with_spinner "Creating base templates" "
-    cat > \"${PROJECT_ROOT}/dashboard/templates/base.html\" << 'EOF'
+for dir in "${directories[@]}"; do
+    full_path="${PROJECT_ROOT}/dashboard/${dir}"
+    mkdir -p "$full_path" || handle_error "Failed to create $dir directory"
+
+    # Add .gitkeep to preserve empty directories
+    touch "$full_path/.gitkeep" 2>/dev/null || true
+done
+
+# Create default index.html if it doesn't exist
+if [ ! -f "${PROJECT_ROOT}/dashboard/templates/index.html" ]; then
+    echo "Creating default index.html..."
+    cat > "${PROJECT_ROOT}/dashboard/templates/index.html" << 'EOF' || handle_error "Failed to create index.html"
 <!DOCTYPE html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-    <meta charset=\"UTF-8\">
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Management Dashboard</title>
-    <link rel=\"stylesheet\" href=\"/static/css/style.css\">
-    <script>
-        // Get auth token from session storage or redirect to login
-        function getAuthToken() {
-            const token = sessionStorage.getItem('auth_token');
-            if (!token) {
-                window.location.href = '/login';
-                return null;
-            }
-            return token;
-        }
-    </script>
 </head>
 <body>
-    <div id=\"app\">
-        <nav class=\"navbar\">
-            <div class=\"nav-brand\">Dashboard</div>
-            <div class=\"nav-menu\">
-                <a href=\"/\" class=\"nav-item\">Home</a>
-                <a href=\"/metrics\" class=\"nav-item\">Metrics</a>
-                <button onclick=\"logout()\" class=\"nav-item\">Logout</button>
-            </div>
-        </nav>
-        {% block content %}{% endblock %}
-    </div>
-    <script src=\"/static/js/main.js\"></script>
+    <h1>Welcome to Project Management Dashboard</h1>
+    <p>Dashboard is successfully installed.</p>
 </body>
 </html>
 EOF
+fi
 
-    cat > \"${PROJECT_ROOT}/dashboard/templates/index.html\" << 'EOF'
-{% extends \"base.html\" %}
-{% block content %}
-<div class=\"dashboard\">
-    <div class=\"metrics\">
-        <div id=\"system-metrics\"></div>
-        <div id=\"project-metrics\"></div>
-    </div>
-    <div class=\"charts\">
-        <div id=\"cpu-chart\"></div>
-        <div id=\"memory-chart\"></div>
-    </div>
-</div>
-{% endblock %}
+# Create default base template if it doesn't exist
+if [ ! -f "${PROJECT_ROOT}/dashboard/templates/base.html" ]; then
+    echo "Creating base template..."
+    cat > "${PROJECT_ROOT}/dashboard/templates/base.html" << 'EOF' || handle_error "Failed to create base.html"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Project Management Dashboard{% endblock %}</title>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header>
+        {% block header %}{% endblock %}
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        {% block footer %}{% endblock %}
+    </footer>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
 EOF
-"
+fi
 
-# Create static files
-run_with_spinner "Creating static files" "
-    cat > \"${PROJECT_ROOT}/dashboard/static/css/style.css\" << 'EOF'
-.dashboard {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
+# Create default CSS file if it doesn't exist
+if [ ! -f "${PROJECT_ROOT}/dashboard/static/css/main.css" ]; then
+    echo "Creating main CSS file..."
+    cat > "${PROJECT_ROOT}/dashboard/static/css/main.css" << 'EOF' || handle_error "Failed to create main.css"
+/* Base styles */
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --background-color: #f8f9fa;
+    --text-color: #212529;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    margin: 0;
+    padding: 0;
+}
+
+/* Layout */
+header {
+    background-color: var(--primary-color);
+    color: white;
     padding: 1rem;
 }
 
-.metrics, .charts {
-    background: white;
-    border-radius: 8px;
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+footer {
+    background-color: var(--secondary-color);
+    color: white;
     padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-[data-theme=\"dark\"] {
-    background: #1a1a1a;
-    color: #ffffff;
+    text-align: center;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
 }
 EOF
+fi
 
-    cat > \"${PROJECT_ROOT}/dashboard/static/js/main.js\" << 'EOF'
-// Authentication functions
-function logout() {
-    sessionStorage.removeItem('auth_token');
-    window.location.href = '/login';
-}
-
-// WebSocket connection with authentication
-function connectWebSocket() {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const ws = new WebSocket(`ws://localhost:8765?token=${token}`);
-    
-    ws.onopen = () => {
-        console.log('Connected to WebSocket');
-        // Subscribe to metrics
-        ws.send(JSON.stringify({
-            type: 'subscribe',
-            metrics: ['cpu', 'memory', 'disk']
-        }));
-    };
-
-    ws.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            if (data.error) {
-                console.error('WebSocket error:', data.error);
-                return;
-            }
-            updateMetrics(data);
-            updateCharts(data);
-        } catch (error) {
-            console.error('Error processing message:', error);
-        }
-    };
-
-    ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-    };
-
-    ws.onclose = () => {
-        console.log('WebSocket connection closed');
-        // Attempt to reconnect after 5 seconds
-        setTimeout(connectWebSocket, 5000);
-    };
-
-    // Ping to keep connection alive
-    setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-        }
-    }, 30000);
-
-    return ws;
-}
-
-function updateMetrics(data) {
-    try {
-        document.getElementById('system-metrics').innerHTML =
-            \`<div class="metric">
-                <div class="metric-title">CPU Usage</div>
-                <div class="metric-value">\${data.cpu}%</div>
-             </div>
-             <div class="metric">
-                <div class="metric-title">Memory Usage</div>
-                <div class="metric-value">\${data.memory}%</div>
-             </div>
-             <div class="metric">
-                <div class="metric-title">Disk Usage</div>
-                <div class="metric-value">\${data.disk}%</div>
-             </div>\`;
-    } catch (error) {
-        console.error('Error updating metrics:', error);
-    }
-}
-
-function updateCharts(data) {
-    try {
-        // Update CPU chart
-        updateLineChart('cpu-chart', data.cpu_history, {
-            title: 'CPU Usage Over Time',
-            yAxisLabel: 'Usage %'
-        });
-
-        // Update Memory chart
-        updateLineChart('memory-chart', data.memory_history, {
-            title: 'Memory Usage Over Time',
-            yAxisLabel: 'Usage %'
-        });
-    } catch (error) {
-        console.error('Error updating charts:', error);
-    }
-}
-
-function updateLineChart(elementId, data, options) {
-    // Chart implementation using a library like Chart.js
-    // This is a placeholder for the actual implementation
-}
-
-// Initialize WebSocket connection when page loads
-document.addEventListener('DOMContentLoaded', connectWebSocket);
+# Create default JavaScript file if it doesn't exist
+if [ ! -f "${PROJECT_ROOT}/dashboard/static/js/main.js" ]; then
+    echo "Creating main JavaScript file..."
+    cat > "${PROJECT_ROOT}/dashboard/static/js/main.js" << 'EOF' || handle_error "Failed to create main.js"
+// Main JavaScript file
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard initialized');
+});
 EOF
-"
+fi
 
-# Install UI dependencies
-run_with_spinner "Installing UI dependencies" "
-    python3 -m pip install -q flask-assets webassets || true
-"
-
-# Setup UI routes
-run_with_spinner "Setting up UI routes" "
-    cat > \"${PROJECT_ROOT}/dashboard/routes.py\" << 'EOF'
-from flask import Blueprint, render_template, jsonify, request, redirect, url_for
-from functools import wraps
-import jwt
-from ..auth.middleware import verify_token, create_token
-
-bp = Blueprint('dashboard', __name__)
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = request.cookies.get('auth_token')
-        if not token:
-            return redirect(url_for('auth.login'))
-        try:
-            verify_token(token)
-        except jwt.InvalidTokenError:
-            return redirect(url_for('auth.login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@bp.route('/')
-@login_required
-def index():
-    return render_template('index.html')
-
-@bp.route('/metrics')
-@login_required
-def metrics():
-    return render_template('metrics.html')
-
-@bp.route('/api/metrics')
-@login_required
-def get_metrics():
-    try:
-        from ..core_scripts.metrics_collector import MetricsCollector
-        collector = MetricsCollector()
-        system_metrics = collector.collect_system_metrics()
-        project_metrics = collector.collect_project_metrics()
-        return jsonify({**system_metrics, **project_metrics})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-EOF
-"
-
-# Restore original progress values
-CURRENT_STEP=$_ORIG_CURRENT_STEP
-TOTAL_STEPS=$_ORIG_TOTAL_STEPS
-export CURRENT_STEP TOTAL_STEPS
-
+echo "✓ Dashboard setup completed"
 exit 0

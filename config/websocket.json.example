@@ -1,0 +1,59 @@
+{
+    "server": {
+        "host": "0.0.0.0",
+        "port": 8080,
+        "path": "/ws",
+        "ssl": {
+            "enabled": false,
+            "cert_file": "",
+            "key_file": ""
+        }
+    },
+    "connection": {
+        "max_clients": 100,
+        "ping_interval": 30,
+        "ping_timeout": 10,
+        "max_message_size": 65536
+    },
+    "authentication": {
+        "enabled": true,
+        "token_header": "X-Auth-Token",
+        "token_query_param": "token"
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "file": "logs/websocket.log"
+    },
+    "metrics": {
+        "enabled": true,
+        "collection_interval": 60,
+        "metrics_file": "metrics/websocket_metrics.json"
+    },
+    "handlers": {
+        "message": {
+            "max_size": 1048576,
+            "timeout": 30
+        },
+        "broadcast": {
+            "enabled": true,
+            "max_clients": 1000,
+            "rate_limit": {
+                "enabled": true,
+                "max_messages": 100,
+                "time_window": 60
+            }
+        }
+    },
+    "middleware": {
+        "compression": {
+            "enabled": true,
+            "level": 6
+        },
+        "rate_limiting": {
+            "enabled": true,
+            "max_requests": 100,
+            "time_window": 60
+        }
+    }
+}

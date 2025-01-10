@@ -1,0 +1,55 @@
+{
+    "server": {
+        "host": "0.0.0.0",
+        "port": 3000,
+        "debug": false,
+        "secret_key": "your-secret-key-here"
+    },
+    "database": {
+        "type": "sqlite",
+        "path": "instance/dashboard.db"
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "file": "logs/dashboard.log"
+    },
+    "metrics": {
+        "collection_interval": 300,
+        "retention_days": 30,
+        "data_dir": "metrics/data"
+    },
+    "websocket": {
+        "enabled": true,
+        "path": "/ws",
+        "ping_interval": 30,
+        "ping_timeout": 10
+    },
+    "auth": {
+        "enabled": true,
+        "session_lifetime": 3600,
+        "max_attempts": 5,
+        "lockout_duration": 300
+    },
+    "ui": {
+        "theme": "light",
+        "refresh_interval": 10,
+        "charts": {
+            "cpu": {
+                "enabled": true,
+                "type": "line",
+                "colors": ["#2196F3", "#F44336"]
+            },
+            "memory": {
+                "enabled": true,
+                "type": "area",
+                "colors": ["#4CAF50", "#FF9800"]
+            },
+            "disk": {
+                "enabled": true,
+                "type": "pie",
+                "colors": ["#9C27B0", "#E91E63"]
+            }
+        }
+    }
+}

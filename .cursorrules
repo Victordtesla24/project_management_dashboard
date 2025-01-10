@@ -1,161 +1,45 @@
-## Rules for AI
-
 # System Configuration
 architecture: "arm64-darwin"
-memory_limit: "12GB"
+memory_limit: "8GB"
 gpu_utilization: "enabled"
-thread_count: 8
+thread_count:4
 
 # AI Model Configuration
 model_preferences:
-  primary: "Anthropic Claude 3.5 Sonnet 20241022"
-  secondary: ["gpt-4o", "cursor-small"]
-  fallback: "cline-enhanced"
-  model_selection_strategy: "task_optimized"
+  primary: "Anthropic Claude 3-5 Sonnet 20241022"
+  fallback: "deepseek-coder"
 
 # Token Management
 token_optimization:
-  max_context: 20000
-  response_limit: 10000
+  max_context: 8000
+  response_limit: 4000
   cache_strategy: "aggressive"
   budget_management: "strict"
-  context_retention: "smart"
   compression: true
-  pooling: enabled
-  batching:
-    enabled: true
-    max_size: 5
-    timeout: 100
 
+# Cost Management
 cost_management:
-  strategy: "efficient_complete"
-  model_selection:
-    cost_aware: true
-    performance_threshold: 0.98
-  request_optimization:
-    batching: true
-    caching: "aggressive"
-    compression: true
+  strategy: "minimal"
   budget_control:
-    daily_limit: 1.50
+    daily_limit: 0.95
     cost_per_token: 0.0000010
-    alert_threshold: 0.85
-    action_threshold: 0.95
-
-
-# Error Handling Framework
-error_handling:
-  strategy: "comprehensive"
-  automated_resolution: true
-  repeated_error_management:
-    threshold: 2
-    actions:
-      - pause_execution: true
-      - root_cause_analysis: true
-      - research_mode: "exhaustive"
-      - solution_validation: "tested_only"
-    resolution_workflow:
-      - analyze_error_pattern
-      - research_solutions
-      - validate_fix
-      - implement_solution
-      - verify_resolution
-    prevention_strategy:
-      pattern_recognition: true
-      predictive_analysis: enabled
-      solution_caching: enabled
-  logging:
-    level: "detailed"
-    metrics_tracking: true
-    pattern_analysis: enabled
 
 # Code Generation Rules
 code_generation:
-  style: "complete"
-  documentation: "comprehensive"
-  testing: "mandatory"
+  style: "minimal"
+  documentation: "essential"
+  testing: "basic"
   patterns:
-    prefer_immutable: true
-    favor_composition: true
-    early_return: true
-    complete_implementation: true
-  optimization:
-    minimal_code: false
+    minimal_code: true
     performance_first: true
-    complete_code: true
-
-
-# Performance Rules
-performance:
-  optimization_level: "aggressive"
-  memory_management: "strict"
-  cache_usage: "optimal"
-  async_operations: "preferred"
-  resource_monitoring:
-    enabled: true
-    threshold_alerts: true
-  token_efficiency:
-    target: 0.4
-    minimum: 0.35
 
 # Quality Standards
 quality:
   complexity_threshold: "low"
-  test_coverage: 50
   lint_level: "low"
-  security_checks: "enabled"
-  code_review:
-    automated: true
-    performance_check: true
-    security_scan: true
-    completeness_check: true
-
-
-# Development Workflow
-workflow:
-  planning_required: true
-  review_required: true
-  test_first: true
-  documentation_required: true
-  error_prevention:
-    static_analysis: true
-    dynamic_testing: true
-    regression_testing: true
-
-# Resource Management
-resources:
-  monitoring: "continuous"
-  optimization: "adaptive"
-  cleanup: "automatic"
-  memory_profiling: enabled
-
-# Code Patterns
-patterns:
-  preferred:
-    - "functional_style"
-    - "immutable_data"
-    - "early_returns"
-    - "comprehensive_error_handling"
-  avoid:
-    - "nested_conditionals"
-    - "complex_loops"
-    - "global_state"
-    - "deep_nesting"
 
 # Security
 security:
-  input_validation: "strict"
+  input_validation: "basic"
   output_sanitization: true
-  dependency_scanning: enabled
-  vulnerability_checks: "continuous"
-  workspace_boundary: "/cursor/project_management_dashboard"
-  allowed_operations:
-    - file_creation: true
-    - file_modification: true
-    - command_execution: true
-    - directory_creation: true
-  restricted_paths:
-    - "/": false
-    - "/Users": false
-    - "~/": false
-    - "cursor/": true
+  workspace_boundary: "cursor/project_management_dashboard"

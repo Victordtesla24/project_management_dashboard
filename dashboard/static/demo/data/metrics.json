@@ -1,0 +1,32 @@
+{
+    "performance": {
+        "response_time": {
+            "avg": 250,
+            "min": 100,
+            "max": 500,
+            "p95": 450
+        },
+        "throughput": {
+            "requests_per_second": 100,
+            "concurrent_users": 50
+        },
+        "errors": {
+            "rate": 0.1,
+            "count": 5
+        }
+    },
+    "resources": {
+        "cpu": {
+            "usage": 45,
+            "cores": 4
+        },
+        "memory": {
+            "usage": 65,
+            "total": 16384
+        },
+        "disk": {
+            "usage": 55,
+            "total": 1024
+        }
+    }
+}

@@ -27,16 +27,16 @@ declare -A LOG_LEVELS=(
 init_logging() {
     local log_dir
     log_dir=$(dirname "$LOG_FILE")
-    
+
     # Create log directory if it doesn't exist
     ensure_directory "$log_dir"
-    
+
     # Create log file if it doesn't exist
     if [ ! -f "$LOG_FILE" ]; then
         touch "$LOG_FILE"
         print_success "Created log file: $LOG_FILE"
     fi
-    
+
     # Set up log rotation
     setup_log_rotation
 }
@@ -79,7 +79,7 @@ write_log() {
 rotate_log() {
     local log_size
     log_size=$(stat -f%z "$LOG_FILE")
-    
+
     if [ "$log_size" -gt "$LOG_MAX_SIZE" ]; then
         # Rotate existing backup logs
         for i in $(seq $((LOG_BACKUP_COUNT - 1)) -1 1); do
@@ -87,16 +87,16 @@ rotate_log() {
                 mv "${LOG_FILE}.$i" "${LOG_FILE}.$((i + 1))"
             fi
         done
-        
+
         # Backup current log
         mv "$LOG_FILE" "${LOG_FILE}.1"
         touch "$LOG_FILE"
-        
+
         # Remove old logs
         if [ -f "${LOG_FILE}.$((LOG_BACKUP_COUNT + 1))" ]; then
             rm "${LOG_FILE}.$((LOG_BACKUP_COUNT + 1))"
         fi
-        
+
         print_success "Rotated log file"
     fi
 }
@@ -179,7 +179,7 @@ analyze_logs() {
     local hours=${1:-24}
     local since
     since=$(date -v-"${hours}"H +"%Y-%m-%d %H:%M:%S")
-    
+
     echo "Log Analysis (last $hours hours):"
     echo "--------------------------------"
     echo "Error count: $(grep -c "ERROR" "$LOG_FILE")"

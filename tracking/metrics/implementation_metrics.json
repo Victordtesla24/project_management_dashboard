@@ -1,0 +1,21 @@
+{
+  "metrics": {
+    "code_coverage": 13,
+    "test_count": 10,
+    "bug_count": 0,
+    "feature_count": 0,
+    "last_updated": "2025-01-10T06:27:02Z",
+    "complexity": {
+      "cyclomatic": 0,
+      "cognitive": 0
+    },
+    "quality": {
+      "maintainability": 0,
+      "technical_debt": 0
+    }
+  },
+  "features": [],
+  "bugs": [],
+  "tests": [],
+  "history": []
+}

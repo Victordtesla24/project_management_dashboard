@@ -1,19 +1,21 @@
-import os
 import json
 import logging
-from typing import Dict, Any, Union, Optional
-from datetime import datetime, timedelta
+import os
 import re
+from datetime import datetime, timedelta
 from pathlib import Path
-from flask import jsonify, Response
+from typing import Any, Dict, Optional, Union
 
-def validate_config(config: Dict[str, Any]) -> bool:
+from flask import Response, jsonify
+
+
+def validate_config(config: dict[str, Any]) -> bool:
     """
     Validate configuration structure and values.
     Returns True if valid, False otherwise.
     """
-    required_fields = ['metrics', 'websocket', 'influxdb']
-    
+    required_fields = ["metrics", "websocket", "influxdb"]
+
     try:
         # Check required fields
         for field in required_fields:
@@ -22,23 +24,23 @@ def validate_config(config: Dict[str, Any]) -> bool:
                 return False
 
         # Validate metrics configuration
-        metrics = config['metrics']
-        if not isinstance(metrics.get('collection_interval'), (int, float)):
+        metrics = config["metrics"]
+        if not isinstance(metrics.get("collection_interval"), (int, float)):
             logging.error("Invalid collection interval")
             return False
-        if not isinstance(metrics.get('enabled_metrics'), list):
+        if not isinstance(metrics.get("enabled_metrics"), list):
             logging.error("Invalid enabled metrics format")
             return False
 
         # Validate websocket configuration
-        websocket = config['websocket']
-        if not isinstance(websocket.get('port'), int):
+        websocket = config["websocket"]
+        if not isinstance(websocket.get("port"), int):
             logging.error("Invalid websocket port")
             return False
 
         # Validate InfluxDB configuration
-        influxdb = config['influxdb']
-        required_influxdb = ['url', 'token', 'org', 'bucket']
+        influxdb = config["influxdb"]
+        required_influxdb = ["url", "token", "org", "bucket"]
         for field in required_influxdb:
             if field not in influxdb:
                 logging.error(f"Missing required InfluxDB field: {field}")
@@ -50,13 +52,14 @@ def validate_config(config: Dict[str, Any]) -> bool:
         logging.error(f"Configuration validation error: {e}")
         return False
 
+
 def format_bytes(size: float) -> str:
     """
     Format byte size to human readable format.
     Example: 1234567 -> "1.18 MB"
     """
     try:
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
             if size < 1024.0:
                 return f"{size:.2f} {unit}"
             size /= 1024.0
@@ -64,6 +67,7 @@ def format_bytes(size: float) -> str:
     except Exception as e:
         logging.error(f"Error formatting bytes: {e}")
         return "0 B"
+
 
 def parse_duration(duration: str) -> Optional[timedelta]:
     """
@@ -73,14 +77,14 @@ def parse_duration(duration: str) -> Optional[timedelta]:
     try:
         value = int(duration[:-1])
         unit = duration[-1].lower()
-        
-        if unit == 's':
+
+        if unit == "s":
             return timedelta(seconds=value)
-        elif unit == 'm':
+        elif unit == "m":
             return timedelta(minutes=value)
-        elif unit == 'h':
+        elif unit == "h":
             return timedelta(hours=value)
-        elif unit == 'd':
+        elif unit == "d":
             return timedelta(days=value)
         else:
             logging.error(f"Invalid duration unit: {unit}")
@@ -89,6 +93,7 @@ def parse_duration(duration: str) -> Optional[timedelta]:
         logging.error(f"Error parsing duration: {e}")
         return None
 
+
 def sanitize_metric_name(name: str) -> str:
     """
     Sanitize metric name for storage.
@@ -96,22 +101,23 @@ def sanitize_metric_name(name: str) -> str:
     """
     try:
         # Replace spaces and special characters with underscores
-        sanitized = re.sub(r'[^a-zA-Z0-9]', '_', name.lower())
+        sanitized = re.sub(r"[^a-zA-Z0-9]", "_", name.lower())
         # Remove consecutive underscores
-        sanitized = re.sub(r'_+', '_', sanitized)
+        sanitized = re.sub(r"_+", "_", sanitized)
         # Remove leading/trailing underscores
-        return sanitized.strip('_')
+        return sanitized.strip("_")
     except Exception as e:
         logging.error(f"Error sanitizing metric name: {e}")
         return "unknown_metric"
 
-def load_config(path: str) -> Dict[str, Any]:
+
+def load_config(path: str) -> dict[str, Any]:
     """
     Load configuration from JSON file.
     Returns configuration dictionary.
     """
     try:
-        with open(path, 'r') as f:
+        with open(path) as f:
             config = json.load(f)
         if not validate_config(config):
             raise ValueError("Invalid configuration")
@@ -119,6 +125,7 @@ def load_config(path: str) -> Dict[str, Any]:
     except Exception as e:
         logging.error(f"Error loading configuration: {e}")
         raise
+
 
 def setup_logging(level: str, log_file: str) -> None:
     """
@@ -136,20 +143,16 @@ def setup_logging(level: str, log_file: str) -> None:
         # Configure logging
         logging.basicConfig(
             level=numeric_level,
-            format='%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)',
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler()
-            ]
+            format="%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)",
+            handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
         )
     except Exception as e:
         logging.error(f"Error setting up logging: {e}")
         raise
 
+
 def create_response(
-    data: Dict[str, Any],
-    status_code: int = 200,
-    headers: Optional[Dict[str, str]] = None
+    data: dict[str, Any], status_code: int = 200, headers: Optional[dict[str, str]] = None
 ) -> Response:
     """
     Create standardized JSON response.
@@ -166,35 +169,32 @@ def create_response(
         logging.error(f"Error creating response: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 def parse_timestamp(timestamp: str) -> Optional[datetime]:
     """
     Parse timestamp string to datetime.
     Supports multiple formats.
     """
-    formats = [
-        "%Y-%m-%dT%H:%M:%S.%fZ",
-        "%Y-%m-%dT%H:%M:%SZ",
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%d"
-    ]
-    
+    formats = ["%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]
+
     for fmt in formats:
         try:
             return datetime.strptime(timestamp, fmt)
         except ValueError:
             continue
-    
+
     logging.error(f"Unable to parse timestamp: {timestamp}")
     return None
 
-def validate_metrics(metrics: Dict[str, Any]) -> bool:
+
+def validate_metrics(metrics: dict[str, Any]) -> bool:
     """
     Validate metrics data structure.
     Returns True if valid, False otherwise.
     """
     try:
-        required_fields = ['cpu_percent', 'memory_percent', 'disk_percent', 'timestamp']
-        
+        required_fields = ["cpu_percent", "memory_percent", "disk_percent", "timestamp"]
+
         # Check required fields
         for field in required_fields:
             if field not in metrics:
@@ -202,14 +202,14 @@ def validate_metrics(metrics: Dict[str, Any]) -> bool:
                 return False
 
         # Validate numeric fields
-        for field in ['cpu_percent', 'memory_percent', 'disk_percent']:
+        for field in ["cpu_percent", "memory_percent", "disk_percent"]:
             value = metrics[field]
             if not isinstance(value, (int, float)) or not 0 <= value <= 100:
                 logging.error(f"Invalid metric value for {field}: {value}")
                 return False
 
         # Validate timestamp
-        if not parse_timestamp(metrics['timestamp']):
+        if not parse_timestamp(metrics["timestamp"]):
             logging.error(f"Invalid timestamp: {metrics['timestamp']}")
             return False
 

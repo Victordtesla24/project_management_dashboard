@@ -1,1 +1,39 @@
-{"port": 8765, "host": "localhost"}
+{
+    "server": {
+        "host": "localhost",
+        "port": 8080,
+        "debug": false
+    },
+    "security": {
+        "allowed_origins": ["http://localhost:3000"],
+        "max_connections": 1000,
+        "timeout": 60,
+        "heartbeat_interval": 30
+    },
+    "handlers": {
+        "metrics": {
+            "enabled": true,
+            "update_interval": 5
+        },
+        "notifications": {
+            "enabled": true,
+            "queue_size": 100
+        },
+        "status": {
+            "enabled": true,
+            "check_interval": 60
+        }
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "logs/websocket.log",
+        "max_size": 10485760,
+        "backup_count": 5,
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    },
+    "metrics": {
+        "collection_enabled": true,
+        "storage_path": "metrics/websocket_metrics.json",
+        "flush_interval": 300
+    }
+}

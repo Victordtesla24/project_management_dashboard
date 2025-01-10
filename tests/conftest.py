@@ -1,157 +1,129 @@
-import json
+"""Shared test fixtures and configuration."""
+
+import os
+import shutil
 import tempfile
+from datetime import datetime
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Dict, Any
 
 import pytest
+from flask import Flask
+
+from dashboard import create_app
 from dashboard.config import init_config
 
 
-@pytest.fixture(autouse=True, scope="session")
-def setup_test_config(tmp_path_factory):
-    """Initialize test configuration."""
-    # Create a temporary config file
-    config_dir = tmp_path_factory.mktemp("config")
-    config_file = config_dir / "test_config.json"
+@pytest.fixture(scope="session")
+def test_data_dir():
+    """Create a temporary directory for test data."""
+    temp_dir = tempfile.mkdtemp()
+    yield temp_dir
+    shutil.rmtree(temp_dir)
+
+
+@pytest.fixture(scope="session")
+def project_root():
+    """Get the project root directory."""
+    return str(Path(__file__).parent.parent)
+
+
+@pytest.fixture(scope="session")
+def config_dir(project_root):
+    """Get the configuration directory."""
+    return os.path.join(project_root, "config")
+
+
+@pytest.fixture(scope="session")
+def metrics_dir(project_root):
+    """Get the metrics directory."""
+    return os.path.join(project_root, "metrics")
+
+
+@pytest.fixture(scope="session")
+def logs_dir(project_root):
+    """Get the logs directory."""
+    return os.path.join(project_root, "logs")
+
+
+@pytest.fixture
+def test_config(test_data_dir):
+    """Create test configuration."""
+    config_path = os.path.join(test_data_dir, "test_config.json")
+
+    # Create test config directory if it doesn't exist
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+
+    # Write test configuration
+    import json
+
     test_config = {
-            "metrics": {
-                "collection_interval": 60,
-                "retention_days": 7,
-                "retention": {
-                    "data": 30,
-                    "logs": 7,
-                    "reports": 90,
-                    "days": 30,
-                    "max_datapoints": 1000
-                },
-                "enabled_metrics": ["cpu", "memory", "disk"],
-                "thresholds": {
-                    "cpu": 80,
-                    "memory": 90,
-                    "disk": 85
-                },
-                "aggregation": {
-                    "interval": 300,
-                    "functions": ["avg", "max", "min"]
-                },
-                "alert_rules": [
-                    {
-                        "metric": "cpu",
-                        "threshold": 80,
-                        "duration": 300,
-                        "severity": "warning"
-                    },
-                    {
-                        "metric": "memory",
-                        "threshold": 90,
-                        "duration": 300,
-                        "severity": "critical"
-                    },
-                    {
-                        "metric": "disk",
-                        "threshold": 85,
-                        "duration": 600,
-                        "severity": "warning"
-                    }
-                ]
-            },
-        "websocket": {
-            "host": "localhost",
-            "port": 8765,
-            "ssl": False
+        "metrics": {
+            "collection_interval": 1,
+            "enabled_metrics": ["cpu", "memory"],
+            "thresholds": {"cpu": 80, "memory": 85, "disk": 90},
+            "retention": {"days": 7, "max_datapoints": 1000},
+            "alert_rules": [
+                {"metric": "cpu", "threshold": 80, "duration": 300, "severity": "warning"}
+            ],
+            "aggregation": {"interval": 300, "functions": ["avg", "max", "min"]},
         },
+        "websocket": {"host": "localhost", "port": 8766, "ssl": False},  # Different port for tests
         "database": {
             "host": "localhost",
             "port": 5432,
             "name": "dashboard_test",
             "user": "test_user",
-            "password": "test_pass"
+            "password": "test_password",
         },
         "logging": {
-            "level": "INFO",
+            "level": "DEBUG",
             "file": "test.log",
-            "format": "%(asctime)s [%(levelname)s] %(message)s"
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         },
         "ui": {
             "theme": "light",
-            "refresh_interval": 5000,
+            "refresh_interval": 10,
             "max_datapoints": 100,
-            "layout": {}
-        }
-    }
-    
-    # Write config to temporary file
-    config_file.write_text(json.dumps(test_config))
-    
-    # Initialize config with temp file
-    init_config(str(config_file))
-
-@pytest.fixture
-def mock_metrics() -> Dict[str, Any]:
-    """Provide mock metrics data."""
-    return {
-        "system": {
-            "cpu_usage": 45.5,
-            "memory_usage": 60.2,
-            "disk_usage": 75.8
+            "layout": {"sidebar": True, "charts": ["cpu", "memory", "disk"]},
         },
-        "test": {
-            "coverage": 85.5,
-            "passing_tests": 95.0
-        },
-        "errors": {
-            "error_count": 2,
-            "error_rate": 0.5
-        }
     }
 
-@pytest.fixture
-def mock_session_state():
-    """Provide mock session state."""
-    state = SimpleNamespace()
-    state.metrics_history = []
-    state.last_update = None
-    return state
+    with open(config_path, "w") as f:
+        json.dump(test_config, f, indent=4)
+
+    return config_path
+
 
 @pytest.fixture
-def test_config():
-    """Provide test configuration."""
-    return {
-        "app": {
-            "debug": True,
-            "secret_key": "test-key"
-        },
-        "database": {
-            "host": "localhost",
-            "port": 5432,
-            "name": "test_db",
-            "user": "test_user",
-            "password": "test_pass"
-        }
+def app(test_config):
+    """Create test Flask application."""
+    # Initialize config with test configuration
+    init_config(test_config)
+
+    # Create app with test config
+    test_flask_config = {
+        "TESTING": True,
+        "SECRET_KEY": "test_key",
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
     }
 
-@pytest.fixture
-def temp_dir():
-    """Provide temporary directory."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+    # Create app instance
+    app = create_app(test_flask_config)
 
-@pytest.fixture(scope="session")
-def project_root():
-    return Path(__file__).parent.parent
+    # Ensure app context is available for tests
+    ctx = app.app_context()
+    ctx.push()
 
+    yield app
 
-@pytest.fixture(scope="session")
-def test_data():
-    return {
-        "metrics": {"cpu_usage": 45.2, "memory_usage": 78.5, "disk_usage": 62.1},
-        "tests": {"total": 150, "passed": 142, "failed": 8},
-        "coverage": {"lines": 85.4, "branches": 78.9, "functions": 92.3},
-    }
+    # Clean up
+    ctx.pop()
 
 
-@pytest.fixture(scope="function")
-def temp_test_dir():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+@pytest.fixture(autouse=True)
+def setup_test_env(monkeypatch, test_data_dir):
+    """Setup test environment variables."""
+    monkeypatch.setenv("TEST_MODE", "true")
+    monkeypatch.setenv("TEST_DATA_DIR", test_data_dir)
+    yield

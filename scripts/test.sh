@@ -9,24 +9,24 @@ source "$SCRIPT_DIR/utils/logger.sh"
 run_tests() {
     local test_path=${1:-"dashboard/tests/test_core.py"}
     local coverage_min=${2:-70}
-    
+
     log_info "Running tests..."
-    
+
     # Run pytest with coverage
     pytest "$test_path" \
         --verbose \
         --cov=dashboard \
         --cov-report=term-missing \
         --cov-fail-under="$coverage_min"
-    
+
     local status=$?
-    
+
     if [ $status -eq 0 ]; then
         log_success "All tests passed successfully!"
     else
         log_error "Tests failed with status: $status"
     fi
-    
+
     return $status
 }
 
@@ -45,7 +45,7 @@ main() {
     # Parse arguments
     local test_path="dashboard/tests/test_core.py"
     local coverage_min=70
-    
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --path)
@@ -67,10 +67,10 @@ main() {
                 ;;
         esac
     done
-    
+
     # Check virtual environment
     check_venv || exit 1
-    
+
     # Run tests
     run_tests "$test_path" "$coverage_min"
 }

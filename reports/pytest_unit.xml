@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.740" timestamp="2025-01-10T17:26:53.068680" hostname="Vics-MacBook-Air.local"><testcase classname="unit.test_sample" name="test_addition" time="0.001" /></testsuite></testsuites>

@@ -8,7 +8,7 @@ check_python_version() {
     echo "Checking Python version..."
     PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
     REQUIRED_VERSION="3.9"
-    
+
     if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$PYTHON_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]; then
         echo "Error: Python $REQUIRED_VERSION or higher is required"
         exit 1
@@ -25,10 +25,10 @@ create_venv() {
         python3 -m venv .venv
         echo "Virtual environment created"
     fi
-    
+
     # Activate virtual environment
     source .venv/bin/activate
-    
+
     # Upgrade pip
     pip install --upgrade pip
 }
@@ -36,13 +36,13 @@ create_venv() {
 # Function to install dependencies
 install_dependencies() {
     echo "Installing dependencies..."
-    
+
     # Install project in development mode
     pip install -e ".[dev]"
-    
+
     # Install test dependencies
     pip install -e ".[test]"
-    
+
     # Install type stubs
     ./scripts/install_type_stubs.sh
 }
@@ -77,14 +77,14 @@ create_config() {
 # Function to set up Git hooks
 setup_git_hooks() {
     echo "Setting up Git hooks..."
-    
+
     # Create pre-push hook
     cat > .git/hooks/pre-push << 'EOL'
 #!/bin/bash
 ./scripts/run_tests.sh --unit
 EOL
     chmod +x .git/hooks/pre-push
-    
+
     # Create pre-commit hook
     cat > .git/hooks/pre-commit << 'EOL'
 #!/bin/bash
@@ -96,12 +96,12 @@ EOL
 # Function to verify installation
 verify_installation() {
     echo "Verifying installation..."
-    
+
     # Run basic checks
     python3 -c "import flask; print('Flask installed successfully')"
     python3 -c "import pytest; print('Pytest installed successfully')"
     python3 -c "import mypy; print('Mypy installed successfully')"
-    
+
     # Run a basic test
     ./scripts/run_tests.sh --unit --quiet || true
 }
@@ -122,7 +122,7 @@ show_completion() {
 # Main script
 main() {
     echo "Setting up development environment..."
-    
+
     # Run setup steps
     check_python_version
     create_venv
