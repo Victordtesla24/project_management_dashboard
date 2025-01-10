@@ -10,6 +10,16 @@ handle_error() {
     exit 1
 }
 
+# Permission check and fix function
+fix_permissions_if_needed() {
+    if [ ! -x "$1" ] || [ "$(stat -f "%A" "$1" | cut -c4-6)" != "rwx" ]; then
+        echo "⚠️  Permission issue detected with $1, fixing permissions..."
+        if [ -f "${PROJECT_ROOT}/scripts/setup_permissions.sh" ]; then
+            bash "${PROJECT_ROOT}/scripts/setup_permissions.sh" || handle_error "Failed to fix permissions"
+        fi
+    fi
+}
+
 # Validation function
 validate_tool() {
     local tool=$1
@@ -36,13 +46,21 @@ if [ ! -d "${PROJECT_ROOT}/.git" ]; then
     git init "${PROJECT_ROOT}" || handle_error "Failed to initialize git repository"
 fi
 
+# Check and fix permissions for git hooks if needed
+if [ -d "${PROJECT_ROOT}/.git/hooks" ]; then
+    fix_permissions_if_needed "${PROJECT_ROOT}/.git/hooks"
+fi
+
 # Configure git with .env credentials
 git config user.name "${GITHUB_USER_NAME}" || handle_error "Failed to set git user name"
 git config user.email "${GITHUB_USER_EMAIL}" || handle_error "Failed to set git email"
 
 # Stage files
 echo "Staging files..."
-git add . || handle_error "Failed to stage files"
+git add . || {
+    fix_permissions_if_needed "${PROJECT_ROOT}"
+    git add . || handle_error "Failed to stage files"
+}
 
 # Generate commit message based on changes
 generate_commit_message() {

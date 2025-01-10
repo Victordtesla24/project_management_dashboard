@@ -24,6 +24,15 @@ find "${PROJECT_ROOT}" -type d -exec chmod 755 {} \; 2>/dev/null || {
     handle_error "directory permissions"
 }
 
+# Ensure git hooks are executable
+if [ -d "${PROJECT_ROOT}/.git/hooks" ]; then
+    log_message "INFO" "Setting git hooks permissions..."
+    chmod -R 755 "${PROJECT_ROOT}/.git/hooks" 2>/dev/null || {
+        log_message "ERROR" "Failed to set git hooks permissions"
+        handle_error "git hooks"
+    }
+fi
+
 # Set file permissions with error handling and logging
 set_permissions() {
     local pattern=$1
@@ -36,9 +45,28 @@ set_permissions() {
     }
 }
 
-# Executable files
+# Executable files - ensure scripts are executable
 set_permissions "*.sh" 755 "script"
-set_permissions "*.py" 644 "python"
+
+# Python files - only make specific ones executable
+find "${PROJECT_ROOT}" -type f -name "run*.py" -exec sh -c '
+    if head -n1 "$1" | grep -q "^#!.*python" ; then
+        chmod 755 "$1"
+    else
+        chmod 644 "$1"
+    fi
+' sh {} \; 2>/dev/null || handle_error "python executable files"
+
+find "${PROJECT_ROOT}" -type f -name "setup.py" -exec sh -c '
+    if head -n1 "$1" | grep -q "^#!.*python" ; then
+        chmod 755 "$1"
+    else
+        chmod 644 "$1"
+    fi
+' sh {} \; 2>/dev/null || handle_error "setup.py file"
+
+# Regular Python files - should not be executable
+find "${PROJECT_ROOT}" -type f -name "*.py" ! -name "run*.py" ! -name "setup.py" -exec chmod 644 {} + 2>/dev/null || handle_error "python files"
 
 # Configuration files
 set_permissions "*.json" 644 "configuration"
