@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -10,11 +10,7 @@ logger = logging.getLogger(__name__)
 class ValidationResult:
     """Validation result class."""
     is_valid: bool
-    errors: list[str] = []
-
-    def __init__(self, is_valid: bool, errors: Optional[list[str]] = None):
-        self.is_valid = is_valid
-        self.errors = errors or []
+    errors: list[str] = field(default_factory=list)
 
 
 class ConfigurationError(Exception):
