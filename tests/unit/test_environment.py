@@ -1,7 +1,14 @@
 import io
 
 from ...migration import MigrationContext
-from ...testing import assert_raises, config, eq_, is_, is_false, is_not_, is_true, ne_
+from ...testing import assert_raises
+from ...testing import config
+from ...testing import eq_
+from ...testing import is_
+from ...testing import is_false
+from ...testing import is_not_
+from ...testing import is_true
+from ...testing import ne_
 from ...testing.fixtures import TestBase
 
 
@@ -15,14 +22,14 @@ class MigrationTransactionTest(TestBase):
 
         if opts.get("as_sql", False):
             self.context = MigrationContext.configure(
-                dialect=conn.dialect, opts=opts,
+                dialect=conn.dialect, opts=opts
             )
             self.context.output_buffer = self.context.impl.output_buffer = (
                 io.StringIO()
             )
         else:
             self.context = MigrationContext.configure(
-                connection=conn, opts=opts,
+                connection=conn, opts=opts
             )
         return self.context
 
@@ -32,7 +39,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_proxy_transaction_rollback(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": True},
+            {"transaction_per_migration": True, "transactional_ddl": True}
         )
 
         is_false(self.conn.in_transaction())
@@ -43,7 +50,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_proxy_transaction_commit(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": True},
+            {"transaction_per_migration": True, "transactional_ddl": True}
         )
         proxy = context.begin_transaction(_per_migration=True)
         is_true(self.conn.in_transaction())
@@ -52,7 +59,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_proxy_transaction_contextmanager_commit(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": True},
+            {"transaction_per_migration": True, "transactional_ddl": True}
         )
         proxy = context.begin_transaction(_per_migration=True)
         is_true(self.conn.in_transaction())
@@ -62,7 +69,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_proxy_transaction_contextmanager_rollback(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": True},
+            {"transaction_per_migration": True, "transactional_ddl": True}
         )
         proxy = context.begin_transaction(_per_migration=True)
         is_true(self.conn.in_transaction())
@@ -76,7 +83,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_proxy_transaction_contextmanager_explicit_rollback(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": True},
+            {"transaction_per_migration": True, "transactional_ddl": True}
         )
         proxy = context.begin_transaction(_per_migration=True)
         is_true(self.conn.in_transaction())
@@ -90,7 +97,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_proxy_transaction_contextmanager_explicit_commit(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": True},
+            {"transaction_per_migration": True, "transactional_ddl": True}
         )
         proxy = context.begin_transaction(_per_migration=True)
         is_true(self.conn.in_transaction())
@@ -104,7 +111,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_transaction_per_migration_transactional_ddl(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": True},
+            {"transaction_per_migration": True, "transactional_ddl": True}
         )
 
         is_false(self.conn.in_transaction())
@@ -119,7 +126,7 @@ class MigrationTransactionTest(TestBase):
 
     def test_transaction_per_migration_non_transactional_ddl(self):
         context = self._fixture(
-            {"transaction_per_migration": True, "transactional_ddl": False},
+            {"transaction_per_migration": True, "transactional_ddl": False}
         )
 
         is_false(self.conn.in_transaction())
@@ -182,12 +189,12 @@ class MigrationTransactionTest(TestBase):
             )
         else:
             self._assert_impl_steps(
-                "step 1", "step 2", "step 3", "step 4", "step 5",
+                "step 1", "step 2", "step 3", "step 4", "step 5"
             )
 
     def test_transaction_per_migration_sqlmode(self):
         context = self._fixture(
-            {"as_sql": True, "transaction_per_migration": True},
+            {"as_sql": True, "transaction_per_migration": True}
         )
 
         context.execute("step 1")
@@ -211,7 +218,7 @@ class MigrationTransactionTest(TestBase):
             )
         else:
             self._assert_impl_steps(
-                "step 1", "step 2", "step 3", "step 4", "step 5",
+                "step 1", "step 2", "step 3", "step 4", "step 5"
             )
 
     @config.requirements.autocommit_isolation
@@ -245,7 +252,7 @@ class MigrationTransactionTest(TestBase):
 
                 ne_(
                     context.connection._execution_options.get(
-                        "isolation_level", None,
+                        "isolation_level", None
                     ),
                     "AUTOCOMMIT",
                 )
@@ -290,7 +297,7 @@ class MigrationTransactionTest(TestBase):
                 "transaction_per_migration": True,
                 "transactional_ddl": True,
                 "as_sql": True,
-            },
+            }
         )
 
         with context.begin_transaction():
@@ -323,7 +330,7 @@ class MigrationTransactionTest(TestBase):
                 "transaction_per_migration": True,
                 "transactional_ddl": False,
                 "as_sql": True,
-            },
+            }
         )
 
         with context.begin_transaction():
@@ -339,7 +346,7 @@ class MigrationTransactionTest(TestBase):
             context.execute("step 5")
 
         self._assert_impl_steps(
-            "step 1", "step 2", "step 3", "step 4", "step 5",
+            "step 1", "step 2", "step 3", "step 4", "step 5"
         )
 
     def _assert_impl_steps(self, *steps):

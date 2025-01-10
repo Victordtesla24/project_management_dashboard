@@ -1,15 +1,18 @@
 # testing/suite/test_update_delete.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
-from ... import Integer, String, testing
 from .. import fixtures
 from ..assertions import eq_
-from ..schema import Column, Table
+from ..schema import Column
+from ..schema import Table
+from ... import Integer
+from ... import String
+from ... import testing
 
 
 class SimpleUpdateDeleteTest(fixtures.TablesTest):
@@ -40,7 +43,7 @@ class SimpleUpdateDeleteTest(fixtures.TablesTest):
     def test_update(self, connection):
         t = self.tables.plain_pk
         r = connection.execute(
-            t.update().where(t.c.id == 2), {"data": "d2_new"},
+            t.update().where(t.c.id == 2), dict(data="d2_new")
         )
         assert not r.is_insert
         assert not r.returns_rows
@@ -78,7 +81,7 @@ class SimpleUpdateDeleteTest(fixtures.TablesTest):
         else:
             criteria.fail()
 
-        r = connection.execute(stmt, {"data": "d2_new"})
+        r = connection.execute(stmt, dict(data="d2_new"))
         assert not r.is_insert
         assert r.returns_rows
         eq_(r.keys(), ["id", "data"])
@@ -90,9 +93,11 @@ class SimpleUpdateDeleteTest(fixtures.TablesTest):
 
         eq_(
             connection.execute(t.select().order_by(t.c.id)).fetchall(),
-            [(1, "d1"), (2, "d2_new"), (3, "d3")]
-            if criteria.rows
-            else [(1, "d1"), (2, "d2"), (3, "d3")],
+            (
+                [(1, "d1"), (2, "d2_new"), (3, "d3")]
+                if criteria.rows
+                else [(1, "d1"), (2, "d2"), (3, "d3")]
+            ),
         )
 
     @testing.variation("criteria", ["rows", "norows", "emptyin"])
@@ -123,9 +128,11 @@ class SimpleUpdateDeleteTest(fixtures.TablesTest):
 
         eq_(
             connection.execute(t.select().order_by(t.c.id)).fetchall(),
-            [(1, "d1"), (3, "d3")]
-            if criteria.rows
-            else [(1, "d1"), (2, "d2"), (3, "d3")],
+            (
+                [(1, "d1"), (3, "d3")]
+                if criteria.rows
+                else [(1, "d1"), (2, "d2"), (3, "d3")]
+            ),
         )
 
 

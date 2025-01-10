@@ -1,9 +1,16 @@
-from sqlalchemy import BigInteger, Column, Integer, MetaData, Table
+from sqlalchemy import BigInteger
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import MetaData
+from sqlalchemy import Table
 from sqlalchemy.testing import in_
 
-from ... import testing
-from ...testing import TestBase, config, eq_, is_
 from ._autogen_fixtures import AutogenFixtureTest
+from ... import testing
+from ...testing import config
+from ...testing import eq_
+from ...testing import is_
+from ...testing import TestBase
 
 
 class AlterColumnTest(AutogenFixtureTest, TestBase):
@@ -55,13 +62,13 @@ class AlterColumnTest(AutogenFixtureTest, TestBase):
         m2 = MetaData()
 
         Table(
-            "a", m1, Column("x", Integer, server_default="5", primary_key=pk),
+            "a", m1, Column("x", Integer, server_default="5", primary_key=pk)
         )
         Table(
             "a",
             m2,
             Column(
-                "x", Integer, server_default="5", comment="new", primary_key=pk,
+                "x", Integer, server_default="5", comment="new", primary_key=pk
             ),
         )
 
@@ -128,7 +135,7 @@ class AutoincrementTest(AutogenFixtureTest, TestBase):
         m2 = MetaData()
 
         Table(
-            "a", m1, Column("x", Integer, primary_key=True, autoincrement=True),
+            "a", m1, Column("x", Integer, primary_key=True, autoincrement=True)
         )
         Table(
             "a",

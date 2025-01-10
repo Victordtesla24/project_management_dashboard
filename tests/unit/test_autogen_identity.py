@@ -1,10 +1,16 @@
 import sqlalchemy as sa
-from alembic.util import sqla_compat
-from sqlalchemy import Column, Integer, MetaData, Table
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import MetaData
+from sqlalchemy import Table
 
-from ... import testing
-from ...testing import TestBase, config, eq_, is_true
+from alembic.util import sqla_compat
 from ._autogen_fixtures import AutogenFixtureTest
+from ... import testing
+from ...testing import config
+from ...testing import eq_
+from ...testing import is_true
+from ...testing import TestBase
 
 
 class AutogenerateIdentityTest(AutogenFixtureTest, TestBase):
@@ -101,17 +107,17 @@ class AutogenerateIdentityTest(AutogenFixtureTest, TestBase):
             eq_(diffs, [])
 
     @testing.combinations(
-        (None, {"start": 2}),
-        ({"start": 2}, None),
-        ({"start": 2}, {"start": 2, "increment": 7}),
-        ({"always": False}, {"always": True}),
+        (None, dict(start=2)),
+        (dict(start=2), None),
+        (dict(start=2), dict(start=2, increment=7)),
+        (dict(always=False), dict(always=True)),
         (
-            {"start": 1, "minvalue": 0, "maxvalue": 100, "cycle": True},
-            {"start": 1, "minvalue": 0, "maxvalue": 100, "cycle": False},
+            dict(start=1, minvalue=0, maxvalue=100, cycle=True),
+            dict(start=1, minvalue=0, maxvalue=100, cycle=False),
         ),
         (
-            {"start": 10, "increment": 3, "maxvalue": 9999},
-            {"start": 10, "increment": 1, "maxvalue": 3333},
+            dict(start=10, increment=3, maxvalue=9999),
+            dict(start=10, increment=1, maxvalue=3333),
         ),
     )
     @config.requirements.identity_columns_alter

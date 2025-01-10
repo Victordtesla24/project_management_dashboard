@@ -1,9 +1,18 @@
 import sqlalchemy as sa
-from sqlalchemy import Column, Integer, MetaData, Table
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import MetaData
+from sqlalchemy import Table
 
-from ... import testing
-from ...testing import TestBase, config, eq_, exclusions, is_, is_true, mock
 from ._autogen_fixtures import AutogenFixtureTest
+from ... import testing
+from ...testing import config
+from ...testing import eq_
+from ...testing import exclusions
+from ...testing import is_
+from ...testing import is_true
+from ...testing import mock
+from ...testing import TestBase
 
 
 class AutogenerateComputedTest(AutogenFixtureTest, TestBase):

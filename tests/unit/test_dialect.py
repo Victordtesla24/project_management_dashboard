@@ -1,5 +1,5 @@
 # testing/suite/test_dialect.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
@@ -9,25 +9,32 @@
 
 import importlib
 
-from ... import Integer, String, bindparam, dialects, event, exc, literal_column, select
-from ...sql.compiler import Compiled
-from ...util import inspect_getfullargspec
-from .. import (
-    assert_raises,
-    config,
-    engines,
-    eq_,
-    fixtures,
-    is_not_none,
-    is_true,
-    ne_,
-    provide_metadata,
-)
-from ..assertions import expect_raises, expect_raises_message
+from . import testing
+from .. import assert_raises
+from .. import config
+from .. import engines
+from .. import eq_
+from .. import fixtures
+from .. import is_not_none
+from .. import is_true
+from .. import ne_
+from .. import provide_metadata
+from ..assertions import expect_raises
+from ..assertions import expect_raises_message
 from ..config import requirements
 from ..provision import set_default_schema_on_connection
-from ..schema import Column, Table
-from . import testing
+from ..schema import Column
+from ..schema import Table
+from ... import bindparam
+from ... import dialects
+from ... import event
+from ... import exc
+from ... import Integer
+from ... import literal_column
+from ... import select
+from ... import String
+from ...sql.compiler import Compiled
+from ...util import inspect_getfullargspec
 
 
 class PingTest(fixtures.TestBase):
@@ -36,7 +43,7 @@ class PingTest(fixtures.TestBase):
     def test_do_ping(self):
         with testing.db.connect() as conn:
             is_true(
-                testing.db.dialect.do_ping(conn.connection.dbapi_connection),
+                testing.db.dialect.do_ping(conn.connection.dbapi_connection)
             )
 
 
@@ -54,10 +61,10 @@ class ArgSignatureTest(fixtures.TestBase):
 
     """
 
-    def _all_subclasses():  # type: ignore
+    def _all_subclasses():  # type: ignore  # noqa
         for d in dialects.__all__:
             if not d.startswith("_"):
-                importlib.import_module(f"sqlalchemy.dialects.{d}")
+                importlib.import_module("sqlalchemy.dialects.%s" % d)
 
         stack = [Compiled]
 
@@ -111,7 +118,7 @@ class ExceptionTest(fixtures.TablesTest):
         with config.db.connect() as conn:
             trans = conn.begin()
             conn.execute(
-                self.tables.manual_pk.insert(), {"id": 1, "data": "d1"},
+                self.tables.manual_pk.insert(), {"id": 1, "data": "d1"}
             )
 
             assert_raises(
@@ -132,7 +139,7 @@ class ExceptionTest(fixtures.TablesTest):
                 # mysqlclient, pymysql.  this at least does produce a non-
                 # ascii error message for cx_oracle, psycopg2
                 conn.execute(select(literal_column("méil")))
-                raise AssertionError()
+                assert False
             except exc.DBAPIError as err:
                 err_str = str(err)
 
@@ -155,8 +162,8 @@ class IsolationLevelTest(fixtures.TestBase):
         s = set(supported).difference(["AUTOCOMMIT", default])
         if s:
             return s.pop()
-        config.skip_test("no non-default isolation level available")
-        return None
+        else:
+            config.skip_test("no non-default isolation level available")
 
     def test_default_isolation_level(self):
         eq_(
@@ -177,7 +184,7 @@ class IsolationLevelTest(fixtures.TestBase):
             eq_(conn.get_isolation_level(), non_default)
 
             conn.dialect.reset_isolation_level(
-                conn.connection.dbapi_connection,
+                conn.connection.dbapi_connection
             )
 
             eq_(conn.get_isolation_level(), existing)
@@ -211,12 +218,13 @@ class IsolationLevelTest(fixtures.TestBase):
         connection = connection_no_trans
         with expect_raises_message(
             exc.ArgumentError,
-            "Invalid value '{}' for isolation_level. "
-            "Valid isolation levels for '{}' are {}".format(
+            "Invalid value '%s' for isolation_level. "
+            "Valid isolation levels for '%s' are %s"
+            % (
                 "FOO",
                 connection.dialect.name,
                 ", ".join(
-                    requirements.get_isolation_levels(config)["supported"],
+                    requirements.get_isolation_levels(config)["supported"]
                 ),
             ),
         ):
@@ -230,15 +238,16 @@ class IsolationLevelTest(fixtures.TestBase):
 
         """
 
-        eng = testing_engine(options={"isolation_level": "FOO"})
+        eng = testing_engine(options=dict(isolation_level="FOO"))
         with expect_raises_message(
             exc.ArgumentError,
-            "Invalid value '{}' for isolation_level. "
-            "Valid isolation levels for '{}' are {}".format(
+            "Invalid value '%s' for isolation_level. "
+            "Valid isolation levels for '%s' are %s"
+            % (
                 "FOO",
                 eng.dialect.name,
                 ", ".join(
-                    requirements.get_isolation_levels(config)["supported"],
+                    requirements.get_isolation_levels(config)["supported"]
                 ),
             ),
         ):
@@ -250,7 +259,7 @@ class IsolationLevelTest(fixtures.TestBase):
         default = levels["default"]
         supported = (
             sorted(
-                set(levels["supported"]).difference([default, "AUTOCOMMIT"]),
+                set(levels["supported"]).difference([default, "AUTOCOMMIT"])
             )
         )[0]
 
@@ -287,7 +296,7 @@ class AutocommitIsolationTest(fixtures.TablesTest):
     def _test_conn_autocommits(self, conn, autocommit):
         trans = conn.begin()
         conn.execute(
-            self.tables.some_table.insert(), {"id": 1, "data": "some data"},
+            self.tables.some_table.insert(), {"id": 1, "data": "some data"}
         )
         trans.rollback()
 
@@ -314,7 +323,7 @@ class AutocommitIsolationTest(fixtures.TablesTest):
         self._test_conn_autocommits(conn, False)
 
     def test_turn_autocommit_off_via_default_iso_level(
-        self, connection_no_trans,
+        self, connection_no_trans
     ):
         conn = connection_no_trans
         conn = conn.execution_options(isolation_level="AUTOCOMMIT")
@@ -323,14 +332,14 @@ class AutocommitIsolationTest(fixtures.TablesTest):
         conn.execution_options(
             isolation_level=requirements.get_isolation_levels(config)[
                 "default"
-            ],
+            ]
         )
         self._test_conn_autocommits(conn, False)
 
     @testing.requires.independent_readonly_connections
     @testing.variation("use_dialect_setting", [True, False])
     def test_dialect_autocommit_is_restored(
-        self, testing_engine, use_dialect_setting,
+        self, testing_engine, use_dialect_setting
     ):
         """test #10147"""
 
@@ -338,7 +347,7 @@ class AutocommitIsolationTest(fixtures.TablesTest):
             e = testing_engine(options={"isolation_level": "AUTOCOMMIT"})
         else:
             e = testing_engine().execution_options(
-                isolation_level="AUTOCOMMIT",
+                isolation_level="AUTOCOMMIT"
             )
 
         levels = requirements.get_isolation_levels(config)
@@ -367,14 +376,14 @@ class EscapingTest(fixtures.TestBase):
         t = Table("t", m, Column("data", String(50)))
         t.create(config.db)
         with config.db.begin() as conn:
-            conn.execute(t.insert(), {"data": "some % value"})
-            conn.execute(t.insert(), {"data": "some %% other value"})
+            conn.execute(t.insert(), dict(data="some % value"))
+            conn.execute(t.insert(), dict(data="some %% other value"))
 
             eq_(
                 conn.scalar(
                     select(t.c.data).where(
-                        t.c.data == literal_column("'some % value'"),
-                    ),
+                        t.c.data == literal_column("'some % value'")
+                    )
                 ),
                 "some % value",
             )
@@ -382,8 +391,8 @@ class EscapingTest(fixtures.TestBase):
             eq_(
                 conn.scalar(
                     select(t.c.data).where(
-                        t.c.data == literal_column("'some %% other value'"),
-                    ),
+                        t.c.data == literal_column("'some %% other value'")
+                    )
                 ),
                 "some %% other value",
             )
@@ -411,7 +420,7 @@ class WeCanSetDefaultSchemaWEventsTest(fixtures.TestBase):
         @event.listens_for(eng, "connect")
         def on_connect(dbapi_connection, connection_record):
             set_default_schema_on_connection(
-                config, dbapi_connection, config.test_schema,
+                config, dbapi_connection, config.test_schema
             )
 
         with eng.connect() as conn:
@@ -426,7 +435,7 @@ class WeCanSetDefaultSchemaWEventsTest(fixtures.TestBase):
         @event.listens_for(eng, "connect", insert=True)
         def on_connect(dbapi_connection, connection_record):
             set_default_schema_on_connection(
-                config, dbapi_connection, config.test_schema,
+                config, dbapi_connection, config.test_schema
             )
 
         with eng.connect() as conn:
@@ -441,7 +450,7 @@ class WeCanSetDefaultSchemaWEventsTest(fixtures.TestBase):
         @event.listens_for(eng, "connect", insert=True)
         def on_connect(dbapi_connection, *arg):
             set_default_schema_on_connection(
-                config, dbapi_connection, config.test_schema,
+                config, dbapi_connection, config.test_schema
             )
 
         with eng.connect() as conn:
@@ -457,7 +466,7 @@ class WeCanSetDefaultSchemaWEventsTest(fixtures.TestBase):
 
 
 class FutureWeCanSetDefaultSchemaWEventsTest(
-    fixtures.FutureEngineMixin, WeCanSetDefaultSchemaWEventsTest,
+    fixtures.FutureEngineMixin, WeCanSetDefaultSchemaWEventsTest
 ):
     pass
 
@@ -493,7 +502,7 @@ class DifficultParametersTest(fixtures.TestBase):
     @tough_parameters
     @config.requirements.unusual_column_name_characters
     def test_round_trip_same_named_column(
-        self, paramname, connection, metadata,
+        self, paramname, connection, metadata
     ):
         name = paramname
 
@@ -525,7 +534,7 @@ class DifficultParametersTest(fixtures.TestBase):
 
         # use expanding IN
         stmt = select(t.c[name]).where(
-            t.c[name].in_(["some name", "some other_name"]),
+            t.c[name].in_(["some name", "some other_name"])
         )
 
         row = connection.execute(stmt).first()
@@ -555,18 +564,18 @@ class DifficultParametersTest(fixtures.TestBase):
 
     @tough_parameters
     def test_standalone_bindparam_escape(
-        self, paramname, connection, multirow_fixture,
+        self, paramname, connection, multirow_fixture
     ):
         tbl1 = multirow_fixture
         stmt = select(tbl1.c.myid).where(
-            tbl1.c.name == bindparam(paramname, value="x"),
+            tbl1.c.name == bindparam(paramname, value="x")
         )
         res = connection.scalar(stmt, {paramname: "c"})
         eq_(res, 3)
 
     @tough_parameters
     def test_standalone_bindparam_escape_expanding(
-        self, paramname, connection, multirow_fixture,
+        self, paramname, connection, multirow_fixture
     ):
         tbl1 = multirow_fixture
         stmt = (
@@ -630,18 +639,19 @@ class ReturningGuardsTest(fixtures.TablesTest):
                         ],
                     )
                     eq_(result.all(), [(1,), (2,), (3,)])
-            elif not expect_success:
-                # for RETURNING execute(), we pass all the way to the DB
-                # and let it fail
-                with expect_raises(exc.DBAPIError):
-                    connection.execute(
-                        stmt, {id_param_name: 1, "data": "d1"},
-                    )
             else:
-                result = connection.execute(
-                    stmt, {id_param_name: 1, "data": "d1"},
-                )
-                eq_(result.all(), [(1,)])
+                if not expect_success:
+                    # for RETURNING execute(), we pass all the way to the DB
+                    # and let it fail
+                    with expect_raises(exc.DBAPIError):
+                        connection.execute(
+                            stmt, {id_param_name: 1, "data": "d1"}
+                        )
+                else:
+                    result = connection.execute(
+                        stmt, {id_param_name: 1, "data": "d1"}
+                    )
+                    eq_(result.all(), [(1,)])
 
         return go
 
@@ -658,7 +668,7 @@ class ReturningGuardsTest(fixtures.TablesTest):
         stmt = t.insert()
 
         run_stmt(
-            stmt, True, "id", connection.dialect.insert_executemany_returning,
+            stmt, True, "id", connection.dialect.insert_executemany_returning
         )
 
     def test_update_single(self, connection, run_stmt):
@@ -692,7 +702,7 @@ class ReturningGuardsTest(fixtures.TablesTest):
         stmt = t.update().where(t.c.id == bindparam("b_id"))
 
         run_stmt(
-            stmt, True, "b_id", connection.dialect.update_executemany_returning,
+            stmt, True, "b_id", connection.dialect.update_executemany_returning
         )
 
     def test_delete_single(self, connection, run_stmt):
@@ -726,5 +736,5 @@ class ReturningGuardsTest(fixtures.TablesTest):
         stmt = t.delete().where(t.c.id == bindparam("b_id"))
 
         run_stmt(
-            stmt, True, "b_id", connection.dialect.delete_executemany_returning,
+            stmt, True, "b_id", connection.dialect.delete_executemany_returning
         )

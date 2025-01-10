@@ -1,15 +1,19 @@
 # testing/suite/test_deprecations.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
-from ... import Integer, select, testing, union
 from .. import fixtures
 from ..assertions import eq_
-from ..schema import Column, Table
+from ..schema import Column
+from ..schema import Table
+from ... import Integer
+from ... import select
+from ... import testing
+from ... import union
 
 
 class DeprecatedCompoundSelectTest(fixtures.TablesTest):
@@ -48,10 +52,10 @@ class DeprecatedCompoundSelectTest(fixtures.TablesTest):
         u1 = union(s1, s2)
         with testing.expect_deprecated(
             "The SelectBase.c and SelectBase.columns "
-            "attributes are deprecated",
+            "attributes are deprecated"
         ):
             self._assert_result(
-                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)],
+                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)]
             )
 
     # note we've had to remove one use case entirely, which is this
@@ -69,10 +73,10 @@ class DeprecatedCompoundSelectTest(fixtures.TablesTest):
         u1 = union(s1, s2).alias().select()
         with testing.expect_deprecated(
             "The SelectBase.c and SelectBase.columns "
-            "attributes are deprecated",
+            "attributes are deprecated"
         ):
             self._assert_result(
-                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)],
+                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)]
             )
 
     @testing.requires.order_by_col_from_union
@@ -85,10 +89,10 @@ class DeprecatedCompoundSelectTest(fixtures.TablesTest):
         u1 = union(s1, s2).limit(2)
         with testing.expect_deprecated(
             "The SelectBase.c and SelectBase.columns "
-            "attributes are deprecated",
+            "attributes are deprecated"
         ):
             self._assert_result(
-                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)],
+                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)]
             )
 
     @testing.requires.parens_in_union_contained_select_wo_limit_offset
@@ -100,10 +104,10 @@ class DeprecatedCompoundSelectTest(fixtures.TablesTest):
         u1 = union(s1, s2).limit(2)
         with testing.expect_deprecated(
             "The SelectBase.c and SelectBase.columns "
-            "attributes are deprecated",
+            "attributes are deprecated"
         ):
             self._assert_result(
-                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)],
+                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)]
             )
 
     def test_distinct_selectable_in_unions(self, connection):
@@ -114,10 +118,10 @@ class DeprecatedCompoundSelectTest(fixtures.TablesTest):
         u1 = union(s1, s2).limit(2)
         with testing.expect_deprecated(
             "The SelectBase.c and SelectBase.columns "
-            "attributes are deprecated",
+            "attributes are deprecated"
         ):
             self._assert_result(
-                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)],
+                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)]
             )
 
     def test_limit_offset_aliased_selectable_in_unions(self, connection):
@@ -142,8 +146,8 @@ class DeprecatedCompoundSelectTest(fixtures.TablesTest):
         u1 = union(s1, s2).limit(2)
         with testing.expect_deprecated(
             "The SelectBase.c and SelectBase.columns "
-            "attributes are deprecated",
+            "attributes are deprecated"
         ):
             self._assert_result(
-                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)],
+                connection, u1.order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)]
             )

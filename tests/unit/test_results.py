@@ -1,5 +1,5 @@
 # testing/suite/test_results.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
@@ -7,12 +7,22 @@
 # mypy: ignore-errors
 
 import datetime
+import re
 
-from ... import DateTime, Integer, String, func, select, sql, testing, text
-from .. import engines, fixtures
+from .. import engines
+from .. import fixtures
 from ..assertions import eq_
 from ..config import requirements
-from ..schema import Column, Table
+from ..schema import Column
+from ..schema import Table
+from ... import DateTime
+from ... import func
+from ... import Integer
+from ... import select
+from ... import sql
+from ... import String
+from ... import testing
+from ... import text
 
 
 class RowFetchTest(fixtures.TablesTest):
@@ -51,7 +61,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_attr(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
         ).first()
 
         eq_(row.id, 1)
@@ -59,7 +69,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_string(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
         ).first()
 
         eq_(row._mapping["id"], 1)
@@ -67,7 +77,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_int(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
         ).first()
 
         eq_(row[0], 1)
@@ -75,7 +85,7 @@ class RowFetchTest(fixtures.TablesTest):
 
     def test_via_col_object(self, connection):
         row = connection.execute(
-            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id),
+            self.tables.plain_pk.select().order_by(self.tables.plain_pk.c.id)
         ).first()
 
         eq_(row._mapping[self.tables.plain_pk.c.id], 1)
@@ -87,7 +97,7 @@ class RowFetchTest(fixtures.TablesTest):
             select(
                 self.tables.plain_pk.c.data,
                 self.tables.plain_pk.c.data.label("data"),
-            ).order_by(self.tables.plain_pk.c.id),
+            ).order_by(self.tables.plain_pk.c.id)
         )
         row = result.first()
         eq_(result.keys(), ["data", "data"])
@@ -149,7 +159,7 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
     def test_executemany_roundtrip(self, connection):
         percent_table = self.tables.percent_table
         connection.execute(
-            percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12},
+            percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12}
         )
         connection.execute(
             percent_table.insert(),
@@ -165,7 +175,7 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
     def test_executemany_returning_roundtrip(self, connection):
         percent_table = self.tables.percent_table
         connection.execute(
-            percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12},
+            percent_table.insert(), {"percent%": 5, "spaces % more spaces": 12}
         )
         result = connection.execute(
             percent_table.insert().returning(
@@ -193,7 +203,7 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
         ):
             eq_(
                 list(
-                    conn.execute(table.select().order_by(table.c["percent%"])),
+                    conn.execute(table.select().order_by(table.c["percent%"]))
                 ),
                 [(5, 12), (7, 11), (9, 10), (11, 9)],
             )
@@ -203,14 +213,14 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
                     conn.execute(
                         table.select()
                         .where(table.c["spaces % more spaces"].in_([9, 10]))
-                        .order_by(table.c["percent%"]),
-                    ),
+                        .order_by(table.c["percent%"])
+                    )
                 ),
                 [(9, 10), (11, 9)],
             )
 
             row = conn.execute(
-                table.select().order_by(table.c["percent%"]),
+                table.select().order_by(table.c["percent%"])
             ).first()
             eq_(row._mapping["percent%"], 5)
             eq_(row._mapping["spaces % more spaces"], 12)
@@ -220,24 +230,24 @@ class PercentSchemaNamesTest(fixtures.TablesTest):
 
         conn.execute(
             percent_table.update().values(
-                {percent_table.c["spaces % more spaces"]: 15},
-            ),
+                {percent_table.c["spaces % more spaces"]: 15}
+            )
         )
 
         eq_(
             list(
                 conn.execute(
                     percent_table.select().order_by(
-                        percent_table.c["percent%"],
-                    ),
-                ),
+                        percent_table.c["percent%"]
+                    )
+                )
             ),
             [(5, 15), (7, 15), (9, 15), (11, 15)],
         )
 
 
 class ServerSideCursorsTest(
-    fixtures.TestBase, testing.AssertsExecutionResults,
+    fixtures.TestBase, testing.AssertsExecutionResults
 ):
     __requires__ = ("server_side_cursors",)
 
@@ -248,23 +258,26 @@ class ServerSideCursorsTest(
         # usable by third party dialects.
         if self.engine.dialect.driver == "psycopg2":
             return bool(cursor.name)
-        if self.engine.dialect.driver == "pymysql":
+        elif self.engine.dialect.driver == "pymysql":
             sscursor = __import__("pymysql.cursors").cursors.SSCursor
             return isinstance(cursor, sscursor)
-        if self.engine.dialect.driver in ("aiomysql", "asyncmy", "aioodbc"):
+        elif self.engine.dialect.driver in ("aiomysql", "asyncmy", "aioodbc"):
             return cursor.server_side
-        if self.engine.dialect.driver == "mysqldb":
+        elif self.engine.dialect.driver == "mysqldb":
             sscursor = __import__("MySQLdb.cursors").cursors.SSCursor
             return isinstance(cursor, sscursor)
-        if self.engine.dialect.driver == "mariadbconnector":
+        elif self.engine.dialect.driver == "mariadbconnector":
             return not cursor.buffered
-        if self.engine.dialect.driver in ("asyncpg", "aiosqlite"):
+        elif self.engine.dialect.driver in ("asyncpg", "aiosqlite"):
             return cursor.server_side
-        if self.engine.dialect.driver == "pg8000":
+        elif self.engine.dialect.driver == "pg8000":
             return getattr(cursor, "server_side", False)
-        if self.engine.dialect.driver == "psycopg":
+        elif self.engine.dialect.driver == "psycopg":
             return bool(getattr(cursor, "name", False))
-        return False
+        elif self.engine.dialect.driver == "oracledb":
+            return getattr(cursor, "server_side", False)
+        else:
+            return False
 
     def _fixture(self, server_side_cursors):
         if server_side_cursors:
@@ -272,22 +285,37 @@ class ServerSideCursorsTest(
                 "The create_engine.server_side_cursors parameter is "
                 "deprecated and will be removed in a future release.  "
                 "Please use the Connection.execution_options.stream_results "
-                "parameter.",
+                "parameter."
             ):
                 self.engine = engines.testing_engine(
-                    options={"server_side_cursors": server_side_cursors},
+                    options={"server_side_cursors": server_side_cursors}
                 )
         else:
             self.engine = engines.testing_engine(
-                options={"server_side_cursors": server_side_cursors},
+                options={"server_side_cursors": server_side_cursors}
             )
         return self.engine
 
+    def stringify(self, str_):
+        return re.compile(r"SELECT (\d+)", re.I).sub(
+            lambda m: str(select(int(m.group(1))).compile(testing.db)), str_
+        )
+
     @testing.combinations(
-        ("global_string", True, "select 1", True),
-        ("global_text", True, text("select 1"), True),
+        ("global_string", True, lambda stringify: stringify("select 1"), True),
+        (
+            "global_text",
+            True,
+            lambda stringify: text(stringify("select 1")),
+            True,
+        ),
         ("global_expr", True, select(1), True),
-        ("global_off_explicit", False, text("select 1"), False),
+        (
+            "global_off_explicit",
+            False,
+            lambda stringify: text(stringify("select 1")),
+            False,
+        ),
         (
             "stmt_option",
             False,
@@ -305,25 +333,37 @@ class ServerSideCursorsTest(
         (
             "for_update_string",
             True,
-            "SELECT 1 FOR UPDATE",
+            lambda stringify: stringify("SELECT 1 FOR UPDATE"),
             True,
             testing.skip_if(["sqlite", "mssql"]),
         ),
-        ("text_no_ss", False, text("select 42"), False),
+        (
+            "text_no_ss",
+            False,
+            lambda stringify: text(stringify("select 42")),
+            False,
+        ),
         (
             "text_ss_option",
             False,
-            text("select 42").execution_options(stream_results=True),
+            lambda stringify: text(stringify("select 42")).execution_options(
+                stream_results=True
+            ),
             True,
         ),
         id_="iaaa",
         argnames="engine_ss_arg, statement, cursor_ss_status",
     )
     def test_ss_cursor_status(
-        self, engine_ss_arg, statement, cursor_ss_status,
+        self, engine_ss_arg, statement, cursor_ss_status
     ):
         engine = self._fixture(engine_ss_arg)
         with engine.begin() as conn:
+            if callable(statement):
+                statement = testing.resolve_lambda(
+                    statement, stringify=self.stringify
+                )
+
             if isinstance(statement, str):
                 result = conn.exec_driver_sql(statement)
             else:
@@ -337,8 +377,8 @@ class ServerSideCursorsTest(
         with engine.connect() as conn:
             # should be enabled for this one
             result = conn.execution_options(
-                stream_results=True,
-            ).exec_driver_sql("select 1")
+                stream_results=True
+            ).exec_driver_sql(self.stringify("select 1"))
             assert self._is_server_side(result.cursor)
 
             # the connection has autobegun, which means at the end of the
@@ -392,35 +432,37 @@ class ServerSideCursorsTest(
         test_table = Table(
             "test_table",
             md,
-            Column("id", Integer, primary_key=True),
+            Column(
+                "id", Integer, primary_key=True, test_needs_autoincrement=True
+            ),
             Column("data", String(50)),
         )
 
         with engine.begin() as connection:
             test_table.create(connection, checkfirst=True)
-            connection.execute(test_table.insert(), {"data": "data1"})
-            connection.execute(test_table.insert(), {"data": "data2"})
+            connection.execute(test_table.insert(), dict(data="data1"))
+            connection.execute(test_table.insert(), dict(data="data2"))
             eq_(
                 connection.execute(
-                    test_table.select().order_by(test_table.c.id),
+                    test_table.select().order_by(test_table.c.id)
                 ).fetchall(),
                 [(1, "data1"), (2, "data2")],
             )
             connection.execute(
                 test_table.update()
                 .where(test_table.c.id == 2)
-                .values(data=test_table.c.data + " updated"),
+                .values(data=test_table.c.data + " updated")
             )
             eq_(
                 connection.execute(
-                    test_table.select().order_by(test_table.c.id),
+                    test_table.select().order_by(test_table.c.id)
                 ).fetchall(),
                 [(1, "data1"), (2, "data2 updated")],
             )
             connection.execute(test_table.delete())
             eq_(
                 connection.scalar(
-                    select(func.count("*")).select_from(test_table),
+                    select(func.count("*")).select_from(test_table)
                 ),
                 0,
             )
@@ -432,7 +474,9 @@ class ServerSideCursorsTest(
         test_table = Table(
             "test_table",
             md,
-            Column("id", Integer, primary_key=True),
+            Column(
+                "id", Integer, primary_key=True, test_needs_autoincrement=True
+            ),
             Column("data", String(50)),
         )
 
@@ -440,11 +484,11 @@ class ServerSideCursorsTest(
             test_table.create(connection, checkfirst=True)
             connection.execute(
                 test_table.insert(),
-                [{"data": "data%d" % i} for i in range(1, 20)],
+                [dict(data="data%d" % i) for i in range(1, 20)],
             )
 
             result = connection.execute(
-                test_table.select().order_by(test_table.c.id),
+                test_table.select().order_by(test_table.c.id)
             )
 
             eq_(

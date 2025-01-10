@@ -1,46 +1,53 @@
 # testing/suite/test_reflection.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
+import contextlib
 import operator
 import re
 
 import sqlalchemy as sa
-
-from ... import (
-    ForeignKey,
-    Identity,
-    Integer,
-    MetaData,
-    String,
-    event,
-    func,
-    inspect,
-    testing,
-)
+from .. import config
+from .. import engines
+from .. import eq_
+from .. import expect_raises
+from .. import expect_raises_message
+from .. import expect_warnings
+from .. import fixtures
+from .. import is_
+from ..provision import get_temp_table_name
+from ..provision import temp_table_keyword_args
+from ..schema import Column
+from ..schema import Table
+from ... import event
+from ... import ForeignKey
+from ... import func
+from ... import Identity
+from ... import inspect
+from ... import Integer
+from ... import MetaData
+from ... import String
+from ... import testing
 from ... import types as sql_types
-from ...engine import Inspector, ObjectKind, ObjectScope
-from ...exc import NoSuchTableError, UnreflectableTableError
-from ...schema import DDL, Index
+from ...engine import Inspector
+from ...engine import ObjectKind
+from ...engine import ObjectScope
+from ...exc import NoSuchTableError
+from ...exc import UnreflectableTableError
+from ...schema import DDL
+from ...schema import Index
 from ...sql.elements import quoted_name
 from ...sql.schema import BLANK_SCHEMA
-from ...testing import ComparesIndexes, ComparesTables, is_false, is_true, mock
-from .. import (
-    config,
-    engines,
-    eq_,
-    expect_raises,
-    expect_raises_message,
-    expect_warnings,
-    fixtures,
-    is_,
-)
-from ..provision import get_temp_table_name, temp_table_keyword_args
-from ..schema import Column, Table
+from ...testing import ComparesIndexes
+from ...testing import ComparesTables
+from ...testing import is_false
+from ...testing import is_true
+from ...testing import mock
+
 
 metadata, users = None, None
 
@@ -55,9 +62,10 @@ class OneConnectionTablesTest(fixtures.TablesTest):
             from sqlalchemy import pool
 
             return engines.testing_engine(
-                options={"poolclass": pool.StaticPool, "scope": "class"},
+                options=dict(poolclass=pool.StaticPool, scope="class"),
             )
-        return config.db
+        else:
+            return config.db
 
 
 class HasTableTest(OneConnectionTablesTest):
@@ -94,19 +102,23 @@ class HasTableTest(OneConnectionTablesTest):
 
         if testing.requires.schemas.enabled:
             query = (
-                f"CREATE VIEW {config.test_schema}.vv AS SELECT id, data FROM {config.test_schema}.test_table_s"
+                "CREATE VIEW %s.vv AS SELECT id, data FROM %s.test_table_s"
+                % (
+                    config.test_schema,
+                    config.test_schema,
+                )
             )
             event.listen(metadata, "after_create", DDL(query))
             event.listen(
                 metadata,
                 "before_drop",
-                DDL(f"DROP VIEW {config.test_schema}.vv"),
+                DDL("DROP VIEW %s.vv" % (config.test_schema)),
             )
 
     @classmethod
     def temp_table_name(cls):
         return get_temp_table_name(
-            config, config.db, f"user_tmp_{config.ident}",
+            config, config.db, f"user_tmp_{config.ident}"
         )
 
     @classmethod
@@ -129,7 +141,7 @@ class HasTableTest(OneConnectionTablesTest):
                 "after_create",
                 DDL(
                     "create temporary view user_tmp_v as "
-                    f"select * from user_tmp_{config.ident}",
+                    "select * from user_tmp_%s" % config.ident
                 ),
             )
             event.listen(user_tmp, "before_drop", DDL("drop view user_tmp_v"))
@@ -158,18 +170,18 @@ class HasTableTest(OneConnectionTablesTest):
         with config.db.begin() as conn:
             is_false(
                 config.db.dialect.has_table(
-                    conn, "test_table", schema=config.test_schema,
-                ),
+                    conn, "test_table", schema=config.test_schema
+                )
             )
             is_true(
                 config.db.dialect.has_table(
-                    conn, "test_table_s", schema=config.test_schema,
-                ),
+                    conn, "test_table_s", schema=config.test_schema
+                )
             )
             is_false(
                 config.db.dialect.has_table(
-                    conn, "nonexistent_table", schema=config.test_schema,
-                ),
+                    conn, "nonexistent_table", schema=config.test_schema
+                )
             )
 
     @testing.requires.schemas
@@ -177,8 +189,8 @@ class HasTableTest(OneConnectionTablesTest):
         with config.db.begin() as conn:
             is_false(
                 config.db.dialect.has_table(
-                    conn, "test_table", schema="nonexistent_schema",
-                ),
+                    conn, "test_table", schema="nonexistent_schema"
+                )
             )
 
     @testing.requires.views
@@ -235,7 +247,8 @@ class HasIndexTest(fixtures.TablesTest):
     def _has_index(self, kind, conn):
         if kind == "dialect":
             return lambda *a, **k: config.db.dialect.has_index(conn, *a, **k)
-        return inspect(conn).has_index
+        else:
+            return inspect(conn).has_index
 
     @kind
     def test_has_index(self, kind, connection, metadata):
@@ -274,10 +287,10 @@ class HasIndexTest(fixtures.TablesTest):
         assert meth("test_table", "my_idx_s", schema=config.test_schema)
         assert not meth("test_table", "my_idx", schema=config.test_schema)
         assert not meth(
-            "nonexistent_table", "my_idx_s", schema=config.test_schema,
+            "nonexistent_table", "my_idx_s", schema=config.test_schema
         )
         assert not meth(
-            "test_table", "nonexistent_idx_s", schema=config.test_schema,
+            "test_table", "nonexistent_idx_s", schema=config.test_schema
         )
 
 
@@ -287,7 +300,7 @@ class BizarroCharacterFKResolutionTest(fixtures.TestBase):
     __backend__ = True
 
     @testing.combinations(
-        ("id",), ("(3)",), ("col%p",), ("[brack]",), argnames="columnname",
+        ("id",), ("(3)",), ("col%p",), ("[brack]",), argnames="columnname"
     )
     @testing.variation("use_composite", [True, False])
     @testing.combinations(
@@ -298,7 +311,7 @@ class BizarroCharacterFKResolutionTest(fixtures.TestBase):
         argnames="tablename",
     )
     def test_fk_ref(
-        self, connection, metadata, use_composite, tablename, columnname,
+        self, connection, metadata, use_composite, tablename, columnname
     ):
         tt = Table(
             tablename,
@@ -360,7 +373,7 @@ class QuotedNameArgumentTest(fixtures.TablesTest):
                 name="uq quote' one",
             ),
             sa.ForeignKeyConstraint(
-                ["id"], ["related.id"], name="fk quote ' one",
+                ["id"], ["related.id"], name="fk quote ' one"
             ),
             sa.CheckConstraint("name != 'foo'", name="ck quote ' one"),
             comment=r"""quote ' one comment""",
@@ -382,7 +395,7 @@ class QuotedNameArgumentTest(fixtures.TablesTest):
                     name='uq quote" two',
                 ),
                 sa.ForeignKeyConstraint(
-                    ["id"], ["related.id"], name='fk quote " two',
+                    ["id"], ["related.id"], name='fk quote " two'
                 ),
                 sa.CheckConstraint("name != 'foo'", name='ck quote " two '),
                 comment=r"""quote " two comment""",
@@ -408,9 +421,9 @@ class QuotedNameArgumentTest(fixtures.TablesTest):
                     "quote ' one",
                 ]
             for name in names:
-                query = "CREATE VIEW {} AS SELECT * FROM {}".format(
+                query = "CREATE VIEW %s AS SELECT * FROM %s" % (
                     config.db.dialect.identifier_preparer.quote(
-                        f"view {name}",
+                        "view %s" % name
                     ),
                     config.db.dialect.identifier_preparer.quote(name),
                 )
@@ -420,17 +433,18 @@ class QuotedNameArgumentTest(fixtures.TablesTest):
                     metadata,
                     "before_drop",
                     DDL(
-                        "DROP VIEW {}".format(config.db.dialect.identifier_preparer.quote(
-                            f"view {name}",
-                        )),
+                        "DROP VIEW %s"
+                        % config.db.dialect.identifier_preparer.quote(
+                            "view %s" % name
+                        )
                     ),
                 )
 
-    def quote_fixtures(self):
+    def quote_fixtures(fn):
         return testing.combinations(
             ("quote ' one",),
             ('quote " two', testing.requires.symbol_names_w_double_quote),
-        )(self)
+        )(fn)
 
     @quote_fixtures
     def test_get_table_options(self, name):
@@ -447,7 +461,7 @@ class QuotedNameArgumentTest(fixtures.TablesTest):
     @testing.requires.view_column_reflection
     def test_get_view_definition(self, name):
         insp = inspect(config.db)
-        assert insp.get_view_definition(f"view {name}")
+        assert insp.get_view_definition("view %s" % name)
 
     @quote_fixtures
     def test_get_columns(self, name):
@@ -539,7 +553,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         if testing.requires.self_referential_foreign_keys.enabled:
             parent_id_args = (
                 ForeignKey(
-                    f"{schema_prefix}users.user_id", name="user_id_fk",
+                    "%susers.user_id" % schema_prefix, name="user_id_fk"
                 ),
             )
         else:
@@ -569,7 +583,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                 "address_id",
                 sa.Integer,
                 ForeignKey(
-                    f"{schema_prefix}email_addresses.address_id",
+                    "%semail_addresses.address_id" % schema_prefix,
                     name="zz_email_add_id_fg",
                     comment="di fk comment",
                 ),
@@ -577,7 +591,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             Column(
                 "id_user",
                 sa.Integer,
-                ForeignKey(f"{schema_prefix}users.user_id"),
+                ForeignKey("%susers.user_id" % schema_prefix),
             ),
             Column("data", sa.String(30), unique=True),
             sa.CheckConstraint(
@@ -600,7 +614,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             Column("remote_user_id", sa.Integer, ForeignKey(users.c.user_id)),
             Column("email_address", sa.String(20), index=True),
             sa.PrimaryKeyConstraint(
-                "address_id", name="email_ad_pk", comment="ea pk comment",
+                "address_id", name="email_ad_pk", comment="ea pk comment"
             ),
             schema=schema,
             test_needs_fk=True,
@@ -637,7 +651,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                     Column(
                         "remote_id",
                         ForeignKey(
-                            f"{testing.config.test_schema}.remote_table_2.id",
+                            "%s.remote_table_2.id" % testing.config.test_schema
                         ),
                     ),
                     test_needs_fk=True,
@@ -651,7 +665,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                     Column(
                         "local_id",
                         ForeignKey(
-                            f"{config.db.dialect.default_schema_name}.local_table.id",
+                            "%s.local_table.id"
+                            % config.db.dialect.default_schema_name
                         ),
                     ),
                     Column("data", sa.String(20)),
@@ -670,7 +685,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         if testing.requires.index_reflection.enabled:
             Index("users_t_idx", users.c.test1, users.c.test2, unique=True)
             Index(
-                "users_all_idx", users.c.user_id, users.c.test2, users.c.test1,
+                "users_all_idx", users.c.user_id, users.c.test2, users.c.test1
             )
 
             if not schema:
@@ -705,7 +720,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @classmethod
     def temp_table_name(cls):
         return get_temp_table_name(
-            config, config.db, f"user_tmp_{config.ident}",
+            config, config.db, f"user_tmp_{config.ident}"
         )
 
     @classmethod
@@ -737,7 +752,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                 "after_create",
                 DDL(
                     "create temporary view user_tmp_v as "
-                    f"select * from user_tmp_{config.ident}",
+                    "select * from user_tmp_%s" % config.ident
                 ),
             )
             event.listen(user_tmp, "before_drop", DDL("drop view user_tmp_v"))
@@ -766,7 +781,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                 idx = f"CREATE INDEX {index_name} ON {view_name}(data)"
                 event.listen(metadata, "after_create", DDL(idx))
             event.listen(
-                metadata, "before_drop", DDL(f"DROP {prefix}VIEW {view_name}"),
+                metadata, "before_drop", DDL(f"DROP {prefix}VIEW {view_name}")
             )
 
     def _resolve_kind(self, kind, tables, views, materialized):
@@ -807,11 +822,11 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         if not testing.requires.cross_schema_fk_reflection.enabled:
             removed[None].add("local_table")
             removed[testing.config.test_schema].update(
-                ["remote_table", "remote_table_2"],
+                ["remote_table", "remote_table_2"]
             )
         if not testing.requires.index_reflection.enabled:
             removed[None].update(
-                ["noncol_idx_test_nopk", "noncol_idx_test_pk"],
+                ["noncol_idx_test_nopk", "noncol_idx_test_pk"]
             )
         if (
             not testing.requires.temp_table_reflection.enabled
@@ -821,13 +836,14 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         if not testing.requires.temporary_views.enabled:
             removed[None].update(["user_tmp_v"])
 
-        return {
+        res = {
             k: v
             for k, v in values.items()
             if scope_filter(k)
             and k[1] not in removed[schema]
             and (not filter_names or k[1] in filter_names)
         }
+        return res
 
     def exp_options(
         self,
@@ -857,7 +873,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             (schema, self.temp_table_name()): mock.ANY,
         }
         res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        res = self._resolve_names(schema, scope, filter_names, res)
+        return res
 
     def exp_comments(
         self,
@@ -879,10 +896,10 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             (schema, "dingalings"): empty,
             (schema, "email_addresses"): empty,
             (schema, "comment_test"): {
-                "text": r"""the test % ' " \ table comment""",
+                "text": r"""the test % ' " \ table comment"""
             },
             (schema, "no_constraints"): {
-                "text": "no\nconstraints\rhas\fescaped\vcomment",
+                "text": "no\nconstraints\rhas\fescaped\vcomment"
             },
             (schema, "local_table"): empty,
             (schema, "remote_table"): empty,
@@ -892,7 +909,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             (schema, self.temp_table_name()): empty,
         }
         res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        res = self._resolve_names(schema, scope, filter_names, res)
+        return res
 
     def exp_columns(
         self,
@@ -902,7 +920,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         filter_names=None,
     ):
         def col(
-            name, auto=False, default=mock.ANY, comment=None, nullable=True,
+            name, auto=False, default=mock.ANY, comment=None, nullable=True
         ):
             res = {
                 "name": name,
@@ -926,7 +944,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                 col("address_id"),
                 col("id_user"),
                 col("data"),
-            ],
+            ]
         }
         views = {
             (schema, "email_addresses_v"): [
@@ -987,7 +1005,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             ],
         }
         res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        res = self._resolve_names(schema, scope, filter_names, res)
+        return res
 
     @property
     def _required_column_keys(self):
@@ -1022,7 +1041,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             (schema, "users"): pk("user_id"),
             (schema, "dingalings"): pk("dingaling_id"),
             (schema, "email_addresses"): pk(
-                "address_id", name="email_ad_pk", comment="ea pk comment",
+                "address_id", name="email_ad_pk", comment="ea pk comment"
             ),
             (schema, "comment_test"): pk("id"),
             (schema, "no_constraints"): empty,
@@ -1038,7 +1057,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                 if val["name"] is not None:
                     val["name"] = mock.ANY
         res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        res = self._resolve_names(schema, scope, filter_names, res)
+        return res
 
     @property
     def _required_pk_keys(self):
@@ -1071,9 +1091,9 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                 "referred_columns": ref_col,
                 "name": name,
                 "options": mock.ANY,
-                "referred_schema": ref_schema
-                if ref_schema is not None
-                else tt(),
+                "referred_schema": (
+                    ref_schema if ref_schema is not None else tt()
+                ),
                 "referred_table": ref_table,
                 "comment": comment,
             }
@@ -1087,7 +1107,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         self._resolve_views(views, materialized)
         tables = {
             (schema, "users"): [
-                fk(["parent_user_id"], ["user_id"], "users", name="user_id_fk"),
+                fk(["parent_user_id"], ["user_id"], "users", name="user_id_fk")
             ],
             (schema, "dingalings"): [
                 fk(["id_user"], ["user_id"], "users"),
@@ -1100,7 +1120,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                 ),
             ],
             (schema, "email_addresses"): [
-                fk(["remote_user_id"], ["user_id"], "users"),
+                fk(["remote_user_id"], ["user_id"], "users")
             ],
             (schema, "comment_test"): [],
             (schema, "no_constraints"): [],
@@ -1110,10 +1130,10 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                     ["id"],
                     "remote_table_2",
                     ref_schema=config.test_schema,
-                ),
+                )
             ],
             (schema, "remote_table"): [
-                fk(["local_id"], ["id"], "local_table", ref_schema=None),
+                fk(["local_id"], ["id"], "local_table", ref_schema=None)
             ],
             (schema, "remote_table_2"): [],
             (schema, "noncol_idx_test_nopk"): [],
@@ -1129,7 +1149,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                         val["name"] = mock.ANY
 
         res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        res = self._resolve_names(schema, scope, filter_names, res)
+        return res
 
     @property
     def _required_fk_keys(self):
@@ -1194,7 +1215,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         self._resolve_views(views, materialized)
         if materialized:
             materialized[(schema, "dingalings_v")].extend(
-                idx("data", name="mat_index"),
+                idx("data", name="mat_index")
             )
         tables = {
             (schema, "users"): [
@@ -1220,10 +1241,10 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             (schema, "comment_test"): [],
             (schema, "no_constraints"): [],
             (schema, "local_table"): [
-                *idx("remote_id", name=mock.ANY, fk=True),
+                *idx("remote_id", name=mock.ANY, fk=True)
             ],
             (schema, "remote_table"): [
-                *idx("local_id", name=mock.ANY, fk=True),
+                *idx("local_id", name=mock.ANY, fk=True)
             ],
             (schema, "remote_table_2"): [],
             (schema, "noncol_idx_test_nopk"): [
@@ -1231,12 +1252,12 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                     "q",
                     name="noncol_idx_nopk",
                     column_sorting={"q": ("desc",)},
-                ),
+                )
             ],
             (schema, "noncol_idx_test_pk"): [
                 *idx(
-                    "q", name="noncol_idx_pk", column_sorting={"q": ("desc",)},
-                ),
+                    "q", name="noncol_idx_pk", column_sorting={"q": ("desc",)}
+                )
             ],
             (schema, self.temp_table_name()): [
                 *idx("foo", name="user_tmp_ix"),
@@ -1255,7 +1276,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             tables[(schema, "noncol_idx_test_nopk")].clear()
             tables[(schema, "noncol_idx_test_pk")].clear()
         res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        res = self._resolve_names(schema, scope, filter_names, res)
+        return res
 
     @property
     def _required_index_keys(self):
@@ -1270,7 +1292,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         all_=False,
     ):
         def uc(
-            *cols, name, duplicates_index=None, is_index=False, comment=None,
+            *cols, name, duplicates_index=None, is_index=False, comment=None
         ):
             req = testing.requires.unique_index_reflect_as_unique_constraints
             if is_index and not req.enabled:
@@ -1299,7 +1321,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                     name="users_t_idx",
                     duplicates_index="users_t_idx",
                     is_index=True,
-                ),
+                )
             ],
             (schema, "dingalings"): [
                 *uc("data", name=mock.ANY, duplicates_index=mock.ANY),
@@ -1320,13 +1342,15 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             (schema, "noncol_idx_test_nopk"): [],
             (schema, "noncol_idx_test_pk"): [],
             (schema, self.temp_table_name()): [
-                *uc("name", name=f"user_tmp_uq_{config.ident}"),
+                *uc("name", name=f"user_tmp_uq_{config.ident}")
             ],
         }
         if all_:
             return {**materialized, **views, **tables}
-        res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        else:
+            res = self._resolve_kind(kind, tables, views, materialized)
+            res = self._resolve_names(schema, scope, filter_names, res)
+            return res
 
     @property
     def _required_unique_cst_keys(self):
@@ -1387,7 +1411,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             (schema, self.temp_table_name()): [],
         }
         res = self._resolve_kind(kind, tables, views, materialized)
-        return self._resolve_names(schema, scope, filter_names, res)
+        res = self._resolve_names(schema, scope, filter_names, res)
+        return res
 
     @property
     def _required_cc_keys(self):
@@ -1414,7 +1439,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             schema_translate_map={
                 "foo": "bar",
                 BLANK_SCHEMA: testing.config.test_schema,
-            },
+            }
         )
         insp = inspect(connection)
 
@@ -1426,7 +1451,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             schema_translate_map={
                 "foo": "bar",
                 BLANK_SCHEMA: testing.config.test_schema,
-            },
+            }
         )
         insp = inspect(connection)
 
@@ -1467,7 +1492,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         argnames="order_by",
     )
     @testing.combinations(
-        (True, testing.requires.schemas), False, argnames="use_schema",
+        (True, testing.requires.schemas), False, argnames="use_schema"
     )
     def test_get_table_names(self, connection, order_by, use_schema):
         if use_schema:
@@ -1505,7 +1530,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             eq_(sorted(table_names), answer)
 
     @testing.combinations(
-        (True, testing.requires.schemas), False, argnames="use_schema",
+        (True, testing.requires.schemas), False, argnames="use_schema"
     )
     def test_get_view_names(self, connection, use_schema):
         insp = inspect(connection)
@@ -1629,11 +1654,12 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
                                 sql_types.Time,
                                 sql_types.String,
                                 sql_types._Binary,
-                            ],
-                        ),
+                            ]
+                        )
                     )
                     > 0,
-                    "{}({}), {}({})".format(col.name, col.type, cols[i]["name"], ctype),
+                    "%s(%s), %s(%s)"
+                    % (col.name, col.type, cols[i]["name"], ctype),
                 )
 
                 if not col.primary_key:
@@ -1648,10 +1674,10 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         user_tmp = self.tables[table_name]
 
         reflected_user_tmp = Table(
-            table_name, MetaData(), autoload_with=connection,
+            table_name, MetaData(), autoload_with=connection
         )
         self.assert_tables_equal(
-            user_tmp, reflected_user_tmp, strict_constraints=False,
+            user_tmp, reflected_user_tmp, strict_constraints=False
         )
 
     @testing.requires.temp_table_reflection
@@ -1674,7 +1700,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         eq_([col["name"] for col in cols], ["id", "name", "foo"])
 
     @testing.combinations(
-        (False,), (True, testing.requires.schemas), argnames="use_schema",
+        (False,), (True, testing.requires.schemas), argnames="use_schema"
     )
     @testing.requires.primary_key_constraint_reflection
     def test_get_pk_constraint(self, connection, use_schema):
@@ -1689,7 +1715,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
 
         users_cons = insp.get_pk_constraint(users.name, schema=schema)
         self._check_list(
-            [users_cons], [exp[(schema, users.name)]], self._required_pk_keys,
+            [users_cons], [exp[(schema, users.name)]], self._required_pk_keys
         )
 
         addr_cons = insp.get_pk_constraint(addresses.name, schema=schema)
@@ -1707,7 +1733,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         )
 
     @testing.combinations(
-        (False,), (True, testing.requires.schemas), argnames="use_schema",
+        (False,), (True, testing.requires.schemas), argnames="use_schema"
     )
     @testing.requires.foreign_key_constraint_reflection
     def test_get_foreign_keys(self, connection, use_schema):
@@ -1752,9 +1778,9 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.requires.schemas
     def test_get_inter_schema_foreign_keys(self, connection):
         local_table, remote_table, remote_table_2 = self.tables(
-            f"{connection.dialect.default_schema_name}.local_table",
-            f"{testing.config.test_schema}.remote_table",
-            f"{testing.config.test_schema}.remote_table_2",
+            "%s.local_table" % connection.dialect.default_schema_name,
+            "%s.remote_table" % testing.config.test_schema,
+            "%s.remote_table_2" % testing.config.test_schema,
         )
 
         insp = inspect(connection)
@@ -1769,7 +1795,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         eq_(fkey1["constrained_columns"], ["remote_id"])
 
         remote_fkeys = insp.get_foreign_keys(
-            remote_table.name, schema=testing.config.test_schema,
+            remote_table.name, schema=testing.config.test_schema
         )
         eq_(len(remote_fkeys), 1)
 
@@ -1780,14 +1806,14 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             in (
                 None,
                 connection.dialect.default_schema_name,
-            ),
+            )
         )
         eq_(fkey2["referred_table"], local_table.name)
         eq_(fkey2["referred_columns"], ["id"])
         eq_(fkey2["constrained_columns"], ["local_id"])
 
     @testing.combinations(
-        (False,), (True, testing.requires.schemas), argnames="use_schema",
+        (False,), (True, testing.requires.schemas), argnames="use_schema"
     )
     @testing.requires.index_reflection
     def test_get_indexes(self, connection, use_schema):
@@ -1802,7 +1828,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         indexes = insp.get_indexes("users", schema=schema)
         exp = self.exp_indexes(schema=schema)
         self._check_list(
-            indexes, exp[(schema, "users")], self._required_index_keys,
+            indexes, exp[(schema, "users")], self._required_index_keys
         )
 
         no_cst = self.tables.no_constraints.name
@@ -1831,8 +1857,8 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
 
         t = Table(tname, MetaData(), autoload_with=connection)
         eq_(len(t.indexes), 1)
-        is_(next(iter(t.indexes)).table, t)
-        eq_(next(iter(t.indexes)).name, ixname)
+        is_(list(t.indexes)[0].table, t)
+        eq_(list(t.indexes)[0].name, ixname)
 
     @testing.requires.temp_table_reflection
     @testing.requires.unique_constraint_reflection
@@ -1851,7 +1877,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         for ind in indexes:
             ind.pop("dialect_options", None)
         expected = [
-            {"unique": False, "column_names": ["foo"], "name": "user_tmp_ix"},
+            {"unique": False, "column_names": ["foo"], "name": "user_tmp_ix"}
         ]
         if testing.requires.index_reflects_included_columns.enabled:
             expected[0]["include_columns"] = []
@@ -1861,7 +1887,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         )
 
     @testing.combinations(
-        (True, testing.requires.schemas), (False,), argnames="use_schema",
+        (True, testing.requires.schemas), (False,), argnames="use_schema"
     )
     @testing.requires.unique_constraint_reflection
     def test_get_unique_constraints(self, metadata, connection, use_schema):
@@ -1900,7 +1926,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         )
         for uc in uniques:
             table.append_constraint(
-                sa.UniqueConstraint(*uc["column_names"], name=uc["name"]),
+                sa.UniqueConstraint(*uc["column_names"], name=uc["name"])
             )
         table.create(connection)
 
@@ -1952,7 +1978,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
 
     @testing.requires.view_reflection
     @testing.combinations(
-        (False,), (True, testing.requires.schemas), argnames="use_schema",
+        (False,), (True, testing.requires.schemas), argnames="use_schema"
     )
     def test_get_view_definition(self, connection, use_schema):
         if use_schema:
@@ -1998,7 +2024,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             assert id_.get("autoincrement", True)
 
     @testing.combinations(
-        (True, testing.requires.schemas), (False,), argnames="use_schema",
+        (True, testing.requires.schemas), (False,), argnames="use_schema"
     )
     def test_get_table_options(self, use_schema):
         insp = inspect(config.db)
@@ -2033,7 +2059,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.fixture
     def get_multi_exp(self, connection):
         def provide_fixture(
-            schema, scope, kind, use_filter, single_reflect_fn, exp_method,
+            schema, scope, kind, use_filter, single_reflect_fn, exp_method
         ):
             insp = inspect(connection)
             # call the reflection function at least once to avoid
@@ -2048,7 +2074,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
 
             if ObjectKind.TABLE in kind:
                 filter_names.extend(
-                    ["comment_test", "users", "does-not-exist"],
+                    ["comment_test", "users", "does-not-exist"]
                 )
             if ObjectKind.VIEW in kind:
                 filter_names.extend(["email_addresses_v", "does-not-exist"])
@@ -2083,7 +2109,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.requires.reflect_table_options
     @_multi_combination
     def test_multi_get_table_options_tables(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2101,7 +2127,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.requires.comment_reflection
     @_multi_combination
     def test_get_multi_table_comment(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2148,7 +2174,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
 
     @_multi_combination
     def test_get_multi_columns(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2167,7 +2193,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.requires.primary_key_constraint_reflection
     @_multi_combination
     def test_get_multi_pk_constraint(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2181,7 +2207,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             insp.clear_cache()
             result = insp.get_multi_pk_constraint(**kw)
             self._check_table_dict(
-                result, exp, self._required_pk_keys, make_lists=True,
+                result, exp, self._required_pk_keys, make_lists=True
             )
 
     def _adjust_sort(self, result, expected, key):
@@ -2196,7 +2222,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.requires.foreign_key_constraint_reflection
     @_multi_combination
     def test_get_multi_foreign_keys(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2210,14 +2236,14 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
             insp.clear_cache()
             result = insp.get_multi_foreign_keys(**kw)
             self._adjust_sort(
-                result, exp, lambda d: tuple(d["constrained_columns"]),
+                result, exp, lambda d: tuple(d["constrained_columns"])
             )
             self._check_table_dict(result, exp, self._required_fk_keys)
 
     @testing.requires.index_reflection
     @_multi_combination
     def test_get_multi_indexes(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2235,7 +2261,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.requires.unique_constraint_reflection
     @_multi_combination
     def test_get_multi_unique_constraints(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2254,7 +2280,7 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
     @testing.requires.check_constraint_reflection
     @_multi_combination
     def test_get_multi_check_constraints(
-        self, get_multi_exp, schema, scope, kind, use_filter,
+        self, get_multi_exp, schema, scope, kind, use_filter
     ):
         insp, kws, exp = get_multi_exp(
             schema,
@@ -2310,12 +2336,12 @@ class ComponentReflectionTest(ComparesTables, OneConnectionTablesTest):
         with mock.patch.object(Inspector, "get_multi_columns", patched):
             with expect_raises_message(UnreflectableTableError, "err"):
                 inspect(connection).reflect_table(
-                    Table("some_table", MetaData()), None,
+                    Table("some_table", MetaData()), None
                 )
 
     @testing.combinations(True, False, argnames="use_schema")
     @testing.combinations(
-        (True, testing.requires.views), False, argnames="views",
+        (True, testing.requires.views), False, argnames="views"
     )
     def test_metadata(self, connection, use_schema, views):
         m = MetaData()
@@ -2394,7 +2420,7 @@ class TableNoColumnsTest(fixtures.TestBase):
         # for transactional DDL the transaction is rolled back before this
         # drop statement is invoked
         event.listen(
-            metadata, "before_drop", DDL("DROP VIEW IF EXISTS empty_v"),
+            metadata, "before_drop", DDL("DROP VIEW IF EXISTS empty_v")
         )
         metadata.create_all(connection)
 
@@ -2429,62 +2455,158 @@ class TableNoColumnsTest(fixtures.TestBase):
 class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
     __backend__ = True
 
-    @testing.combinations(
-        (True, testing.requires.schemas), (False,), argnames="use_schema",
-    )
-    @testing.requires.check_constraint_reflection
-    def test_get_check_constraints(self, metadata, connection, use_schema):
-        if use_schema:
-            schema = config.test_schema
+    @testing.fixture(params=[True, False])
+    def use_schema_fixture(self, request):
+        if request.param:
+            return config.test_schema
         else:
-            schema = None
+            return None
 
-        Table(
-            "sa_cc",
-            metadata,
-            Column("a", Integer()),
-            sa.CheckConstraint("a > 1 AND a < 5", name="cc1"),
-            sa.CheckConstraint(
-                "a = 1 OR (a > 2 AND a < 5)", name="UsesCasing",
-            ),
-            schema=schema,
-        )
-        Table(
-            "no_constraints",
-            metadata,
-            Column("data", sa.String(20)),
-            schema=schema,
-        )
+    @testing.fixture()
+    def inspect_for_table(self, metadata, connection, use_schema_fixture):
+        @contextlib.contextmanager
+        def go(tablename):
+            yield use_schema_fixture, inspect(connection)
 
-        metadata.create_all(connection)
+            metadata.create_all(connection)
 
-        insp = inspect(connection)
-        reflected = sorted(
-            insp.get_check_constraints("sa_cc", schema=schema),
-            key=operator.itemgetter("name"),
-        )
+        return go
 
+    def ck_eq(self, reflected, expected):
         # trying to minimize effect of quoting, parenthesis, etc.
         # may need to add more to this as new dialects get CHECK
         # constraint reflection support
         def normalize(sqltext):
             return " ".join(
-                re.findall(r"and|\d|=|a|or|<|>", sqltext.lower(), re.I),
+                re.findall(r"and|\d|=|a|b|c|or|<|>", sqltext.lower(), re.I)
             )
 
-        reflected = [
-            {"name": item["name"], "sqltext": normalize(item["sqltext"])}
-            for item in reflected
-        ]
-        eq_(
+        reflected = sorted(
+            [
+                {"name": item["name"], "sqltext": normalize(item["sqltext"])}
+                for item in reflected
+            ],
+            key=lambda item: (item["sqltext"]),
+        )
+
+        expected = sorted(
+            expected,
+            key=lambda item: (item["sqltext"]),
+        )
+        eq_(reflected, expected)
+
+    @testing.requires.check_constraint_reflection
+    def test_check_constraint_no_constraint(self, metadata, inspect_for_table):
+        with inspect_for_table("no_constraints") as (schema, inspector):
+            Table(
+                "no_constraints",
+                metadata,
+                Column("data", sa.String(20)),
+                schema=schema,
+            )
+
+        self.ck_eq(
+            inspector.get_check_constraints("no_constraints", schema=schema),
+            [],
+        )
+
+    @testing.requires.inline_check_constraint_reflection
+    @testing.combinations(
+        "my_inline", "MyInline", None, argnames="constraint_name"
+    )
+    def test_check_constraint_inline(
+        self, metadata, inspect_for_table, constraint_name
+    ):
+
+        with inspect_for_table("sa_cc") as (schema, inspector):
+            Table(
+                "sa_cc",
+                metadata,
+                Column("id", Integer(), primary_key=True),
+                Column(
+                    "a",
+                    Integer(),
+                    sa.CheckConstraint(
+                        "a > 1 AND a < 5", name=constraint_name
+                    ),
+                ),
+                Column("data", String(50)),
+                schema=schema,
+            )
+
+        reflected = inspector.get_check_constraints("sa_cc", schema=schema)
+
+        self.ck_eq(
             reflected,
             [
-                {"name": "UsesCasing", "sqltext": "a = 1 or a > 2 and a < 5"},
-                {"name": "cc1", "sqltext": "a > 1 and a < 5"},
+                {
+                    "name": constraint_name or mock.ANY,
+                    "sqltext": "a > 1 and a < 5",
+                },
             ],
         )
-        no_cst = "no_constraints"
-        eq_(insp.get_check_constraints(no_cst, schema=schema), [])
+
+    @testing.requires.check_constraint_reflection
+    @testing.combinations(
+        "my_ck_const", "MyCkConst", None, argnames="constraint_name"
+    )
+    def test_check_constraint_standalone(
+        self, metadata, inspect_for_table, constraint_name
+    ):
+        with inspect_for_table("sa_cc") as (schema, inspector):
+            Table(
+                "sa_cc",
+                metadata,
+                Column("a", Integer()),
+                sa.CheckConstraint(
+                    "a = 1 OR (a > 2 AND a < 5)", name=constraint_name
+                ),
+                schema=schema,
+            )
+
+        reflected = inspector.get_check_constraints("sa_cc", schema=schema)
+
+        self.ck_eq(
+            reflected,
+            [
+                {
+                    "name": constraint_name or mock.ANY,
+                    "sqltext": "a = 1 or a > 2 and a < 5",
+                },
+            ],
+        )
+
+    @testing.requires.inline_check_constraint_reflection
+    def test_check_constraint_mixed(self, metadata, inspect_for_table):
+        with inspect_for_table("sa_cc") as (schema, inspector):
+            Table(
+                "sa_cc",
+                metadata,
+                Column("id", Integer(), primary_key=True),
+                Column("a", Integer(), sa.CheckConstraint("a > 1 AND a < 5")),
+                Column(
+                    "b",
+                    Integer(),
+                    sa.CheckConstraint("b > 1 AND b < 5", name="my_inline"),
+                ),
+                Column("c", Integer()),
+                Column("data", String(50)),
+                sa.UniqueConstraint("data", name="some_uq"),
+                sa.CheckConstraint("c > 1 AND c < 5", name="cc1"),
+                sa.UniqueConstraint("c", name="some_c_uq"),
+                schema=schema,
+            )
+
+        reflected = inspector.get_check_constraints("sa_cc", schema=schema)
+
+        self.ck_eq(
+            reflected,
+            [
+                {"name": "cc1", "sqltext": "c > 1 and c < 5"},
+                {"name": "my_inline", "sqltext": "b > 1 and b < 5"},
+                {"name": mock.ANY, "sqltext": "a > 1 and a < 5"},
+            ],
+        )
 
     @testing.requires.indexes_with_expressions
     def test_reflect_expression_based_indexes(self, metadata, connection):
@@ -2511,14 +2633,14 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
                 "column_names": ["x"],
                 "unique": False,
                 "dialect_options": {},
-            },
+            }
         ]
 
         def completeIndex(entry):
             if testing.requires.index_reflects_included_columns.enabled:
                 entry["include_columns"] = []
                 entry["dialect_options"] = {
-                    f"{connection.engine.name}_include": [],
+                    f"{connection.engine.name}_include": []
                 }
             else:
                 entry.setdefault("dialect_options", {})
@@ -2554,7 +2676,7 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
                 "name": "t_idx_long",
                 "column_names": [None],
                 "expressions": [
-                    coalesce_index_str(f"coalesce(x, '{long_str}')"),
+                    coalesce_index_str(f"coalesce(x, '{long_str}')")
                 ],
                 "unique": False,
             }
@@ -2567,14 +2689,14 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
         else:
             with expect_warnings(
                 "Skipped unsupported reflection of expression-based "
-                "index t_idx",
+                "index t_idx"
             ):
                 eq_(insp.get_indexes("t"), expected)
                 m2 = MetaData()
                 t2 = Table("t", m2, autoload_with=connection)
 
         self.compare_table_index_with_expected(
-            t2, expected, connection.engine.name,
+            t2, expected, connection.engine.name
         )
 
     @testing.requires.index_reflects_included_columns
@@ -2602,19 +2724,19 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
                     "include_columns": ["y"],
                     "unique": False,
                     "dialect_options": mock.ANY,
-                },
+                }
             ],
         )
         eq_(
             get_indexes[0]["dialect_options"][
-                f"{connection.engine.name}_include"
+                "%s_include" % connection.engine.name
             ],
             ["y"],
         )
 
         t2 = Table("t", MetaData(), autoload_with=connection)
         eq_(
-            next(iter(t2.indexes)).dialect_options[connection.engine.name][
+            list(t2.indexes)[0].dialect_options[connection.engine.name][
                 "include"
             ],
             ["y"],
@@ -2633,7 +2755,7 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
     @testing.requires.table_reflection
     def test_numeric_reflection(self, connection, metadata):
         for typ in self._type_round_trip(
-            connection, metadata, sql_types.Numeric(18, 5),
+            connection, metadata, sql_types.Numeric(18, 5)
         ):
             assert isinstance(typ, sql_types.Numeric)
             eq_(typ.precision, 18)
@@ -2642,7 +2764,7 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
     @testing.requires.table_reflection
     def test_varchar_reflection(self, connection, metadata):
         typ = self._type_round_trip(
-            connection, metadata, sql_types.String(52),
+            connection, metadata, sql_types.String(52)
         )[0]
         assert isinstance(typ, sql_types.String)
         eq_(typ.length, 52)
@@ -2704,7 +2826,7 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
         argnames="expected,ondelete,onupdate",
     )
     def test_get_foreign_key_options(
-        self, connection, metadata, expected, ondelete, onupdate,
+        self, connection, metadata, expected, ondelete, onupdate
     ):
         options = {}
         if ondelete:
@@ -2738,7 +2860,7 @@ class ComponentReflectionTestExtra(ComparesIndexes, fixtures.TestBase):
             Column("name", String(50), nullable=False),
             Column("tid", Integer),
             sa.ForeignKeyConstraint(
-                ["tid"], ["table.id"], name="myfk", **options,
+                ["tid"], ["table.id"], name="myfk", **options
             ),
             test_needs_fk=True,
         )
@@ -2779,14 +2901,14 @@ class NormalizedNameTest(fixtures.TablesTest):
     def test_reflect_lowercase_forced_tables(self):
         m2 = MetaData()
         t2_ref = Table(
-            quoted_name("t2", quote=True), m2, autoload_with=config.db,
+            quoted_name("t2", quote=True), m2, autoload_with=config.db
         )
         t1_ref = m2.tables["t1"]
         assert t2_ref.c.t1id.references(t1_ref.c.id)
 
         m3 = MetaData()
         m3.reflect(
-            config.db, only=lambda name, m: name.lower() in ("t1", "t2"),
+            config.db, only=lambda name, m: name.lower() in ("t1", "t2")
         )
         assert m3.tables["t2"].c.t1id.references(m3.tables["t1"].c.id)
 
@@ -2872,7 +2994,7 @@ class ComputedReflectionTest(fixtures.ComputedReflectionFixtureTest):
         insp = inspect(config.db)
 
         cols = insp.get_columns(
-            "computed_column_table", schema=config.test_schema,
+            "computed_column_table", schema=config.test_schema
         )
         data = {c["name"]: c for c in cols}
 
@@ -2981,15 +3103,15 @@ class IdentityReflectionTest(fixtures.TablesTest):
                 is_true("identity" in col)
                 self.check(
                     col["identity"],
-                    {
-                        "always": False,
-                        "start": 1,
-                        "increment": 1,
-                        "minvalue": 1,
-                        "maxvalue": 2147483647,
-                        "cycle": False,
-                        "cache": 1,
-                    },
+                    dict(
+                        always=False,
+                        start=1,
+                        increment=1,
+                        minvalue=1,
+                        maxvalue=2147483647,
+                        cycle=False,
+                        cache=1,
+                    ),
                     approx=True,
                 )
             elif col["name"] == "id2":
@@ -2999,15 +3121,15 @@ class IdentityReflectionTest(fixtures.TablesTest):
                 is_true("identity" in col)
                 self.check(
                     col["identity"],
-                    {
-                        "always": True,
-                        "start": 2,
-                        "increment": 3,
-                        "minvalue": -2,
-                        "maxvalue": 42,
-                        "cycle": True,
-                        "cache": 4,
-                    },
+                    dict(
+                        always=True,
+                        start=2,
+                        increment=3,
+                        minvalue=-2,
+                        maxvalue=42,
+                        cycle=True,
+                        cache=4,
+                    ),
                     approx=False,
                 )
 
@@ -3026,15 +3148,15 @@ class IdentityReflectionTest(fixtures.TablesTest):
                 is_true("identity" in col)
                 self.check(
                     col["identity"],
-                    {
-                        "always": True,
-                        "start": 20,
-                        "increment": 1,
-                        "minvalue": 1,
-                        "maxvalue": 2147483647,
-                        "cycle": False,
-                        "cache": 1,
-                    },
+                    dict(
+                        always=True,
+                        start=20,
+                        increment=1,
+                        minvalue=1,
+                        maxvalue=2147483647,
+                        cycle=False,
+                        cache=1,
+                    ),
                     approx=True,
                 )
 
@@ -3089,15 +3211,15 @@ class CompositeKeyReflectionTest(fixtures.TablesTest):
 
 
 __all__ = (
-    "BizarroCharacterFKResolutionTest",
     "ComponentReflectionTest",
     "ComponentReflectionTestExtra",
-    "CompositeKeyReflectionTest",
-    "ComputedReflectionTest",
-    "HasIndexTest",
-    "HasTableTest",
-    "IdentityReflectionTest",
-    "NormalizedNameTest",
-    "QuotedNameArgumentTest",
     "TableNoColumnsTest",
+    "QuotedNameArgumentTest",
+    "BizarroCharacterFKResolutionTest",
+    "HasTableTest",
+    "HasIndexTest",
+    "NormalizedNameTest",
+    "ComputedReflectionTest",
+    "IdentityReflectionTest",
+    "CompositeKeyReflectionTest",
 )

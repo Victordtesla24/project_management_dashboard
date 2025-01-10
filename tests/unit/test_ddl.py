@@ -1,5 +1,5 @@
 # testing/suite/test_ddl.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
@@ -8,22 +8,24 @@
 
 import random
 
-from ... import (
-    CheckConstraint,
-    Column,
-    ForeignKeyConstraint,
-    Index,
-    Integer,
-    String,
-    UniqueConstraint,
-    inspect,
-    schema,
-)
-from .. import config, fixtures, util
-from ..assertions import eq_, is_false, is_true
+from . import testing
+from .. import config
+from .. import fixtures
+from .. import util
+from ..assertions import eq_
+from ..assertions import is_false
+from ..assertions import is_true
 from ..config import requirements
 from ..schema import Table
-from . import testing
+from ... import CheckConstraint
+from ... import Column
+from ... import ForeignKeyConstraint
+from ... import Index
+from ... import inspect
+from ... import Integer
+from ... import schema
+from ... import String
+from ... import UniqueConstraint
 
 
 class TableDDLTest(fixtures.TestBase):
@@ -107,7 +109,7 @@ class TableDDLTest(fixtures.TestBase):
         connection.execute(schema.SetTableComment(table))
         connection.execute(schema.DropTableComment(table))
         eq_(
-            inspect(connection).get_table_comment("test_table"), {"text": None},
+            inspect(connection).get_table_comment("test_table"), {"text": None}
         )
 
     @requirements.table_ddl_if_exists
@@ -132,7 +134,7 @@ class TableDDLTest(fixtures.TestBase):
             in [
                 ix["name"]
                 for ix in inspect(connection).get_indexes("test_table")
-            ],
+            ]
         )
 
         connection.execute(schema.CreateIndex(idx, if_not_exists=True))
@@ -142,7 +144,7 @@ class TableDDLTest(fixtures.TestBase):
             in [
                 ix["name"]
                 for ix in inspect(connection).get_indexes("test_table")
-            ],
+            ]
         )
 
         connection.execute(schema.CreateIndex(idx, if_not_exists=True))
@@ -174,7 +176,7 @@ class TableDDLTest(fixtures.TestBase):
             in [
                 ix["name"]
                 for ix in inspect(connection).get_indexes("test_table")
-            ],
+            ]
         )
 
         connection.execute(schema.DropIndex(idx, if_exists=True))
@@ -184,7 +186,7 @@ class TableDDLTest(fixtures.TestBase):
             in [
                 ix["name"]
                 for ix in inspect(connection).get_indexes("test_table")
-            ],
+            ]
         )
 
         connection.execute(schema.DropIndex(idx, if_exists=True))
@@ -224,7 +226,7 @@ class LongNameBlowoutTest(fixtures.TestBase):
         )
 
         cons = ForeignKeyConstraint(
-            ["aid"], ["a_things_with_stuff.id_long_column_name"],
+            ["aid"], ["a_things_with_stuff.id_long_column_name"]
         )
         Table(
             "b_related_things_of_value",
@@ -245,7 +247,8 @@ class LongNameBlowoutTest(fixtures.TestBase):
             reflected_name = fks[0]["name"]
 
             return actual_name, reflected_name
-        return actual_name, None
+        else:
+            return actual_name, None
 
     def pk(self, metadata, connection):
         convention = {
@@ -370,7 +373,7 @@ class LongNameBlowoutTest(fixtures.TestBase):
     )
     def test_long_convention_name(self, type_, metadata, connection):
         actual_name, reflected_name = getattr(self, type_)(
-            metadata, connection,
+            metadata, connection
         )
 
         assert len(actual_name) > 255
@@ -383,4 +386,4 @@ class LongNameBlowoutTest(fixtures.TestBase):
                 eq_(overlap, reflected_name)
 
 
-__all__ = ("FutureTableDDLTest", "LongNameBlowoutTest", "TableDDLTest")
+__all__ = ("TableDDLTest", "FutureTableDDLTest", "LongNameBlowoutTest")

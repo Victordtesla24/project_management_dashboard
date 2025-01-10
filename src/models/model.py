@@ -1,602 +1,330 @@
-import types
-import weakref
+from __future__ import annotations
 
-from .error import CDefError, VerificationError, VerificationMissing
-from .lock import allocate_lock
+import re
+import typing as t
 
-# type qualifiers
-Q_CONST    = 0x01
-Q_RESTRICT = 0x02
-Q_VOLATILE = 0x04
+import sqlalchemy as sa
+import sqlalchemy.orm as sa_orm
 
-def qualify(quals, replace_with):
-    if quals & Q_CONST:
-        replace_with = ' const ' + replace_with.lstrip()
-    if quals & Q_VOLATILE:
-        replace_with = ' volatile ' + replace_with.lstrip()
-    if quals & Q_RESTRICT:
-        # It seems that __restrict is supported by gcc and msvc.
-        # If you hit some different compiler, add a #define in
-        # _cffi_include.h for it (and in its copies, documented there)
-        replace_with = ' __restrict ' + replace_with.lstrip()
-    return replace_with
+from .query import Query
+
+if t.TYPE_CHECKING:
+    from .extension import SQLAlchemy
 
 
-class BaseTypeByIdentity:
-    is_array_type = False
-    is_raw_function = False
+class _QueryProperty:
+    """A class property that creates a query object for a model.
 
-    def get_c_name(self, replace_with='', context='a C file', quals=0):
-        result = self.c_name_with_marker
-        assert result.count('&') == 1
-        # some logic duplication with ffi.getctype()... :-(
-        replace_with = replace_with.strip()
-        if replace_with:
-            if replace_with.startswith('*') and '&[' in result:
-                replace_with = f'({replace_with})'
-            elif replace_with[0] not in '[(':
-                replace_with = ' ' + replace_with
-        replace_with = qualify(quals, replace_with)
-        result = result.replace('&', replace_with)
-        if '$' in result:
-            raise VerificationError(
-                f"cannot generate '{self._get_c_name()}' in {context}: unknown type name")
-        return result
+    :meta private:
+    """
 
-    def _get_c_name(self):
-        return self.c_name_with_marker.replace('&', '')
+    def __get__(self, obj: Model | None, cls: type[Model]) -> Query:
+        return cls.query_class(
+            cls, session=cls.__fsa__.session()  # type: ignore[arg-type]
+        )
 
-    def has_c_name(self):
-        return '$' not in self._get_c_name()
 
-    def is_integer_type(self):
+class Model:
+    """The base class of the :attr:`.SQLAlchemy.Model` declarative model class.
+
+    To define models, subclass :attr:`db.Model <.SQLAlchemy.Model>`, not this. To
+    customize ``db.Model``, subclass this and pass it as ``model_class`` to
+    :class:`.SQLAlchemy`. To customize ``db.Model`` at the metaclass level, pass an
+    already created declarative model class as ``model_class``.
+    """
+
+    __fsa__: t.ClassVar[SQLAlchemy]
+    """Internal reference to the extension object.
+
+    :meta private:
+    """
+
+    query_class: t.ClassVar[type[Query]] = Query
+    """Query class used by :attr:`query`. Defaults to :attr:`.SQLAlchemy.Query`, which
+    defaults to :class:`.Query`.
+    """
+
+    query: t.ClassVar[Query] = _QueryProperty()  # type: ignore[assignment]
+    """A SQLAlchemy query for a model. Equivalent to ``db.session.query(Model)``. Can be
+    customized per-model by overriding :attr:`query_class`.
+
+    .. warning::
+        The query interface is considered legacy in SQLAlchemy. Prefer using
+        ``session.execute(select())`` instead.
+    """
+
+    def __repr__(self) -> str:
+        state = sa.inspect(self)
+        assert state is not None
+
+        if state.transient:
+            pk = f"(transient {id(self)})"
+        elif state.pending:
+            pk = f"(pending {id(self)})"
+        else:
+            pk = ", ".join(map(str, state.identity))
+
+        return f"<{type(self).__name__} {pk}>"
+
+
+class BindMetaMixin(type):
+    """Metaclass mixin that sets a model's ``metadata`` based on its ``__bind_key__``.
+
+    If the model sets ``metadata`` or ``__table__`` directly, ``__bind_key__`` is
+    ignored. If the ``metadata`` is the same as the parent model, it will not be set
+    directly on the child model.
+    """
+
+    __fsa__: SQLAlchemy
+    metadata: sa.MetaData
+
+    def __init__(
+        cls, name: str, bases: tuple[type, ...], d: dict[str, t.Any], **kwargs: t.Any
+    ) -> None:
+        if not ("metadata" in cls.__dict__ or "__table__" in cls.__dict__):
+            bind_key = getattr(cls, "__bind_key__", None)
+            parent_metadata = getattr(cls, "metadata", None)
+            metadata = cls.__fsa__._make_metadata(bind_key)
+
+            if metadata is not parent_metadata:
+                cls.metadata = metadata
+
+        super().__init__(name, bases, d, **kwargs)
+
+
+class BindMixin:
+    """DeclarativeBase mixin to set a model's ``metadata`` based on ``__bind_key__``.
+
+    If no ``__bind_key__`` is specified, the model will use the default metadata
+    provided by ``DeclarativeBase`` or ``DeclarativeBaseNoMeta``.
+    If the model doesn't set ``metadata`` or ``__table__`` directly
+    and does set ``__bind_key__``, the model will use the metadata
+    for the specified bind key.
+    If the ``metadata`` is the same as the parent model, it will not be set
+    directly on the child model.
+
+    .. versionchanged:: 3.1.0
+    """
+
+    __fsa__: SQLAlchemy
+    metadata: sa.MetaData
+
+    @classmethod
+    def __init_subclass__(cls: t.Type[BindMixin], **kwargs: t.Dict[str, t.Any]) -> None:
+        if not ("metadata" in cls.__dict__ or "__table__" in cls.__dict__) and hasattr(
+            cls, "__bind_key__"
+        ):
+            bind_key = getattr(cls, "__bind_key__", None)
+            parent_metadata = getattr(cls, "metadata", None)
+            metadata = cls.__fsa__._make_metadata(bind_key)
+
+            if metadata is not parent_metadata:
+                cls.metadata = metadata
+
+        super().__init_subclass__(**kwargs)
+
+
+class NameMetaMixin(type):
+    """Metaclass mixin that sets a model's ``__tablename__`` by converting the
+    ``CamelCase`` class name to ``snake_case``. A name is set for non-abstract models
+    that do not otherwise define ``__tablename__``. If a model does not define a primary
+    key, it will not generate a name or ``__table__``, for single-table inheritance.
+    """
+
+    metadata: sa.MetaData
+    __tablename__: str
+    __table__: sa.Table
+
+    def __init__(
+        cls, name: str, bases: tuple[type, ...], d: dict[str, t.Any], **kwargs: t.Any
+    ) -> None:
+        if should_set_tablename(cls):
+            cls.__tablename__ = camel_to_snake_case(cls.__name__)
+
+        super().__init__(name, bases, d, **kwargs)
+
+        # __table_cls__ has run. If no table was created, use the parent table.
+        if (
+            "__tablename__" not in cls.__dict__
+            and "__table__" in cls.__dict__
+            and cls.__dict__["__table__"] is None
+        ):
+            del cls.__table__
+
+    def __table_cls__(cls, *args: t.Any, **kwargs: t.Any) -> sa.Table | None:
+        """This is called by SQLAlchemy during mapper setup. It determines the final
+        table object that the model will use.
+
+        If no primary key is found, that indicates single-table inheritance, so no table
+        will be created and ``__tablename__`` will be unset.
+        """
+        schema = kwargs.get("schema")
+
+        if schema is None:
+            key = args[0]
+        else:
+            key = f"{schema}.{args[0]}"
+
+        # Check if a table with this name already exists. Allows reflected tables to be
+        # applied to models by name.
+        if key in cls.metadata.tables:
+            return sa.Table(*args, **kwargs)
+
+        # If a primary key is found, create a table for joined-table inheritance.
+        for arg in args:
+            if (isinstance(arg, sa.Column) and arg.primary_key) or isinstance(
+                arg, sa.PrimaryKeyConstraint
+            ):
+                return sa.Table(*args, **kwargs)
+
+        # If no base classes define a table, return one that's missing a primary key
+        # so SQLAlchemy shows the correct error.
+        for base in cls.__mro__[1:-1]:
+            if "__table__" in base.__dict__:
+                break
+        else:
+            return sa.Table(*args, **kwargs)
+
+        # Single-table inheritance, use the parent table name. __init__ will unset
+        # __table__ based on this.
+        if "__tablename__" in cls.__dict__:
+            del cls.__tablename__
+
+        return None
+
+
+class NameMixin:
+    """DeclarativeBase mixin that sets a model's ``__tablename__`` by converting the
+    ``CamelCase`` class name to ``snake_case``. A name is set for non-abstract models
+    that do not otherwise define ``__tablename__``. If a model does not define a primary
+    key, it will not generate a name or ``__table__``, for single-table inheritance.
+
+    .. versionchanged:: 3.1.0
+    """
+
+    metadata: sa.MetaData
+    __tablename__: str
+    __table__: sa.Table
+
+    @classmethod
+    def __init_subclass__(cls: t.Type[NameMixin], **kwargs: t.Dict[str, t.Any]) -> None:
+        if should_set_tablename(cls):
+            cls.__tablename__ = camel_to_snake_case(cls.__name__)
+
+        super().__init_subclass__(**kwargs)
+
+        # __table_cls__ has run. If no table was created, use the parent table.
+        if (
+            "__tablename__" not in cls.__dict__
+            and "__table__" in cls.__dict__
+            and cls.__dict__["__table__"] is None
+        ):
+            del cls.__table__
+
+    @classmethod
+    def __table_cls__(cls, *args: t.Any, **kwargs: t.Any) -> sa.Table | None:
+        """This is called by SQLAlchemy during mapper setup. It determines the final
+        table object that the model will use.
+
+        If no primary key is found, that indicates single-table inheritance, so no table
+        will be created and ``__tablename__`` will be unset.
+        """
+        schema = kwargs.get("schema")
+
+        if schema is None:
+            key = args[0]
+        else:
+            key = f"{schema}.{args[0]}"
+
+        # Check if a table with this name already exists. Allows reflected tables to be
+        # applied to models by name.
+        if key in cls.metadata.tables:
+            return sa.Table(*args, **kwargs)
+
+        # If a primary key is found, create a table for joined-table inheritance.
+        for arg in args:
+            if (isinstance(arg, sa.Column) and arg.primary_key) or isinstance(
+                arg, sa.PrimaryKeyConstraint
+            ):
+                return sa.Table(*args, **kwargs)
+
+        # If no base classes define a table, return one that's missing a primary key
+        # so SQLAlchemy shows the correct error.
+        for base in cls.__mro__[1:-1]:
+            if "__table__" in base.__dict__:
+                break
+        else:
+            return sa.Table(*args, **kwargs)
+
+        # Single-table inheritance, use the parent table name. __init__ will unset
+        # __table__ based on this.
+        if "__tablename__" in cls.__dict__:
+            del cls.__tablename__
+
+        return None
+
+
+def should_set_tablename(cls: type) -> bool:
+    """Determine whether ``__tablename__`` should be generated for a model.
+
+    -   If no class in the MRO sets a name, one should be generated.
+    -   If a declared attr is found, it should be used instead.
+    -   If a name is found, it should be used if the class is a mixin, otherwise one
+        should be generated.
+    -   Abstract models should not have one generated.
+
+    Later, ``__table_cls__`` will determine if the model looks like single or
+    joined-table inheritance. If no primary key is found, the name will be unset.
+    """
+    if (
+        cls.__dict__.get("__abstract__", False)
+        or (
+            not issubclass(cls, (sa_orm.DeclarativeBase, sa_orm.DeclarativeBaseNoMeta))
+            and not any(isinstance(b, sa_orm.DeclarativeMeta) for b in cls.__mro__[1:])
+        )
+        or any(
+            (b is sa_orm.DeclarativeBase or b is sa_orm.DeclarativeBaseNoMeta)
+            for b in cls.__bases__
+        )
+    ):
         return False
 
-    def get_cached_btype(self, ffi, finishlist, can_delay=False):
-        try:
-            BType = ffi._cached_btypes[self]
-        except KeyError:
-            BType = self.build_backend_type(ffi, finishlist)
-            BType2 = ffi._cached_btypes.setdefault(self, BType)
-            assert BType2 is BType
-        return BType
-
-    def __repr__(self):
-        return f'<{self._get_c_name()}>'
-
-    def _get_items(self):
-        return [(name, getattr(self, name)) for name in self._attrs_]
-
-
-class BaseType(BaseTypeByIdentity):
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__ and
-                self._get_items() == other._get_items())
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash((self.__class__, tuple(self._get_items())))
-
-
-class VoidType(BaseType):
-    _attrs_ = ()
-
-    def __init__(self):
-        self.c_name_with_marker = 'void&'
-
-    def build_backend_type(self, ffi, finishlist):
-        return global_cache(self, ffi, 'new_void_type')
-
-void_type = VoidType()
-
-
-class BasePrimitiveType(BaseType):
-    def is_complex_type(self):
-        return False
-
-
-class PrimitiveType(BasePrimitiveType):
-    _attrs_ = ('name',)
-
-    ALL_PRIMITIVE_TYPES = {
-        'char':               'c',
-        'short':              'i',
-        'int':                'i',
-        'long':               'i',
-        'long long':          'i',
-        'signed char':        'i',
-        'unsigned char':      'i',
-        'unsigned short':     'i',
-        'unsigned int':       'i',
-        'unsigned long':      'i',
-        'unsigned long long': 'i',
-        'float':              'f',
-        'double':             'f',
-        'long double':        'f',
-        '_cffi_float_complex_t': 'j',
-        '_cffi_double_complex_t': 'j',
-        '_Bool':              'i',
-        # the following types are not primitive in the C sense
-        'wchar_t':            'c',
-        'char16_t':           'c',
-        'char32_t':           'c',
-        'int8_t':             'i',
-        'uint8_t':            'i',
-        'int16_t':            'i',
-        'uint16_t':           'i',
-        'int32_t':            'i',
-        'uint32_t':           'i',
-        'int64_t':            'i',
-        'uint64_t':           'i',
-        'int_least8_t':       'i',
-        'uint_least8_t':      'i',
-        'int_least16_t':      'i',
-        'uint_least16_t':     'i',
-        'int_least32_t':      'i',
-        'uint_least32_t':     'i',
-        'int_least64_t':      'i',
-        'uint_least64_t':     'i',
-        'int_fast8_t':        'i',
-        'uint_fast8_t':       'i',
-        'int_fast16_t':       'i',
-        'uint_fast16_t':      'i',
-        'int_fast32_t':       'i',
-        'uint_fast32_t':      'i',
-        'int_fast64_t':       'i',
-        'uint_fast64_t':      'i',
-        'intptr_t':           'i',
-        'uintptr_t':          'i',
-        'intmax_t':           'i',
-        'uintmax_t':          'i',
-        'ptrdiff_t':          'i',
-        'size_t':             'i',
-        'ssize_t':            'i',
-        }
-
-    def __init__(self, name):
-        assert name in self.ALL_PRIMITIVE_TYPES
-        self.name = name
-        self.c_name_with_marker = name + '&'
-
-    def is_char_type(self):
-        return self.ALL_PRIMITIVE_TYPES[self.name] == 'c'
-    def is_integer_type(self):
-        return self.ALL_PRIMITIVE_TYPES[self.name] == 'i'
-    def is_float_type(self):
-        return self.ALL_PRIMITIVE_TYPES[self.name] == 'f'
-    def is_complex_type(self):
-        return self.ALL_PRIMITIVE_TYPES[self.name] == 'j'
-
-    def build_backend_type(self, ffi, finishlist):
-        return global_cache(self, ffi, 'new_primitive_type', self.name)
-
-
-class UnknownIntegerType(BasePrimitiveType):
-    _attrs_ = ('name',)
-
-    def __init__(self, name):
-        self.name = name
-        self.c_name_with_marker = name + '&'
-
-    def is_integer_type(self):
-        return True
-
-    def build_backend_type(self, ffi, finishlist):
-        raise NotImplementedError(f"integer type '{self.name}' can only be used after "
-                                  "compilation")
-
-class UnknownFloatType(BasePrimitiveType):
-    _attrs_ = ('name', )
-
-    def __init__(self, name):
-        self.name = name
-        self.c_name_with_marker = name + '&'
-
-    def build_backend_type(self, ffi, finishlist):
-        raise NotImplementedError(f"float type '{self.name}' can only be used after "
-                                  "compilation")
-
-
-class BaseFunctionType(BaseType):
-    _attrs_ = ('args', 'result', 'ellipsis', 'abi')
-
-    def __init__(self, args, result, ellipsis, abi=None):
-        self.args = args
-        self.result = result
-        self.ellipsis = ellipsis
-        self.abi = abi
-        reprargs = [arg._get_c_name() for arg in self.args]
-        if self.ellipsis:
-            reprargs.append('...')
-        reprargs = reprargs or ['void']
-        replace_with = self._base_pattern % (', '.join(reprargs),)
-        if abi is not None:
-            replace_with = replace_with[:1] + abi + ' ' + replace_with[1:]
-        self.c_name_with_marker = (
-            self.result.c_name_with_marker.replace('&', replace_with))
-
-
-class RawFunctionType(BaseFunctionType):
-    # Corresponds to a C type like 'int(int)', which is the C type of
-    # a function, but not a pointer-to-function.  The backend has no
-    # notion of such a type; it's used temporarily by parsing.
-    _base_pattern = '(&)(%s)'
-    is_raw_function = True
-
-    def build_backend_type(self, ffi, finishlist):
-        raise CDefError(f"cannot render the type {self!r}: it is a function "
-                        "type, not a pointer-to-function type")
-
-    def as_function_pointer(self):
-        return FunctionPtrType(self.args, self.result, self.ellipsis, self.abi)
-
-
-class FunctionPtrType(BaseFunctionType):
-    _base_pattern = '(*&)(%s)'
-
-    def build_backend_type(self, ffi, finishlist):
-        result = self.result.get_cached_btype(ffi, finishlist)
-        args = []
-        for tp in self.args:
-            args.append(tp.get_cached_btype(ffi, finishlist))
-        abi_args = ()
-        if self.abi == "__stdcall":
-            if not self.ellipsis:    # __stdcall ignored for variadic funcs
-                try:
-                    abi_args = (ffi._backend.FFI_STDCALL,)
-                except AttributeError:
-                    pass
-        return global_cache(self, ffi, 'new_function_type',
-                            tuple(args), result, self.ellipsis, *abi_args)
-
-    def as_raw_function(self):
-        return RawFunctionType(self.args, self.result, self.ellipsis, self.abi)
-
-
-class PointerType(BaseType):
-    _attrs_ = ('totype', 'quals')
-
-    def __init__(self, totype, quals=0):
-        self.totype = totype
-        self.quals = quals
-        extra = " *&"
-        if totype.is_array_type:
-            extra = f"({extra.lstrip()})"
-        extra = qualify(quals, extra)
-        self.c_name_with_marker = totype.c_name_with_marker.replace('&', extra)
-
-    def build_backend_type(self, ffi, finishlist):
-        BItem = self.totype.get_cached_btype(ffi, finishlist, can_delay=True)
-        return global_cache(self, ffi, 'new_pointer_type', BItem)
-
-voidp_type = PointerType(void_type)
-
-def ConstPointerType(totype):
-    return PointerType(totype, Q_CONST)
-
-const_voidp_type = ConstPointerType(void_type)
-
-
-class NamedPointerType(PointerType):
-    _attrs_ = ('totype', 'name')
-
-    def __init__(self, totype, name, quals=0):
-        PointerType.__init__(self, totype, quals)
-        self.name = name
-        self.c_name_with_marker = name + '&'
-
-
-class ArrayType(BaseType):
-    _attrs_ = ('item', 'length')
-    is_array_type = True
-
-    def __init__(self, item, length):
-        self.item = item
-        self.length = length
-        if length is None:
-            brackets = '&[]'
-        elif length == '...':
-            brackets = '&[/*...*/]'
-        else:
-            brackets = f'&[{length}]'
-        self.c_name_with_marker = (
-            self.item.c_name_with_marker.replace('&', brackets))
-
-    def length_is_unknown(self):
-        return isinstance(self.length, str)
-
-    def resolve_length(self, newlength):
-        return ArrayType(self.item, newlength)
-
-    def build_backend_type(self, ffi, finishlist):
-        if self.length_is_unknown():
-            raise CDefError(f"cannot render the type {self!r}: unknown length")
-        self.item.get_cached_btype(ffi, finishlist)   # force the item BType
-        BPtrItem = PointerType(self.item).get_cached_btype(ffi, finishlist)
-        return global_cache(self, ffi, 'new_array_type', BPtrItem, self.length)
-
-char_array_type = ArrayType(PrimitiveType('char'), None)
-
-
-class StructOrUnionOrEnum(BaseTypeByIdentity):
-    _attrs_ = ('name',)
-    forcename = None
-
-    def build_c_name_with_marker(self):
-        name = self.forcename or f'{self.kind} {self.name}'
-        self.c_name_with_marker = name + '&'
-
-    def force_the_name(self, forcename):
-        self.forcename = forcename
-        self.build_c_name_with_marker()
-
-    def get_official_name(self):
-        assert self.c_name_with_marker.endswith('&')
-        return self.c_name_with_marker[:-1]
-
-
-class StructOrUnion(StructOrUnionOrEnum):
-    fixedlayout = None
-    completed = 0
-    partial = False
-    packed = 0
-
-    def __init__(self, name, fldnames, fldtypes, fldbitsize, fldquals=None):
-        self.name = name
-        self.fldnames = fldnames
-        self.fldtypes = fldtypes
-        self.fldbitsize = fldbitsize
-        self.fldquals = fldquals
-        self.build_c_name_with_marker()
-
-    def anonymous_struct_fields(self):
-        if self.fldtypes is not None:
-            for name, type in zip(self.fldnames, self.fldtypes):
-                if name == '' and isinstance(type, StructOrUnion):
-                    yield type
-
-    def enumfields(self, expand_anonymous_struct_union=True):
-        fldquals = self.fldquals
-        if fldquals is None:
-            fldquals = (0,) * len(self.fldnames)
-        for name, type, bitsize, quals in zip(self.fldnames, self.fldtypes,
-                                              self.fldbitsize, fldquals):
-            if (name == '' and isinstance(type, StructOrUnion)
-                    and expand_anonymous_struct_union):
-                # nested anonymous struct/union
-                yield from type.enumfields()
-            else:
-                yield (name, type, bitsize, quals)
-
-    def force_flatten(self):
-        # force the struct or union to have a declaration that lists
-        # directly all fields returned by enumfields(), flattening
-        # nested anonymous structs/unions.
-        names = []
-        types = []
-        bitsizes = []
-        fldquals = []
-        for name, type, bitsize, quals in self.enumfields():
-            names.append(name)
-            types.append(type)
-            bitsizes.append(bitsize)
-            fldquals.append(quals)
-        self.fldnames = tuple(names)
-        self.fldtypes = tuple(types)
-        self.fldbitsize = tuple(bitsizes)
-        self.fldquals = tuple(fldquals)
-
-    def get_cached_btype(self, ffi, finishlist, can_delay=False):
-        BType = StructOrUnionOrEnum.get_cached_btype(self, ffi, finishlist,
-                                                     can_delay)
-        if not can_delay:
-            self.finish_backend_type(ffi, finishlist)
-        return BType
-
-    def finish_backend_type(self, ffi, finishlist):
-        if self.completed:
-            if self.completed != 2:
-                raise NotImplementedError("recursive structure declaration "
-                                          f"for '{self.name}'")
-            return
-        BType = ffi._cached_btypes[self]
-        self.completed = 1
-        if self.fldtypes is None:
-            pass    # not completing it: it's an opaque struct
-        elif self.fixedlayout is None:
-            fldtypes = [tp.get_cached_btype(ffi, finishlist)
-                        for tp in self.fldtypes]
-            lst = list(zip(self.fldnames, fldtypes, self.fldbitsize))
-            extra_flags = ()
-            if self.packed:
-                if self.packed == 1:
-                    extra_flags = (8,)    # SF_PACKED
-                else:
-                    extra_flags = (0, self.packed)
-            ffi._backend.complete_struct_or_union(BType, lst, self,
-                                                  -1, -1, *extra_flags)
-        else:
-            fldtypes = []
-            fieldofs, fieldsize, totalsize, totalalignment = self.fixedlayout
-            for i in range(len(self.fldnames)):
-                fsize = fieldsize[i]
-                ftype = self.fldtypes[i]
-                if isinstance(ftype, ArrayType) and ftype.length_is_unknown():
-                    # fix the length to match the total size
-                    BItemType = ftype.item.get_cached_btype(ffi, finishlist)
-                    nlen, nrest = divmod(fsize, ffi.sizeof(BItemType))
-                    if nrest != 0:
-                        self._verification_error(
-                            "field '{}.{}' has a bogus size?".format(
-                            self.name, self.fldnames[i] or '{}'))
-                    ftype = ftype.resolve_length(nlen)
-                    self.fldtypes = (self.fldtypes[:i] + (ftype,) +
-                                     self.fldtypes[i+1:])
-                BFieldType = ftype.get_cached_btype(ffi, finishlist)
-                if isinstance(ftype, ArrayType) and ftype.length is None:
-                    assert fsize == 0
-                else:
-                    bitemsize = ffi.sizeof(BFieldType)
-                    if bitemsize != fsize:
-                        self._verification_error(
-                            "field '%s.%s' is declared as %d bytes, but is "
-                            "really %d bytes" % (self.name,
-                                                 self.fldnames[i] or '{}',
-                                                 bitemsize, fsize))
-                fldtypes.append(BFieldType)
-            lst = list(zip(self.fldnames, fldtypes, self.fldbitsize, fieldofs))
-            ffi._backend.complete_struct_or_union(BType, lst, self,
-                                                  totalsize, totalalignment)
-        self.completed = 2
-
-    def _verification_error(self, msg):
-        raise VerificationError(msg)
-
-    def check_not_partial(self):
-        if self.partial and self.fixedlayout is None:
-            raise VerificationMissing(self._get_c_name())
-
-    def build_backend_type(self, ffi, finishlist):
-        self.check_not_partial()
-        finishlist.append(self)
-        return global_cache(self, ffi, f'new_{self.kind}_type',
-                            self.get_official_name(), key=self)
-
-
-class StructType(StructOrUnion):
-    kind = 'struct'
-
-
-class UnionType(StructOrUnion):
-    kind = 'union'
-
-
-class EnumType(StructOrUnionOrEnum):
-    kind = 'enum'
-    partial = False
-    partial_resolved = False
-
-    def __init__(self, name, enumerators, enumvalues, baseinttype=None):
-        self.name = name
-        self.enumerators = enumerators
-        self.enumvalues = enumvalues
-        self.baseinttype = baseinttype
-        self.build_c_name_with_marker()
-
-    def force_the_name(self, forcename):
-        StructOrUnionOrEnum.force_the_name(self, forcename)
-        if self.forcename is None:
-            name = self.get_official_name()
-            self.forcename = '$' + name.replace(' ', '_')
-
-    def check_not_partial(self):
-        if self.partial and not self.partial_resolved:
-            raise VerificationMissing(self._get_c_name())
-
-    def build_backend_type(self, ffi, finishlist):
-        self.check_not_partial()
-        base_btype = self.build_baseinttype(ffi, finishlist)
-        return global_cache(self, ffi, 'new_enum_type',
-                            self.get_official_name(),
-                            self.enumerators, self.enumvalues,
-                            base_btype, key=self)
-
-    def build_baseinttype(self, ffi, finishlist):
-        if self.baseinttype is not None:
-            return self.baseinttype.get_cached_btype(ffi, finishlist)
-        if self.enumvalues:
-            smallest_value = min(self.enumvalues)
-            largest_value = max(self.enumvalues)
-        else:
-            import warnings
-            try:
-                # XXX!  The goal is to ensure that the warnings.warn()
-                # will not suppress the warning.  We want to get it
-                # several times if we reach this point several times.
-                __warningregistry__.clear()
-            except NameError:
-                pass
-            warnings.warn(f"{self._get_c_name()!r} has no values explicitly defined; "
-                          "guessing that it is equivalent to 'unsigned int'", stacklevel=2)
-            smallest_value = largest_value = 0
-        if smallest_value < 0:   # needs a signed type
-            sign = 1
-            candidate1 = PrimitiveType("int")
-            candidate2 = PrimitiveType("long")
-        else:
-            sign = 0
-            candidate1 = PrimitiveType("unsigned int")
-            candidate2 = PrimitiveType("unsigned long")
-        btype1 = candidate1.get_cached_btype(ffi, finishlist)
-        btype2 = candidate2.get_cached_btype(ffi, finishlist)
-        size1 = ffi.sizeof(btype1)
-        size2 = ffi.sizeof(btype2)
-        if (smallest_value >= ((-1) << (8*size1-1)) and
-            largest_value < (1 << (8*size1-sign))):
-            return btype1
-        if (smallest_value >= ((-1) << (8*size2-1)) and
-            largest_value < (1 << (8*size2-sign))):
-            return btype2
-        raise CDefError(f"{self._get_c_name()} values don't all fit into either 'long' "
-                        "or 'unsigned long'")
-
-def unknown_type(name, structname=None):
-    if structname is None:
-        structname = f'${name}'
-    tp = StructType(structname, None, None, None)
-    tp.force_the_name(name)
-    tp.origin = "unknown_type"
-    return tp
-
-def unknown_ptr_type(name, structname=None):
-    if structname is None:
-        structname = f'$${name}'
-    tp = StructType(structname, None, None, None)
-    return NamedPointerType(tp, name)
-
-
-global_lock = allocate_lock()
-_typecache_cffi_backend = weakref.WeakValueDictionary()
-
-def get_typecache(backend):
-    # returns _typecache_cffi_backend if backend is the _cffi_backend
-    # module, or type(backend).__typecache if backend is an instance of
-    # CTypesBackend (or some FakeBackend class during tests)
-    if isinstance(backend, types.ModuleType):
-        return _typecache_cffi_backend
-    with global_lock:
-        if not hasattr(type(backend), '__typecache'):
-            type(backend).__typecache = weakref.WeakValueDictionary()
-        return type(backend).__typecache
-
-def global_cache(srctype, ffi, funcname, *args, **kwds):
-    key = kwds.pop('key', (funcname, args))
-    assert not kwds
-    try:
-        return ffi._typecache[key]
-    except KeyError:
-        pass
-    try:
-        res = getattr(ffi._backend, funcname)(*args)
-    except NotImplementedError as e:
-        raise NotImplementedError(f"{funcname}: {srctype!r}: {e}")
-    # note that setdefault() on WeakValueDictionary is not atomic
-    # and contains a rare bug (http://bugs.python.org/issue19542);
-    # we have to use a lock and do it ourselves
-    cache = ffi._typecache
-    with global_lock:
-        res1 = cache.get(key)
-        if res1 is None:
-            cache[key] = res
-            return res
-        return res1
-
-def pointer_cache(ffi, BType):
-    return global_cache('?', ffi, 'new_pointer_type', BType)
-
-def attach_exception_info(e, name):
-    if e.args and type(e.args[0]) is str:
-        e.args = (f'{name}: {e.args[0]}',) + e.args[1:]
+    for base in cls.__mro__:
+        if "__tablename__" not in base.__dict__:
+            continue
+
+        if isinstance(base.__dict__["__tablename__"], sa_orm.declared_attr):
+            return False
+
+        return not (
+            base is cls
+            or base.__dict__.get("__abstract__", False)
+            or not (
+                # SQLAlchemy 1.x
+                isinstance(base, sa_orm.DeclarativeMeta)
+                # 2.x: DeclarativeBas uses this as metaclass
+                or isinstance(base, sa_orm.decl_api.DeclarativeAttributeIntercept)
+                # 2.x: DeclarativeBaseNoMeta doesn't use a metaclass
+                or issubclass(base, sa_orm.DeclarativeBaseNoMeta)
+            )
+        )
+
+    return True
+
+
+def camel_to_snake_case(name: str) -> str:
+    """Convert a ``CamelCase`` name to ``snake_case``."""
+    name = re.sub(r"((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))", r"_\1", name)
+    return name.lower().lstrip("_")
+
+
+class DefaultMeta(BindMetaMixin, NameMetaMixin, sa_orm.DeclarativeMeta):
+    """SQLAlchemy declarative metaclass that provides ``__bind_key__`` and
+    ``__tablename__`` support.
+    """
+
+
+class DefaultMetaNoName(BindMetaMixin, sa_orm.DeclarativeMeta):
+    """SQLAlchemy declarative metaclass that provides ``__bind_key__`` and
+    ``__tablename__`` support.
+    """

@@ -1,31 +1,32 @@
 # testing/suite/test_insert.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
 # the MIT License: https://www.opensource.org/licenses/mit-license.php
 # mypy: ignore-errors
 
-import uuid
 from decimal import Decimal
+import uuid
 
-from ... import (
-    Double,
-    Float,
-    Identity,
-    Integer,
-    Numeric,
-    String,
-    literal,
-    literal_column,
-    select,
-)
-from ...types import UUID, LargeBinary, Uuid
+from . import testing
 from .. import fixtures
 from ..assertions import eq_
 from ..config import requirements
-from ..schema import Column, Table
-from . import testing
+from ..schema import Column
+from ..schema import Table
+from ... import Double
+from ... import Float
+from ... import Identity
+from ... import Integer
+from ... import literal
+from ... import literal_column
+from ... import Numeric
+from ... import select
+from ... import String
+from ...types import LargeBinary
+from ...types import UUID
+from ...types import Uuid
 
 
 class LastrowidTest(fixtures.TablesTest):
@@ -41,7 +42,7 @@ class LastrowidTest(fixtures.TablesTest):
             "autoinc_pk",
             metadata,
             Column(
-                "id", Integer, primary_key=True, test_needs_autoincrement=True,
+                "id", Integer, primary_key=True, test_needs_autoincrement=True
             ),
             Column("data", String(50)),
             implicit_returning=False,
@@ -67,13 +68,13 @@ class LastrowidTest(fixtures.TablesTest):
 
     def test_autoincrement_on_insert(self, connection):
         connection.execute(
-            self.tables.autoinc_pk.insert(), {"data": "some data"},
+            self.tables.autoinc_pk.insert(), dict(data="some data")
         )
         self._assert_round_trip(self.tables.autoinc_pk, connection)
 
     def test_last_inserted_id(self, connection):
         r = connection.execute(
-            self.tables.autoinc_pk.insert(), {"data": "some data"},
+            self.tables.autoinc_pk.insert(), dict(data="some data")
         )
         pk = connection.scalar(select(self.tables.autoinc_pk.c.id))
         eq_(r.inserted_primary_key, (pk,))
@@ -81,7 +82,7 @@ class LastrowidTest(fixtures.TablesTest):
     @requirements.dbapi_lastrowid
     def test_native_lastrowid_autoinc(self, connection):
         r = connection.execute(
-            self.tables.autoinc_pk.insert(), {"data": "some data"},
+            self.tables.autoinc_pk.insert(), dict(data="some data")
         )
         lastrowid = r.lastrowid
         pk = connection.scalar(select(self.tables.autoinc_pk.c.id))
@@ -98,7 +99,7 @@ class InsertBehaviorTest(fixtures.TablesTest):
             "autoinc_pk",
             metadata,
             Column(
-                "id", Integer, primary_key=True, test_needs_autoincrement=True,
+                "id", Integer, primary_key=True, test_needs_autoincrement=True
             ),
             Column("data", String(50)),
         )
@@ -112,7 +113,7 @@ class InsertBehaviorTest(fixtures.TablesTest):
             "no_implicit_returning",
             metadata,
             Column(
-                "id", Integer, primary_key=True, test_needs_autoincrement=True,
+                "id", Integer, primary_key=True, test_needs_autoincrement=True
             ),
             Column("data", String(50)),
             implicit_returning=False,
@@ -121,7 +122,7 @@ class InsertBehaviorTest(fixtures.TablesTest):
             "includes_defaults",
             metadata,
             Column(
-                "id", Integer, primary_key=True, test_needs_autoincrement=True,
+                "id", Integer, primary_key=True, test_needs_autoincrement=True
             ),
             Column("data", String(50)),
             Column("x", Integer, default=5),
@@ -135,7 +136,7 @@ class InsertBehaviorTest(fixtures.TablesTest):
     @testing.variation("style", ["plain", "return_defaults"])
     @testing.variation("executemany", [True, False])
     def test_no_results_for_non_returning_insert(
-        self, connection, style, executemany,
+        self, connection, style, executemany
     ):
         """test another INSERT issue found during #10453"""
 
@@ -162,7 +163,7 @@ class InsertBehaviorTest(fixtures.TablesTest):
     @requirements.autoincrement_insert
     def test_autoclose_on_insert(self, connection):
         r = connection.execute(
-            self.tables.autoinc_pk.insert(), {"data": "some data"},
+            self.tables.autoinc_pk.insert(), dict(data="some data")
         )
         assert r._soft_closed
         assert not r.closed
@@ -182,7 +183,7 @@ class InsertBehaviorTest(fixtures.TablesTest):
             # new in 2.0 as sqlite/mariadb offer both RETURNING and
             # cursor.lastrowid
             self.tables.autoinc_pk.insert().return_defaults(),
-            {"data": "some data"},
+            dict(data="some data"),
         )
         assert r._soft_closed
         assert not r.closed
@@ -211,8 +212,8 @@ class InsertBehaviorTest(fixtures.TablesTest):
 
         r = connection.execute(
             self.tables.autoinc_pk.select().where(
-                self.tables.autoinc_pk.c.id is not None,
-            ),
+                self.tables.autoinc_pk.c.id != None
+            )
         )
         eq_(len(r.all()), 1)
 
@@ -224,8 +225,8 @@ class InsertBehaviorTest(fixtures.TablesTest):
 
         r = connection.execute(
             self.tables.autoinc_pk.select().where(
-                self.tables.autoinc_pk.c.id is not None,
-            ),
+                self.tables.autoinc_pk.c.id != None
+            )
         )
 
         eq_(len(r.all()), 3)
@@ -237,9 +238,9 @@ class InsertBehaviorTest(fixtures.TablesTest):
         connection.execute(
             src_table.insert(),
             [
-                {"id": 1, "data": "data1"},
-                {"id": 2, "data": "data2"},
-                {"id": 3, "data": "data3"},
+                dict(id=1, data="data1"),
+                dict(id=2, data="data2"),
+                dict(id=3, data="data3"),
             ],
         )
 
@@ -247,15 +248,15 @@ class InsertBehaviorTest(fixtures.TablesTest):
             dest_table.insert().from_select(
                 ("data",),
                 select(src_table.c.data).where(
-                    src_table.c.data.in_(["data2", "data3"]),
+                    src_table.c.data.in_(["data2", "data3"])
                 ),
-            ),
+            )
         )
 
         eq_(result.inserted_primary_key, (None,))
 
         result = connection.execute(
-            select(dest_table.c.data).order_by(dest_table.c.data),
+            select(dest_table.c.data).order_by(dest_table.c.data)
         )
         eq_(result.fetchall(), [("data2",), ("data3",)])
 
@@ -268,14 +269,14 @@ class InsertBehaviorTest(fixtures.TablesTest):
             dest_table.insert().from_select(
                 ("data",),
                 select(src_table.c.data).where(
-                    src_table.c.data.in_(["data2", "data3"]),
+                    src_table.c.data.in_(["data2", "data3"])
                 ),
-            ),
+            )
         )
         eq_(result.inserted_primary_key, (None,))
 
         result = connection.execute(
-            select(dest_table.c.data).order_by(dest_table.c.data),
+            select(dest_table.c.data).order_by(dest_table.c.data)
         )
 
         eq_(result.fetchall(), [])
@@ -286,9 +287,9 @@ class InsertBehaviorTest(fixtures.TablesTest):
         connection.execute(
             table.insert(),
             [
-                {"id": 1, "data": "data1"},
-                {"id": 2, "data": "data2"},
-                {"id": 3, "data": "data3"},
+                dict(id=1, data="data1"),
+                dict(id=2, data="data2"),
+                dict(id=3, data="data3"),
             ],
         )
 
@@ -298,14 +299,14 @@ class InsertBehaviorTest(fixtures.TablesTest):
             .from_select(
                 ("id", "data"),
                 select(table.c.id + 5, table.c.data).where(
-                    table.c.data.in_(["data2", "data3"]),
+                    table.c.data.in_(["data2", "data3"])
                 ),
-            ),
+            )
         )
 
         eq_(
             connection.execute(
-                select(table.c.data).order_by(table.c.data),
+                select(table.c.data).order_by(table.c.data)
             ).fetchall(),
             [("data1",), ("data2",), ("data2",), ("data3",), ("data3",)],
         )
@@ -316,9 +317,9 @@ class InsertBehaviorTest(fixtures.TablesTest):
         connection.execute(
             table.insert(),
             [
-                {"id": 1, "data": "data1"},
-                {"id": 2, "data": "data2"},
-                {"id": 3, "data": "data3"},
+                dict(id=1, data="data1"),
+                dict(id=2, data="data2"),
+                dict(id=3, data="data3"),
             ],
         )
 
@@ -328,14 +329,14 @@ class InsertBehaviorTest(fixtures.TablesTest):
             .from_select(
                 ("id", "data"),
                 select(table.c.id + 5, table.c.data).where(
-                    table.c.data.in_(["data2", "data3"]),
+                    table.c.data.in_(["data2", "data3"])
                 ),
-            ),
+            )
         )
 
         eq_(
             connection.execute(
-                select(table).order_by(table.c.data, table.c.id),
+                select(table).order_by(table.c.data, table.c.id)
             ).fetchall(),
             [
                 (1, "data1", 5, 4),
@@ -368,7 +369,7 @@ class ReturningTest(fixtures.TablesTest):
             "autoinc_pk",
             metadata,
             Column(
-                "id", Integer, primary_key=True, test_needs_autoincrement=True,
+                "id", Integer, primary_key=True, test_needs_autoincrement=True
             ),
             Column("data", String(50)),
         )
@@ -377,7 +378,7 @@ class ReturningTest(fixtures.TablesTest):
     def test_explicit_returning_pk_autocommit(self, connection):
         table = self.tables.autoinc_pk
         r = connection.execute(
-            table.insert().returning(table.c.id), {"data": "some data"},
+            table.insert().returning(table.c.id), dict(data="some data")
         )
         pk = r.first()[0]
         fetched_pk = connection.scalar(select(table.c.id))
@@ -386,7 +387,7 @@ class ReturningTest(fixtures.TablesTest):
     def test_explicit_returning_pk_no_autocommit(self, connection):
         table = self.tables.autoinc_pk
         r = connection.execute(
-            table.insert().returning(table.c.id), {"data": "some data"},
+            table.insert().returning(table.c.id), dict(data="some data")
         )
 
         pk = r.first()[0]
@@ -395,13 +396,13 @@ class ReturningTest(fixtures.TablesTest):
 
     def test_autoincrement_on_insert_implicit_returning(self, connection):
         connection.execute(
-            self.tables.autoinc_pk.insert(), {"data": "some data"},
+            self.tables.autoinc_pk.insert(), dict(data="some data")
         )
         self._assert_round_trip(self.tables.autoinc_pk, connection)
 
     def test_last_inserted_id_implicit_returning(self, connection):
         r = connection.execute(
-            self.tables.autoinc_pk.insert(), {"data": "some data"},
+            self.tables.autoinc_pk.insert(), dict(data="some data")
         )
         pk = connection.scalar(select(self.tables.autoinc_pk.c.id))
         eq_(r.inserted_primary_key, (pk,))
@@ -410,7 +411,7 @@ class ReturningTest(fixtures.TablesTest):
     def test_insertmanyvalues_returning(self, connection):
         r = connection.execute(
             self.tables.autoinc_pk.insert().returning(
-                self.tables.autoinc_pk.c.id,
+                self.tables.autoinc_pk.c.id
             ),
             [
                 {"data": "d1"},
@@ -491,9 +492,11 @@ class ReturningTest(fixtures.TablesTest):
                 t.c.value,
                 sort_by_parameter_order=bool(sort_by_parameter_order),
             ),
-            [{"value": value} for i in range(10)]
-            if multiple_rows
-            else {"value": value},
+            (
+                [{"value": value} for i in range(10)]
+                if multiple_rows
+                else {"value": value}
+            ),
         )
 
         if multiple_rows:
@@ -550,6 +553,12 @@ class ReturningTest(fixtures.TablesTest):
             uuid.uuid4(),
             testing.requires.uuid_data_type,
         ),
+        (
+            "generic_native_uuid_str",
+            Uuid(as_uuid=False, native_uuid=True),
+            str(uuid.uuid4()),
+            testing.requires.uuid_data_type,
+        ),
         ("UUID", UUID(), uuid.uuid4(), testing.requires.uuid_data_type),
         (
             "LargeBinary1",
@@ -595,9 +604,11 @@ class ReturningTest(fixtures.TablesTest):
                 t.c.value,
                 sort_by_parameter_order=bool(sort_by_parameter_order),
             ),
-            [{"value": value} for i in range(10)]
-            if multiple_rows
-            else {"value": value},
+            (
+                [{"value": value} for i in range(10)]
+                if multiple_rows
+                else {"value": value}
+            ),
         )
 
         if multiple_rows:
@@ -616,4 +627,4 @@ class ReturningTest(fixtures.TablesTest):
         )
 
 
-__all__ = ("InsertBehaviorTest", "LastrowidTest", "ReturningTest")
+__all__ = ("LastrowidTest", "InsertBehaviorTest", "ReturningTest")

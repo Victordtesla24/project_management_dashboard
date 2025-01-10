@@ -1,5 +1,5 @@
 # testing/suite/test_select.py
-# Copyright (C) 2005-2024 the SQLAlchemy authors and contributors
+# Copyright (C) 2005-2025 the SQLAlchemy authors and contributors
 # <see AUTHORS file>
 #
 # This module is part of SQLAlchemy and is released under
@@ -9,36 +9,41 @@
 import collections.abc as collections_abc
 import itertools
 
-from ... import (
-    Computed,
-    ForeignKey,
-    Identity,
-    Integer,
-    String,
-    TupleType,
-    bindparam,
-    case,
-    column,
-    exists,
-    false,
-    func,
-    literal,
-    literal_column,
-    null,
-    select,
-    table,
-    testing,
-    text,
-    true,
-    tuple_,
-    union,
-    values,
-)
-from ...exc import DatabaseError, ProgrammingError
-from .. import AssertsCompiledSQL, AssertsExecutionResults, config, fixtures
-from ..assertions import assert_raises, eq_, in_
+from .. import AssertsCompiledSQL
+from .. import AssertsExecutionResults
+from .. import config
+from .. import fixtures
+from ..assertions import assert_raises
+from ..assertions import eq_
+from ..assertions import in_
 from ..assertsql import CursorSQL
-from ..schema import Column, Table
+from ..schema import Column
+from ..schema import Table
+from ... import bindparam
+from ... import case
+from ... import column
+from ... import Computed
+from ... import exists
+from ... import false
+from ... import ForeignKey
+from ... import func
+from ... import Identity
+from ... import Integer
+from ... import literal
+from ... import literal_column
+from ... import null
+from ... import select
+from ... import String
+from ... import table
+from ... import testing
+from ... import text
+from ... import true
+from ... import tuple_
+from ... import TupleType
+from ... import union
+from ... import values
+from ...exc import DatabaseError
+from ...exc import ProgrammingError
 
 
 class CollateTest(fixtures.TablesTest):
@@ -73,7 +78,7 @@ class CollateTest(fixtures.TablesTest):
 
         self._assert_result(
             select(self.tables.some_table).order_by(
-                self.tables.some_table.c.data.collate(collation).asc(),
+                self.tables.some_table.c.data.collate(collation).asc()
             ),
             [(1, "collate data1"), (2, "collate data2")],
         )
@@ -163,7 +168,7 @@ class ValuesExpressionTest(fixtures.TestBase):
 
     def test_tuples(self, connection):
         value_expr = values(
-            column("id", Integer), column("name", String), name="my_values",
+            column("id", Integer), column("name", String), name="my_values"
         ).data([(1, "name1"), (2, "name2"), (3, "name3")])
 
         eq_(
@@ -199,7 +204,7 @@ class FetchLimitOffsetTest(fixtures.TablesTest):
         )
 
     def _assert_result(
-        self, connection, select, result, params=(), set_=False,
+        self, connection, select, result, params=(), set_=False
     ):
         if set_:
             query_res = connection.execute(select, params).fetchall()
@@ -337,7 +342,7 @@ class FetchLimitOffsetTest(fixtures.TablesTest):
         table = self.tables.some_table
         stmt = select(table).order_by(table.c.id).limit(2).offset(1)
         sql = stmt.compile(
-            dialect=config.db.dialect, compile_kwargs={"literal_binds": True},
+            dialect=config.db.dialect, compile_kwargs={"literal_binds": True}
         )
         sql = str(sql)
 
@@ -350,7 +355,7 @@ class FetchLimitOffsetTest(fixtures.TablesTest):
         table = self.tables.some_table
         stmt = select(table).order_by(table.c.id).fetch(2).offset(1)
         sql = stmt.compile(
-            dialect=config.db.dialect, compile_kwargs={"literal_binds": True},
+            dialect=config.db.dialect, compile_kwargs={"literal_binds": True}
         )
         sql = str(sql)
 
@@ -550,7 +555,7 @@ class FetchLimitOffsetTest(fixtures.TablesTest):
             select(table)
             .order_by(table.c.x)
             .fetch(2, with_ties=True)
-            .offset(2),
+            .offset(2)
         ).fetchall()
         eq_(fa[0], (3, 3, 4))
         eq_(set(fa), {(3, 3, 4), (4, 4, 5), (5, 4, 6)})
@@ -621,7 +626,7 @@ class FetchLimitOffsetTest(fixtures.TablesTest):
             select(table)
             .order_by(table.c.x)
             .fetch(40, percent=True, with_ties=True)
-            .offset(2),
+            .offset(2)
         ).fetchall()
         eq_(fa[0], (3, 3, 4))
         eq_(set(fa), {(3, 3, 4), (4, 4, 5), (5, 4, 6)})
@@ -657,14 +662,14 @@ class SameNamedSchemaTableTest(fixtures.TablesTest):
     @classmethod
     def insert_data(cls, connection):
         some_table, some_table_schema = cls.tables(
-            "some_table", f"{config.test_schema}.some_table",
+            "some_table", "%s.some_table" % config.test_schema
         )
         connection.execute(some_table_schema.insert(), {"id": 1})
         connection.execute(some_table.insert(), {"id": 1, "some_table_id": 1})
 
     def test_simple_join_both_tables(self, connection):
         some_table, some_table_schema = self.tables(
-            "some_table", f"{config.test_schema}.some_table",
+            "some_table", "%s.some_table" % config.test_schema
         )
 
         eq_(
@@ -673,14 +678,14 @@ class SameNamedSchemaTableTest(fixtures.TablesTest):
                     some_table,
                     some_table_schema,
                     some_table.c.some_table_id == some_table_schema.c.id,
-                ),
+                )
             ).first(),
             (1, 1, 1),
         )
 
     def test_simple_join_whereclause_only(self, connection):
         some_table, some_table_schema = self.tables(
-            "some_table", f"{config.test_schema}.some_table",
+            "some_table", "%s.some_table" % config.test_schema
         )
 
         eq_(
@@ -691,14 +696,14 @@ class SameNamedSchemaTableTest(fixtures.TablesTest):
                     some_table_schema,
                     some_table.c.some_table_id == some_table_schema.c.id,
                 )
-                .where(some_table.c.id == 1),
+                .where(some_table.c.id == 1)
             ).first(),
             (1, 1),
         )
 
     def test_subquery(self, connection):
         some_table, some_table_schema = self.tables(
-            "some_table", f"{config.test_schema}.some_table",
+            "some_table", "%s.some_table" % config.test_schema
         )
 
         subq = (
@@ -720,7 +725,7 @@ class SameNamedSchemaTableTest(fixtures.TablesTest):
                     subq,
                     some_table.c.some_table_id == subq.c.id,
                 )
-                .where(some_table.c.id == 1),
+                .where(some_table.c.id == 1)
             ).first(),
             (1, 1, 1),
         )
@@ -862,7 +867,7 @@ class CompoundSelectTest(fixtures.TablesTest):
 
         u1 = union(s1, s2)
         self._assert_result(
-            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)],
+            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)]
         )
 
     def test_select_from_plain_union(self):
@@ -872,7 +877,7 @@ class CompoundSelectTest(fixtures.TablesTest):
 
         u1 = union(s1, s2).alias().select()
         self._assert_result(
-            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)],
+            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)]
         )
 
     @testing.requires.order_by_col_from_union
@@ -884,7 +889,7 @@ class CompoundSelectTest(fixtures.TablesTest):
 
         u1 = union(s1, s2).limit(2)
         self._assert_result(
-            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)],
+            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)]
         )
 
     @testing.requires.parens_in_union_contained_select_wo_limit_offset
@@ -895,7 +900,7 @@ class CompoundSelectTest(fixtures.TablesTest):
 
         u1 = union(s1, s2).limit(2)
         self._assert_result(
-            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)],
+            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)]
         )
 
     def test_distinct_selectable_in_unions(self):
@@ -905,7 +910,7 @@ class CompoundSelectTest(fixtures.TablesTest):
 
         u1 = union(s1, s2).limit(2)
         self._assert_result(
-            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)],
+            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)]
         )
 
     @testing.requires.parens_in_union_contained_select_w_limit_offset
@@ -917,7 +922,7 @@ class CompoundSelectTest(fixtures.TablesTest):
         # this necessarily has double parens
         u1 = union(s1, s2).alias()
         self._assert_result(
-            u1.select().limit(2).order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)],
+            u1.select().limit(2).order_by(u1.c.id), [(2, 2, 3), (3, 3, 4)]
         )
 
     def test_limit_offset_aliased_selectable_in_unions(self):
@@ -941,12 +946,12 @@ class CompoundSelectTest(fixtures.TablesTest):
 
         u1 = union(s1, s2).limit(2)
         self._assert_result(
-            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)],
+            u1.order_by(u1.selected_columns.id), [(2, 2, 3), (3, 3, 4)]
         )
 
 
 class PostCompileParamsTest(
-    AssertsExecutionResults, AssertsCompiledSQL, fixtures.TablesTest,
+    AssertsExecutionResults, AssertsCompiledSQL, fixtures.TablesTest
 ):
     __backend__ = True
 
@@ -979,7 +984,7 @@ class PostCompileParamsTest(
         table = self.tables.some_table
 
         stmt = select(table.c.id).where(
-            table.c.x == bindparam("q", literal_execute=True),
+            table.c.x == bindparam("q", literal_execute=True)
         )
 
         self.assert_compile(
@@ -993,7 +998,7 @@ class PostCompileParamsTest(
         table = self.tables.some_table
 
         stmt = select(table.c.id).where(
-            table.c.x == bindparam("q", 10, literal_execute=True),
+            table.c.x == bindparam("q", 10, literal_execute=True)
         )
 
         self.assert_compile(
@@ -1007,38 +1012,38 @@ class PostCompileParamsTest(
         table = self.tables.some_table
 
         stmt = select(table.c.id).where(
-            table.c.x == bindparam("q", literal_execute=True),
+            table.c.x == bindparam("q", literal_execute=True)
         )
 
         with self.sql_execution_asserter() as asserter:
             with config.db.connect() as conn:
-                conn.execute(stmt, {"q": 10})
+                conn.execute(stmt, dict(q=10))
 
         asserter.assert_(
             CursorSQL(
                 "SELECT some_table.id \nFROM some_table "
                 "\nWHERE some_table.x = 10",
                 () if config.db.dialect.positional else {},
-            ),
+            )
         )
 
     def test_execute_expanding_plus_literal_execute(self):
         table = self.tables.some_table
 
         stmt = select(table.c.id).where(
-            table.c.x.in_(bindparam("q", expanding=True, literal_execute=True)),
+            table.c.x.in_(bindparam("q", expanding=True, literal_execute=True))
         )
 
         with self.sql_execution_asserter() as asserter:
             with config.db.connect() as conn:
-                conn.execute(stmt, {"q": [5, 6, 7]})
+                conn.execute(stmt, dict(q=[5, 6, 7]))
 
         asserter.assert_(
             CursorSQL(
                 "SELECT some_table.id \nFROM some_table "
                 "\nWHERE some_table.x IN (5, 6, 7)",
                 () if config.db.dialect.positional else {},
-            ),
+            )
         )
 
     @testing.requires.tuple_in
@@ -1047,13 +1052,13 @@ class PostCompileParamsTest(
 
         stmt = select(table.c.id).where(
             tuple_(table.c.x, table.c.y).in_(
-                bindparam("q", expanding=True, literal_execute=True),
-            ),
+                bindparam("q", expanding=True, literal_execute=True)
+            )
         )
 
         with self.sql_execution_asserter() as asserter:
             with config.db.connect() as conn:
-                conn.execute(stmt, {"q": [(5, 10), (12, 18)]})
+                conn.execute(stmt, dict(q=[(5, 10), (12, 18)]))
 
         asserter.assert_(
             CursorSQL(
@@ -1062,7 +1067,7 @@ class PostCompileParamsTest(
                 "IN (%s(5, 10), (12, 18))"
                 % ("VALUES " if config.db.dialect.tuple_in_values else ""),
                 () if config.db.dialect.positional else {},
-            ),
+            )
         )
 
     @testing.requires.tuple_in
@@ -1071,13 +1076,13 @@ class PostCompileParamsTest(
 
         stmt = select(table.c.id).where(
             tuple_(table.c.x, table.c.z).in_(
-                bindparam("q", expanding=True, literal_execute=True),
-            ),
+                bindparam("q", expanding=True, literal_execute=True)
+            )
         )
 
         with self.sql_execution_asserter() as asserter:
             with config.db.connect() as conn:
-                conn.execute(stmt, {"q": [(5, "z1"), (12, "z3")]})
+                conn.execute(stmt, dict(q=[(5, "z1"), (12, "z3")]))
 
         asserter.assert_(
             CursorSQL(
@@ -1086,7 +1091,7 @@ class PostCompileParamsTest(
                 "IN (%s(5, 'z1'), (12, 'z3'))"
                 % ("VALUES " if config.db.dialect.tuple_in_values else ""),
                 () if config.db.dialect.positional else {},
-            ),
+            )
         )
 
 
@@ -1243,7 +1248,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
         """
 
         stmt = text(
-            "select id FROM some_table WHERE z IN :q ORDER BY id",
+            "select id FROM some_table WHERE z IN :q ORDER BY id"
         ).bindparams(bindparam("q", type_=String, expanding=True))
         self._assert_result(
             stmt,
@@ -1261,7 +1266,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
         """
 
         stmt = text(
-            "select id FROM some_table WHERE z IN :q ORDER BY id",
+            "select id FROM some_table WHERE z IN :q ORDER BY id"
         ).bindparams(bindparam("q", expanding=True))
         self._assert_result(
             stmt,
@@ -1278,7 +1283,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
             .order_by(table.c.id)
         )
         self._assert_result(
-            stmt, [(2,), (3,), (4,)], params={"q": [(2, 3), (3, 4), (4, 5)]},
+            stmt, [(2,), (3,), (4,)], params={"q": [(2, 3), (3, 4), (4, 5)]}
         )
 
     @testing.requires.tuple_in
@@ -1312,8 +1317,8 @@ class ExpandingBoundInTest(fixtures.TablesTest):
             select(table.c.id)
             .where(
                 tuple_(table.c.x, table.c.z).in_(
-                    [(2, "z2"), (3, "z3"), (4, "z4")],
-                ),
+                    [(2, "z2"), (3, "z3"), (4, "z4")]
+                )
             )
             .order_by(table.c.id)
         )
@@ -1327,7 +1332,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
         # note this becomes ARRAY if we dont use expanding
         # explicitly right now
         stmt = text(
-            "select id FROM some_table WHERE (x, z) IN :q ORDER BY id",
+            "select id FROM some_table WHERE (x, z) IN :q ORDER BY id"
         ).bindparams(bindparam("q", expanding=True))
         self._assert_result(
             stmt,
@@ -1351,11 +1356,11 @@ class ExpandingBoundInTest(fixtures.TablesTest):
                 return len(self._data)
 
         stmt = text(
-            "select id FROM some_table WHERE (x, z) IN :q ORDER BY id",
+            "select id FROM some_table WHERE (x, z) IN :q ORDER BY id"
         ).bindparams(
             bindparam(
-                "q", type_=TupleType(Integer(), String()), expanding=True,
-            ),
+                "q", type_=TupleType(Integer(), String()), expanding=True
+            )
         )
         self._assert_result(
             stmt,
@@ -1365,7 +1370,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
                     LikeATuple(2, "z2"),
                     LikeATuple(3, "z3"),
                     LikeATuple(4, "z4"),
-                ],
+                ]
             },
         )
 
@@ -1388,7 +1393,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
                 return len(self._data)
 
         stmt = text(
-            "select id FROM some_table WHERE (x, z) IN :q ORDER BY id",
+            "select id FROM some_table WHERE (x, z) IN :q ORDER BY id"
         ).bindparams(bindparam("q", expanding=True))
         self._assert_result(
             stmt,
@@ -1398,7 +1403,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
                     LikeATuple(2, "z2"),
                     LikeATuple(3, "z3"),
                     LikeATuple(4, "z4"),
-                ],
+                ]
             },
         )
 
@@ -1470,7 +1475,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
                     true(),
                 ),
                 else_=false(),
-            ),
+            )
         )
         in_(connection.execute(stmt).fetchone()[0], (False, 0))
 
@@ -1482,7 +1487,7 @@ class ExpandingBoundInTest(fixtures.TablesTest):
                     true(),
                 ),
                 else_=false(),
-            ),
+            )
         )
         in_(connection.execute(stmt).fetchone()[0], (False, 0))
 
@@ -1563,7 +1568,7 @@ class LikeFunctionsTest(fixtures.TablesTest):
     def test_endswith_sqlexpr(self):
         col = self.tables.some_table.c.data
         self._test(
-            col.endswith(literal_column("'e%fg'")), {1, 2, 3, 4, 5, 6, 7, 8, 9},
+            col.endswith(literal_column("'e%fg'")), {1, 2, 3, 4, 5, 6, 7, 8, 9}
         )
 
     def test_endswith_autoescape(self):
@@ -1605,7 +1610,7 @@ class LikeFunctionsTest(fixtures.TablesTest):
     def test_regexp_replace(self):
         col = self.tables.some_table.c.data
         self._test(
-            col.regexp_replace("a.cde", "FOO").contains("FOO"), {1, 5, 6, 9},
+            col.regexp_replace("a.cde", "FOO").contains("FOO"), {1, 5, 6, 9}
         )
 
     @testing.requires.regexp_match
@@ -1650,7 +1655,7 @@ class ComputedColumnTest(fixtures.TablesTest):
             res = conn.execute(
                 select(text("*"))
                 .select_from(self.tables.square)
-                .order_by(self.tables.square.c.id),
+                .order_by(self.tables.square.c.id)
             ).fetchall()
             eq_(res, [(1, 10, 100, 40), (10, 42, 1764, 168)])
 
@@ -1658,10 +1663,10 @@ class ComputedColumnTest(fixtures.TablesTest):
         with config.db.connect() as conn:
             res = conn.execute(
                 select(
-                    self.tables.square.c.area, self.tables.square.c.perimeter,
+                    self.tables.square.c.area, self.tables.square.c.perimeter
                 )
                 .select_from(self.tables.square)
-                .order_by(self.tables.square.c.id),
+                .order_by(self.tables.square.c.id)
             ).fetchall()
             eq_(res, [(100, 40), (1764, 168)])
 
@@ -1681,7 +1686,7 @@ class IdentityColumnTest(fixtures.TablesTest):
                 "id",
                 Integer,
                 Identity(
-                    always=True, start=42, nominvalue=True, nomaxvalue=True,
+                    always=True, start=42, nominvalue=True, nomaxvalue=True
                 ),
                 primary_key=True,
             ),
@@ -1718,20 +1723,20 @@ class IdentityColumnTest(fixtures.TablesTest):
         res = connection.execute(
             select(text("*"))
             .select_from(self.tables.tbl_a)
-            .order_by(self.tables.tbl_a.c.id),
+            .order_by(self.tables.tbl_a.c.id)
         ).fetchall()
         eq_(res, [(42, "a"), (43, "b")])
 
         res = connection.execute(
             select(text("*"))
             .select_from(self.tables.tbl_b)
-            .order_by(self.tables.tbl_b.c.id),
+            .order_by(self.tables.tbl_b.c.id)
         ).fetchall()
         eq_(res, [(-5, "b"), (0, "a"), (42, "c")])
 
     def test_select_columns(self, connection):
         res = connection.execute(
-            select(self.tables.tbl_a.c.id).order_by(self.tables.tbl_a.c.id),
+            select(self.tables.tbl_a.c.id).order_by(self.tables.tbl_a.c.id)
         ).fetchall()
         eq_(res, [(42,), (43,)])
 
@@ -1800,8 +1805,8 @@ class ExistsTest(fixtures.TablesTest):
         eq_(
             connection.execute(
                 select(literal(1)).where(
-                    exists().where(stuff.c.data == "some data"),
-                ),
+                    exists().where(stuff.c.data == "some data")
+                )
             ).fetchall(),
             [(1,)],
         )
@@ -1811,8 +1816,8 @@ class ExistsTest(fixtures.TablesTest):
         eq_(
             connection.execute(
                 select(literal(1)).where(
-                    exists().where(stuff.c.data == "no data"),
-                ),
+                    exists().where(stuff.c.data == "no data")
+                )
             ).fetchall(),
             [],
         )
@@ -1825,7 +1830,7 @@ class DistinctOnTest(AssertsCompiledSQL, fixtures.TablesTest):
     def test_distinct_on(self):
         stm = select("*").distinct(column("q")).select_from(table("foo"))
         with testing.expect_deprecated(
-            "DISTINCT ON is currently supported only by the PostgreSQL ",
+            "DISTINCT ON is currently supported only by the PostgreSQL "
         ):
             self.assert_compile(stm, "SELECT DISTINCT * FROM foo")
 
@@ -1854,7 +1859,7 @@ class IsOrIsNotDistinctFromTest(fixtures.TablesTest):
         argnames="col_a_value, col_b_value, expected_row_count_for_is",
     )
     def test_is_or_is_not_distinct_from(
-        self, col_a_value, col_b_value, expected_row_count_for_is, connection,
+        self, col_a_value, col_b_value, expected_row_count_for_is, connection
     ):
         tbl = self.tables.is_distinct_test
 
@@ -1864,7 +1869,7 @@ class IsOrIsNotDistinctFromTest(fixtures.TablesTest):
         )
 
         result = connection.execute(
-            tbl.select().where(tbl.c.col_a.is_distinct_from(tbl.c.col_b)),
+            tbl.select().where(tbl.c.col_a.is_distinct_from(tbl.c.col_b))
         ).fetchall()
         eq_(
             len(result),
@@ -1875,9 +1880,120 @@ class IsOrIsNotDistinctFromTest(fixtures.TablesTest):
             1 if expected_row_count_for_is == 0 else 0
         )
         result = connection.execute(
-            tbl.select().where(tbl.c.col_a.is_not_distinct_from(tbl.c.col_b)),
+            tbl.select().where(tbl.c.col_a.is_not_distinct_from(tbl.c.col_b))
         ).fetchall()
         eq_(
             len(result),
             expected_row_count_for_is_not,
         )
+
+
+class WindowFunctionTest(fixtures.TablesTest):
+    __requires__ = ("window_functions",)
+
+    __backend__ = True
+
+    @classmethod
+    def define_tables(cls, metadata):
+        Table(
+            "some_table",
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("col1", Integer),
+            Column("col2", Integer),
+        )
+
+    @classmethod
+    def insert_data(cls, connection):
+        connection.execute(
+            cls.tables.some_table.insert(),
+            [{"id": i, "col1": i, "col2": i * 5} for i in range(1, 50)],
+        )
+
+    def test_window(self, connection):
+        some_table = self.tables.some_table
+        rows = connection.execute(
+            select(
+                func.max(some_table.c.col2).over(
+                    order_by=[some_table.c.col1.desc()]
+                )
+            ).where(some_table.c.col1 < 20)
+        ).all()
+
+        eq_(rows, [(95,) for i in range(19)])
+
+    def test_window_rows_between(self, connection):
+        some_table = self.tables.some_table
+
+        # note the rows are part of the cache key right now, not handled
+        # as binds.  this is issue #11515
+        rows = connection.execute(
+            select(
+                func.max(some_table.c.col2).over(
+                    order_by=[some_table.c.col1],
+                    rows=(-5, 0),
+                )
+            )
+        ).all()
+
+        eq_(rows, [(i,) for i in range(5, 250, 5)])
+
+
+class BitwiseTest(fixtures.TablesTest):
+    __backend__ = True
+    run_inserts = run_deletes = "once"
+
+    inserted_data = [{"a": i, "b": i + 1} for i in range(10)]
+
+    @classmethod
+    def define_tables(cls, metadata):
+        Table("bitwise", metadata, Column("a", Integer), Column("b", Integer))
+
+    @classmethod
+    def insert_data(cls, connection):
+        connection.execute(cls.tables.bitwise.insert(), cls.inserted_data)
+
+    @testing.combinations(
+        (
+            lambda a: a.bitwise_xor(5),
+            [i for i in range(10) if i != 5],
+            testing.requires.supports_bitwise_xor,
+        ),
+        (
+            lambda a: a.bitwise_or(1),
+            list(range(10)),
+            testing.requires.supports_bitwise_or,
+        ),
+        (
+            lambda a: a.bitwise_and(4),
+            list(range(4, 8)),
+            testing.requires.supports_bitwise_and,
+        ),
+        (
+            lambda a: (a - 2).bitwise_not(),
+            [0],
+            testing.requires.supports_bitwise_not,
+        ),
+        (
+            lambda a: a.bitwise_lshift(1),
+            list(range(1, 10)),
+            testing.requires.supports_bitwise_shift,
+        ),
+        (
+            lambda a: a.bitwise_rshift(2),
+            list(range(4, 10)),
+            testing.requires.supports_bitwise_shift,
+        ),
+        argnames="case, expected",
+    )
+    def test_bitwise(self, case, expected, connection):
+        tbl = self.tables.bitwise
+
+        a = tbl.c.a
+
+        op = testing.resolve_lambda(case, a=a)
+
+        stmt = select(tbl).where(op > 0).order_by(a)
+
+        res = connection.execute(stmt).mappings().all()
+        eq_(res, [self.inserted_data[i] for i in expected])

@@ -1,7 +1,13 @@
-from sqlalchemy import Column, Float, MetaData, String, Table
+from sqlalchemy import Column
+from sqlalchemy import Float
+from sqlalchemy import MetaData
+from sqlalchemy import String
+from sqlalchemy import Table
 
-from ...testing import TestBase, eq_, mock
 from ._autogen_fixtures import AutogenFixtureTest
+from ...testing import eq_
+from ...testing import mock
+from ...testing import TestBase
 
 
 class AutogenerateCommentsTest(AutogenFixtureTest, TestBase):
@@ -149,8 +155,8 @@ class AutogenerateCommentsTest(AutogenFixtureTest, TestBase):
                         },
                         None,
                         "the amount",
-                    ),
-                ],
+                    )
+                ]
             ],
         )
 
@@ -189,8 +195,8 @@ class AutogenerateCommentsTest(AutogenFixtureTest, TestBase):
                         },
                         "the amount",
                         None,
-                    ),
-                ],
+                    )
+                ]
             ],
         )
 
@@ -230,7 +236,7 @@ class AutogenerateCommentsTest(AutogenFixtureTest, TestBase):
                         },
                         "the amount",
                         "the adjusted amount",
-                    ),
-                ],
+                    )
+                ]
             ],
         )
