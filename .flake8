@@ -19,7 +19,9 @@ ignore =
     # W291: Trailing whitespace (handled by pre-commit)
     W291,
     # W293: Blank line contains whitespace (handled by pre-commit)
-    W293
+    W293,
+    # W504: Line break before binary operator (conflicts with Black)
+    W504
 
 # Select specific error codes to enable
 select =

@@ -643,7 +643,6 @@ class IntegrationTests(TestCase):
         """Return the path to the pyflakes module."""
         import sys
 
-
         return [sys.executable, "-m", "pyflakes"]
 
     def runPyflakes(self, paths, stdin=None):

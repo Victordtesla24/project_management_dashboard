@@ -1,9 +1,12 @@
 """Main entry point for the dashboard application."""
 import logging
 import os
-from typing import Any, Tuple
+import time
+from typing import Any, Optional, Tuple
 
+import plotly.graph_objects as go  # type: ignore
 import streamlit as st
+from plotly.subplots import make_subplots  # type: ignore
 
 from .metrics import MetricsCollector
 
@@ -38,32 +41,43 @@ def setup_page() -> None:
     )
 
 
-def update_metrics(session_state: dict[str, Any]) -> dict[str, Any]:
+def update_metrics(session_state: Any, metrics: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Update metrics in session state.
 
     Args:
     ----
         session_state: Streamlit session state.
+        metrics: Optional metrics data to use instead of collecting new metrics.
 
     Returns:
     -------
         Dictionary containing processed metrics.
     """
-    collector = MetricsCollector()
-    metrics = collector.get_metrics()
+    if metrics is None:
+        collector = MetricsCollector()
+        metrics = collector.get_metrics()
 
     # Add to history, maintaining max size of 50
-    if "metrics_history" not in session_state:
-        session_state["metrics_history"] = []
+    try:
+        metrics_history = getattr(session_state, "metrics_history", [])
+    except AttributeError:
+        metrics_history = session_state.get("metrics_history", [])
 
-    session_state["metrics_history"].append(metrics)
-    if len(session_state["metrics_history"]) > 50:
-        session_state["metrics_history"].pop(0)
+    metrics_history.append(metrics)
+    if len(metrics_history) > 50:
+        metrics_history.pop(0)
+
+    if isinstance(session_state, dict):
+        session_state["metrics_history"] = metrics_history
+        session_state["last_update"] = time.time()
+    else:
+        session_state.metrics_history = metrics_history
+        session_state.last_update = time.time()
 
     return metrics
 
 
-def display_metrics(session_state: dict[str, Any], metrics_to_show: list[str]) -> None:
+def display_metrics(session_state: Any, metrics_to_show: list[str]) -> None:
     """Display metrics visualization.
 
     Args:
@@ -83,26 +97,33 @@ def display_metrics(session_state: dict[str, Any], metrics_to_show: list[str]) -
 
     with col1:
         if "CPU Usage" in metrics_to_show:
-            st.metric(
-                "CPU Usage",
-                f"{latest_metrics['system']['cpu']:.1f}%",
-                delta=None,
-            )
+            st.metric("CPU Usage", f"{latest_metrics['system']['cpu']:.1f}%", delta=None)
 
         if "Memory Usage" in metrics_to_show:
-            st.metric(
-                "Memory Usage",
-                f"{latest_metrics['system']['memory']:.1f}%",
-                delta=None,
-            )
+            st.metric("Memory Usage", f"{latest_metrics['system']['memory']:.1f}%", delta=None)
 
     with col2:
         if "Disk Usage" in metrics_to_show:
-            st.metric(
-                "Disk Usage",
-                f"{latest_metrics['system']['disk']:.1f}%",
-                delta=None,
-            )
+            st.metric("Disk Usage", f"{latest_metrics['system']['disk']:.1f}%", delta=None)
+
+    # Create time series plot
+    fig = make_subplots(rows=1, cols=1)
+    metrics_history = session_state["metrics_history"]
+    timestamps = list(range(len(metrics_history)))
+
+    for metric in metrics_to_show:
+        if metric == "CPU Usage":
+            values = [m["system"]["cpu"] for m in metrics_history]
+            fig.add_trace(go.Scatter(x=timestamps, y=values, name="CPU Usage"), row=1, col=1)
+        elif metric == "Memory Usage":
+            values = [m["system"]["memory"] for m in metrics_history]
+            fig.add_trace(go.Scatter(x=timestamps, y=values, name="Memory Usage"), row=1, col=1)
+        elif metric == "Disk Usage":
+            values = [m["system"]["disk"] for m in metrics_history]
+            fig.add_trace(go.Scatter(x=timestamps, y=values, name="Disk Usage"), row=1, col=1)
+
+    fig.update_layout(title="System Metrics Over Time", height=400)
+    st.plotly_chart(fig)
 
 
 def main() -> None:

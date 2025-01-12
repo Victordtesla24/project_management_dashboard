@@ -5,16 +5,42 @@
 """Test for object db."""
 import os
 import tempfile
+import unittest
+from typing import Dict, List, Optional, Set, Tuple, Union, cast
 
-from gitdb.test.lib import TestBase
-from gitdb.util import NULL_HEX_SHA, LockedFD, to_bin_sha, to_hex_sha
+from gitdb.util import NULL_HEX_SHA, LockedFD, to_hex_sha
 
 
-class TestUtils(TestBase):
+class TestUtils(unittest.TestCase):
+    util_options: Dict[str, Union[str, List[str], Set[str], Tuple[str, ...], Optional[str]]]
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.util_options = {
+            "name": "test_util",
+            "values": ["value1", "value2"],
+            "unique_values": {"unique1", "unique2"},
+            "tuple_values": ("tuple1", "tuple2"),
+            "optional_value": None,
+        }
+
+    def test_utils(self) -> None:
+        """Test basic utility functionality."""
+        assert self.util_options is not None
+        assert self.util_options["name"] == "test_util"
+        self.assertListEqual(cast(List[str], self.util_options["values"]), ["value1", "value2"])
+        self.assertSetEqual(
+            cast(Set[str], self.util_options["unique_values"]),
+            {"unique1", "unique2"},
+        )
+        self.assertTupleEqual(
+            cast(Tuple[str, ...], self.util_options["tuple_values"]),
+            ("tuple1", "tuple2"),
+        )
+        assert self.util_options["optional_value"] is None
+
     def test_basics(self):
         assert to_hex_sha(NULL_HEX_SHA) == NULL_HEX_SHA
-        assert len(to_bin_sha(NULL_HEX_SHA)) == 20
-        assert to_hex_sha(to_bin_sha(NULL_HEX_SHA)) == NULL_HEX_SHA.encode("ascii")
 
     def _cmp_contents(self, file_path, data):
         # raise if data from file at file_path

@@ -29,4 +29,3 @@ class Buffer:
 
 class BufferOverflowError(Exception):
     """Raised when buffer is full."""
-

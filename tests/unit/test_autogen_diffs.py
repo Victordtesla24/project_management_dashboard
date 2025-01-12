@@ -72,11 +72,17 @@ def test_diff_with_renamed_column():
     metadata1 = MetaData()
     metadata2 = MetaData()
     t1 = Table(
-        "test", metadata1, Column("id", Integer, primary_key=True), Column("old_name", Integer),
+        "test",
+        metadata1,
+        Column("id", Integer, primary_key=True),
+        Column("old_name", Integer),
     )
 
     t2 = Table(
-        "test", metadata2, Column("id", Integer, primary_key=True), Column("new_name", Integer),
+        "test",
+        metadata2,
+        Column("id", Integer, primary_key=True),
+        Column("new_name", Integer),
     )
 
     assert len(t2.columns) == len(t1.columns)

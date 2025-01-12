@@ -1,17 +1,17 @@
 {
-"collection_interval": 1,
-"metrics": {
-    "cpu": true,
-    "memory": true,
-    "disk": true,
-    "network": true,
-    "load": true
-},
-"processes": [
-    {
-        "name": "python",
-        "pattern": "python",
-        "metrics": ["cpu", "memory", "threads"]
-    }
-]
-}
+            "collection_interval": 1,
+            "metrics": {
+                "cpu": true,
+                "memory": true,
+                "disk": true,
+                "network": true,
+                "load": true
+            },
+            "processes": [
+                {
+                    "name": "python",
+                    "pattern": "python",
+                    "metrics": ["cpu", "memory", "threads"]
+                }
+            ]
+        }

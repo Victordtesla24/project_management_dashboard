@@ -5,9 +5,11 @@ from dashboard.metrics import MetricsCollector, collect_metrics
 def test_collect_metrics():
     """Test metrics collection."""
     with patch("psutil.cpu_percent", return_value=50.0), patch(
-        "psutil.virtual_memory", return_value=type("obj", (object,), {"percent": 75.0})(),
+        "psutil.virtual_memory",
+        return_value=type("obj", (object,), {"percent": 75.0})(),
     ), patch("psutil.disk_usage", return_value=type("obj", (object,), {"percent": 80.0})()), patch(
-        "psutil.process_iter", return_value=[],
+        "psutil.process_iter",
+        return_value=[],
     ):
         metrics = collect_metrics()
 
@@ -32,9 +34,11 @@ def test_metrics_format():
     """Test metrics format."""
     collector = MetricsCollector()
     with patch("psutil.cpu_percent", return_value=50.0), patch(
-        "psutil.virtual_memory", return_value=type("obj", (object,), {"percent": 75.0})(),
+        "psutil.virtual_memory",
+        return_value=type("obj", (object,), {"percent": 75.0})(),
     ), patch("psutil.disk_usage", return_value=type("obj", (object,), {"percent": 80.0})()), patch(
-        "psutil.process_iter", return_value=[],
+        "psutil.process_iter",
+        return_value=[],
     ):
         metrics = collector.get_metrics()
 
@@ -70,9 +74,11 @@ def test_metrics_persistence(tmp_path):
 
     # Mock psutil calls to avoid actual system calls
     with patch("psutil.cpu_percent", return_value=50.0), patch(
-        "psutil.virtual_memory", return_value=type("obj", (object,), {"percent": 75.0})(),
+        "psutil.virtual_memory",
+        return_value=type("obj", (object,), {"percent": 75.0})(),
     ), patch("psutil.disk_usage", return_value=type("obj", (object,), {"percent": 80.0})()), patch(
-        "psutil.process_iter", return_value=[],
+        "psutil.process_iter",
+        return_value=[],
     ):
         # Test saving metrics
         collector.collect_system_metrics()

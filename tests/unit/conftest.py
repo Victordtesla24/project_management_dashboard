@@ -16,8 +16,3 @@ if src_path not in sys.path:
 # Import project types and functions
 
 # Import common test utilities
-
-# Make utilities available to all tests
-pytest_plugins = [
-    "tests.testing",
-]

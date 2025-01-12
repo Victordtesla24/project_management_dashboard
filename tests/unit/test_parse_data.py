@@ -19,7 +19,10 @@ class ParseTestDataSuite(TestCase):
     def create_test_file(self, content: str) -> str:
         """Create a temporary test file with given content."""
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".test", dir=self.temp_dir, delete=False,
+            mode="w",
+            suffix=".test",
+            dir=self.temp_dir,
+            delete=False,
         ) as f:
             f.write(content)
             return f.name

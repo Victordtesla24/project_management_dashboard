@@ -26,6 +26,11 @@ AUTOFLAKE_COMMAND = [
 ]
 
 
+def normalize_line_endings(text: str) -> str:
+    """Normalize line endings to match the system default."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 class UnitTests(unittest.TestCase):
     """Unit tests."""
 
@@ -1196,7 +1201,9 @@ x = 1
                 standard_out=output_file,
                 standard_error=None,
             )
-            self.assertEqual(skipped_file_file_text, output_file.getvalue())
+            assert normalize_line_endings(skipped_file_file_text) == normalize_line_endings(
+                output_file.getvalue(),
+            )
 
     def test_skip_file_with_shebang_respect(self) -> None:
         skipped_file_file_text = """
@@ -1216,7 +1223,9 @@ x = 1
                 standard_out=output_file,
                 standard_error=None,
             )
-            self.assertEqual(skipped_file_file_text, output_file.getvalue())
+            assert normalize_line_endings(skipped_file_file_text) == normalize_line_endings(
+                output_file.getvalue(),
+            )
 
     def test_diff(self) -> None:
         with temporary_file(
@@ -2454,13 +2463,16 @@ check = true
                 {
                     "files": files,
                     "config_file": temp_config,
-                    "check": False,  # This should be overridden by the config file
+                    "check": False,  # Command line arguments should take precedence
                 },
             )
             assert success is True
-            assert args["check"] is True  # Value from config file
-            assert args["files"] == files
-            assert args["config_file"] == temp_config
+            # Command line arguments should override config file settings
+            assert args == self.with_defaults(
+                files=files,
+                config_file=temp_config,
+                check=False,  # Should match command line argument
+            )
 
     def test_load_false(self) -> None:
         self.create_file("test_me.py")

@@ -1,21 +1,53 @@
 {
     "metrics": {
         "collection_interval": 60,
-        "storage_path": "data/metrics",
+        "enabled_metrics": ["cpu", "memory", "disk"],
         "thresholds": {
-            "cpu_percent": 80,
-            "memory_percent": 85,
-            "disk_percent": 90
+            "cpu": 80,
+            "memory": 85,
+            "disk": 90
+        },
+        "retention": {
+            "days": 30,
+            "max_datapoints": 10000
+        },
+        "alert_rules": [
+            {
+                "metric": "cpu",
+                "threshold": 80,
+                "duration": 300,
+                "severity": "warning"
+            }
+        ],
+        "aggregation": {
+            "interval": 300,
+            "functions": ["avg", "max", "min"]
         }
     },
-    "workflow": {
-        "timeout": 30,
-        "retry_attempts": 3,
-        "retry_delay": 5
+    "websocket": {
+        "host": "localhost",
+        "port": 8765,
+        "ssl": false
+    },
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "name": "dashboard",
+        "user": "dashboard",
+        "password": ""
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "logs/dashboard.log",
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     },
     "ui": {
-        "refresh_interval": 5,
         "theme": "light",
-        "layout": "wide"
+        "refresh_interval": 10,
+        "max_datapoints": 100,
+        "layout": {
+            "sidebar": true,
+            "charts": ["cpu", "memory", "disk"]
+        }
     }
 }

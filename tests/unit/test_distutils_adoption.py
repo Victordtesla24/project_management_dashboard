@@ -43,7 +43,12 @@ def mock_venv(tmp_path):
             if "print(distutils.__file__)" in cmd:
                 if env and env.get("SETUPTOOLS_USE_DISTUTILS") == "local":
                     return os.path.join(
-                        self.path, self.name, "lib", "python3", "distutils", "__init__.py",
+                        self.path,
+                        self.name,
+                        "lib",
+                        "python3",
+                        "distutils",
+                        "__init__.py",
                     )
                 return os.path.join(sys.prefix, "lib", "python3", "distutils", "__init__.py")
 

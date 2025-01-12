@@ -96,7 +96,10 @@ def test_index_creation():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         t = Table(
-            "test", metadata, Column("id", Integer, primary_key=True), Column("value", Integer),
+            "test",
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("value", Integer),
         )
         # Create index using modern method
         Index("idx_value", t.c.value)

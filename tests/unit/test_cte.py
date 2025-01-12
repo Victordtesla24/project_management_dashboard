@@ -6,7 +6,10 @@ def test_basic_cte():
     """Test basic CTE generation."""
     metadata = MetaData()
     Table(
-        "base", metadata, Column("id", Integer, primary_key=True), Column("value", Integer),
+        "base",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("value", Integer),
     )
 
     cte = Table(
@@ -46,7 +49,10 @@ def test_multiple_ctes():
     """Test multiple CTEs."""
     metadata = MetaData()
     Table(
-        "base", metadata, Column("id", Integer, primary_key=True), Column("value", Integer),
+        "base",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("value", Integer),
     )
 
     cte1 = Table(
@@ -105,7 +111,10 @@ def test_cte_with_complex_structure():
     """Test CTE with complex structure."""
     metadata = MetaData()
     Table(
-        "base", metadata, Column("id", Integer, primary_key=True), Column("value", Integer),
+        "base",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("value", Integer),
     )
 
     cte = Table(

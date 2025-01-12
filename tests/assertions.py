@@ -41,7 +41,10 @@ def is_false(a: Any, msg: Optional[str] = None) -> None:
 
 
 def assert_raises(
-    exc_cls: Type[Exception], callable_: Callable[..., Any], *args: Any, **kw: Any,
+    exc_cls: Type[Exception],
+    callable_: Callable[..., Any],
+    *args: Any,
+    **kw: Any,
 ) -> Any:
     """Assert that callable raises the expected exception."""
     try:
@@ -55,7 +58,8 @@ def assert_raises(
 
 @contextlib.contextmanager
 def raises(
-    exc: Union[Type[Exception], Tuple[Type[Exception], ...]], msg: Optional[str] = None,
+    exc: Union[Type[Exception], Tuple[Type[Exception], ...]],
+    msg: Optional[str] = None,
 ) -> Any:
     """Context manager for asserting that code raises an exception."""
     try:
@@ -79,7 +83,11 @@ def expect_raises(
 
 
 def expect_raises_message(
-    exc: Type[Exception], msg: str, callable_: Optional[Callable] = None, *args: Any, **kwargs: Any,
+    exc: Type[Exception],
+    msg: str,
+    callable_: Optional[Callable] = None,
+    *args: Any,
+    **kwargs: Any,
 ) -> Any:
     """Assert that callable raises exception with message."""
     try:
@@ -119,7 +127,8 @@ def expect_warnings(messages: Union[str, list[str]], regex: bool = False) -> Any
     for warning, message in zip(caught_warnings, messages):
         if regex:
             assert re.search(
-                message, str(warning.message),
+                message,
+                str(warning.message),
             ), f"Warning '{warning.message}' did not match pattern '{message}'"
         else:
             assert message in str(

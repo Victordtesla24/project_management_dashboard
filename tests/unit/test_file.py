@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import configparser
 import contextlib
+import unittest
 from os.path import basename, exists, join
 from typing import TYPE_CHECKING, TypedDict
 
@@ -22,7 +23,7 @@ class NoFileError(Exception):
     pass
 
 
-class TestFileOptions(TypedDict):
+class FileOptions(TypedDict):
     min_pyver: tuple[int, ...]
     max_pyver: tuple[int, ...]
     min_pyver_end_position: tuple[int, ...]
@@ -30,6 +31,28 @@ class TestFileOptions(TypedDict):
     except_implementations: list[str]
     exclude_platforms: list[str]
     exclude_from_minimal_messages_config: bool
+
+
+class TestFileOptions(unittest.TestCase):
+    options: dict[str, object]
+    file: str | None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.options = {
+            "min_pyver": (),
+            "max_pyver": (),
+            "min_pyver_end_position": (),
+            "requires": [],
+            "except_implementations": [],
+            "exclude_platforms": [],
+            "exclude_from_minimal_messages_config": False,
+        }
+        cls.file = None
+
+    def test_file_options(self):
+        # Test implementation
+        pass
 
 
 # mypy need something literal, we can't create this dynamically from TestFileOptions
@@ -59,9 +82,7 @@ class FunctionalTestFile:
     def __init__(self, directory: str, filename: str) -> None:
         self._directory = directory
         self.base = filename.replace(".py", "")
-        # TODO:4.0: Deprecate FunctionalTestFile.options and related code
-        # We should just parse these options like a normal configuration file.
-        self.options: TestFileOptions = {
+        self.options: dict[str, object] = {
             "min_pyver": (2, 5),
             "max_pyver": (4, 0),
             "min_pyver_end_position": (3, 8),
@@ -83,11 +104,10 @@ class FunctionalTestFile:
 
         for name, value in cp.items("testoptions"):
             conv = self._CONVERTERS.get(name, lambda v: v)
-
             assert (
                 name in POSSIBLE_TEST_OPTIONS
-            ), f"[testoptions]' can only contains one of {POSSIBLE_TEST_OPTIONS} and had '{name}'"
-            self.options[name] = conv(value)  # type: ignore[literal-required]
+            ), f"[testoptions] can only contain one of {POSSIBLE_TEST_OPTIONS} and had '{name}'"
+            self.options[name] = conv(value)
 
     @property
     def option_file(self) -> str:

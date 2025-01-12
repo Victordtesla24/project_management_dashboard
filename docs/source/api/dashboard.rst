@@ -14,10 +14,7 @@ Subpackages
 
    dashboard.auth
    dashboard.config
-   dashboard.core_scripts
    dashboard.stubs
-   dashboard.tests
-   dashboard.websocket
 
 Submodules
 ----------
@@ -26,9 +23,8 @@ Submodules
    :maxdepth: 4
 
    dashboard.app
+   dashboard.extensions
    dashboard.main
    dashboard.metrics
-   dashboard.models
    dashboard.routes
    dashboard.run
-   dashboard.utils

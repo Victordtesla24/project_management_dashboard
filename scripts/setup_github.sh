@@ -16,12 +16,10 @@ clear
 printf "\n🐙 Setting Up GitHub v1.0.0\n\n"
 
 # Create GitHub Actions directory
-run_with_spinner "Creating GitHub Actions directory" \
-    mkdir -p "${PROJECT_ROOT}/.github/workflows"
+run_with_spinner "Creating GitHub Actions directory" "mkdir -p ${PROJECT_ROOT}/.github/workflows"
 
 # Create GitHub Actions workflow file
-run_with_spinner "Creating GitHub Actions workflow" \
-cat > "${PROJECT_ROOT}/.github/workflows/ci.yml" << 'EOL'
+run_with_spinner "Creating GitHub Actions workflow" "cat > ${PROJECT_ROOT}/.github/workflows/ci.yml << 'EOL'
 name: CI
 
 on:
@@ -50,12 +48,12 @@ jobs:
     - name: Run type checks
       run: |
         mypy dashboard/
-EOL
+EOL"
 
 # Create GitHub issue templates
-run_with_spinner "Creating issue templates" \
-    mkdir -p "${PROJECT_ROOT}/.github/ISSUE_TEMPLATE" && \
-cat > "${PROJECT_ROOT}/.github/ISSUE_TEMPLATE/bug_report.md" << 'EOL'
+run_with_spinner "Creating issue templates" "
+mkdir -p ${PROJECT_ROOT}/.github/ISSUE_TEMPLATE && \
+cat > ${PROJECT_ROOT}/.github/ISSUE_TEMPLATE/bug_report.md << 'EOL'
 ---
 name: Bug report
 about: Create a report to help us improve
@@ -85,7 +83,7 @@ If applicable, add screenshots to help explain your problem.
 Add any other context about the problem here.
 EOL
 
-cat > "${PROJECT_ROOT}/.github/ISSUE_TEMPLATE/feature_request.md" << 'EOL'
+cat > ${PROJECT_ROOT}/.github/ISSUE_TEMPLATE/feature_request.md << 'EOL'
 ---
 name: Feature request
 about: Suggest an idea for this project
@@ -106,7 +104,7 @@ A clear and concise description of any alternative solutions or features you've 
 
 **Additional context**
 Add any other context or screenshots about the feature request here.
-EOL
+EOL"
 
 # Complete progress
 complete_progress "GitHub setup completed"

@@ -13,5 +13,6 @@ Submodules
    :maxdepth: 4
 
    dashboard.config.config
+   dashboard.config.default
    dashboard.config.defaults
    dashboard.config.schema

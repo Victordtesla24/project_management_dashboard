@@ -36,7 +36,8 @@ def test_subprocess_execution(temp_script: str) -> None:
 
 
 @pytest.mark.skipif(
-    sys.platform.startswith("win"), reason="Environment variable handling differs on Windows",
+    sys.platform.startswith("win"),
+    reason="Environment variable handling differs on Windows",
 )
 def test_environment_vars(temp_script: str) -> None:
     """Test subprocess with environment variables."""
@@ -49,7 +50,11 @@ def test_environment_vars(temp_script: str) -> None:
         env = os.environ.copy()
         env["TEST_VAR"] = "test_value"
         result = run(
-            [sys.executable, temp_script], env=env, capture_output=True, text=True, check=True,
+            [sys.executable, temp_script],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         assert result.stdout.strip() == "test_value"
         assert result.returncode == 0
@@ -81,7 +86,11 @@ def test_windows_specific_env(temp_script: str) -> None:
         # Run with Windows environment
         env = os.environ.copy()
         result = run(
-            [sys.executable, temp_script], env=env, capture_output=True, text=True, check=True,
+            [sys.executable, temp_script],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         assert result.stdout.strip()  # Should have SYSTEMROOT value
         assert result.returncode == 0

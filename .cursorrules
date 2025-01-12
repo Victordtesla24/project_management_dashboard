@@ -1,8 +1,8 @@
 # System Configuration
 architecture: "arm64-darwin"
-memory_limit: "8GB"
+memory_limit: "16GB"
 gpu_utilization: "enabled"
-thread_count:4
+thread_count: 10
 
 # AI Model Configuration
 model_preferences:
@@ -11,35 +11,35 @@ model_preferences:
 
 # Token Management
 token_optimization:
-  max_context: 8000
-  response_limit: 4000
-  cache_strategy: "aggressive"
-  budget_management: "strict"
-  compression: true
+  max_context: 15000
+  response_limit: 12000
+  cache_strategy: "adaptive"
+  budget_management: "balanced"
 
 # Cost Management
 cost_management:
   strategy: "minimal"
   budget_control:
-    daily_limit: 0.95
-    cost_per_token: 0.0000010
+    daily_limit: 1.50
+    cost_per_token: 0.0000050
 
 # Code Generation Rules
 code_generation:
   style: "minimal"
   documentation: "essential"
-  testing: "basic"
+  testing: "thorough"
   patterns:
     minimal_code: true
     performance_first: true
+    complete_implementation: true
 
 # Quality Standards
 quality:
   complexity_threshold: "low"
-  lint_level: "low"
+  lint_level: "basic"
 
 # Security
 security:
-  input_validation: "basic"
+  input_validation: "strict"
   output_sanitization: true
   workspace_boundary: "cursor/project_management_dashboard"

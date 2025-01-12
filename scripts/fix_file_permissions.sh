@@ -1,33 +1,49 @@
 #!/bin/bash
+set -euo pipefail
 
-# Set correct permissions for different file types
-find . -type f -name "*.py" -exec chmod 644 {} \;
-find . -type f -name "*.json" -exec chmod 644 {} \;
-find . -type f -name "*.yaml" -exec chmod 644 {} \;
-find . -type f -name "*.yml" -exec chmod 644 {} \;
-find . -type f -name "*.md" -exec chmod 644 {} \;
-find . -type f -name "*.html" -exec chmod 644 {} \;
-find . -type f -name "*.css" -exec chmod 644 {} \;
-find . -type f -name "*.js" -exec chmod 644 {} \;
-find . -type f -name "*.rst" -exec chmod 644 {} \;
-find . -type f -name "*.txt" -exec chmod 644 {} \;
-find . -type f -name "*.ini" -exec chmod 644 {} \;
-find . -type f -name "*.service" -exec chmod 644 {} \;
+# Project root directory
+PROJECT_ROOT="$(cd "$(dirname "${0}")/.." && pwd)"
 
-# Set executable permissions only for shell scripts
-find . -type f -name "*.sh" -exec chmod 755 {} \;
+# Error handling
+handle_error() {
+    echo "❌ Error: $1" >&2
+    exit 1
+}
 
-# Set specific permissions for special files
-chmod 644 .env.example
-chmod 644 .gitignore
-chmod 644 .flake8
-chmod 644 .bandit.yaml
-chmod 644 .pre-commit-config.yaml
-chmod 644 .clinerules
+echo "Setting file permissions..."
 
-# Set directory permissions
-find . -type d -exec chmod 755 {} \;
+# Combine multiple file type permissions into a single find command for better performance
+find . \( \
+    -name "*.py" -o \
+    -name "*.json" -o \
+    -name "*.yaml" -o \
+    -name "*.yml" -o \
+    -name "*.md" -o \
+    -name "*.html" -o \
+    -name "*.css" -o \
+    -name "*.js" -o \
+    -name "*.rst" -o \
+    -name "*.txt" -o \
+    -name "*.ini" -o \
+    -name "*.service" \
+    \) -type f -exec chmod 644 {} + || handle_error "Failed to set regular file permissions"
 
-# Ensure logs directory has correct permissions
-mkdir -p logs
-chmod 775 logs
+# Set executable permissions for shell scripts
+find . -type f -name "*.sh" -exec chmod 755 {} + || handle_error "Failed to set shell script permissions"
+
+# Set specific file permissions efficiently
+for file in .env.example .gitignore .flake8 .bandit.yaml .pre-commit-config.yaml .clinerules; do
+    if [ -f "$file" ]; then
+        chmod 644 "$file" || handle_error "Failed to set permission for $file"
+    fi
+done
+
+# Set directory permissions in a single command
+find . -type d -exec chmod 755 {} + || handle_error "Failed to set directory permissions"
+
+# Ensure logs directory exists and has correct permissions
+mkdir -p logs || handle_error "Failed to create logs directory"
+chmod 775 logs || handle_error "Failed to set logs directory permissions"
+
+echo "✓ File permissions set successfully"
+exit 0
